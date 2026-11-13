@@ -4,10 +4,10 @@
 |------|----------|--------|
 | Contributor / agent rules | [`../AGENTS.md`](../AGENTS.md) | ✅ |
 | RE: overview of the original GG install | [`re/overview.md`](re/overview.md) | ✅ |
-| RE: GG core host (.NET) | [`re/gg-core.md`](re/gg-core.md) | 🔄 in progress |
-| RE: Desktop UI (Electron) | [`re/frontend.md`](re/frontend.md) | 🔄 in progress |
-| RE: Device engine (HID, GameSense) | [`re/engine.md`](re/engine.md) | 🔄 in progress |
-| RE: Sonar / AudioMix | [`re/sonar.md`](re/sonar.md) | 🔄 in progress |
+| RE: GG core host (.NET) | [`re/gg-core.md`](re/gg-core.md) | ✅ |
+| RE: Desktop UI (Electron) | [`re/frontend.md`](re/frontend.md) | ✅ |
+| RE: Device engine (HID, GameSense) | [`re/engine.md`](re/engine.md) | ✅ |
+| RE: Sonar / AudioMix | [`re/sonar.md`](re/sonar.md) | ✅ |
 | Architecture of the Rust rewrite | [`architecture/overview.md`](architecture/overview.md) | ⏳ planned |
 | Decisions | [`adr/`](adr/) | ⏳ planned |
 
