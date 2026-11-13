@@ -1,0 +1,7 @@
+/target
+**/*.rs.bk
+.DS_Store
+*.log
+# Never commit extracted vendor binaries / proprietary sources
+/vendor-extract/
+/scratch/
