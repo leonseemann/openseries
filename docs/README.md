@@ -8,6 +8,7 @@
 | RE: Desktop UI (Electron) | [`re/frontend.md`](re/frontend.md) | ✅ |
 | RE: Device engine (HID, GameSense) | [`re/engine.md`](re/engine.md) | ✅ |
 | RE: Sonar / AudioMix | [`re/sonar.md`](re/sonar.md) | ✅ |
+| RE: Feature inventory (decide scope here) | [`re/feature-inventory.md`](re/feature-inventory.md) | ✅ awaiting decisions |
 | Architecture of the Rust rewrite | [`architecture/overview.md`](architecture/overview.md) | ⏳ planned |
 | Decisions | [`adr/`](adr/) | ⏳ planned |
 
