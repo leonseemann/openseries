@@ -53,6 +53,13 @@ Notes on v1 behaviour:
   mute needs the mic command queue (later).
 - **Reconnect USB** is on the headset page, in the menu-bar menu and on a hotkey (default Ctrl+Alt+R): the manual cure for both kinds of crackling (`docs/hardware/macos-app.md` Findings).
 - **ChatMix hotkeys** move a software balance in steps of 10 %; moving the headset dial overrides it.
+- **Desktop notifications** (CORE-15, NTU-02; Settings → "Desktop notifications", on by default,
+  "Test" button): headset linked/unlinked, base station gone/back (e.g. its input switched to the
+  other computer, see `nova-pro-wireless.md`), headset battery ≤ 25 % while discharging (once,
+  re-armed when charging or ≥ 50 %), AudioMix / virtual mic failing. `alerts::AlertTracker` derives
+  them from snapshot changes (no alerts at start-up); a background thread polls once per second,
+  so they also appear while the window is hidden. `notify-rust` shows them (Windows toast via the
+  PowerShell app id, as no AUMID is registered — the toast may name PowerShell as its source).
 - **Hotkey editor** (Settings → Hotkeys): "Change" records the next key combination (needs Ctrl,
   Alt or Cmd; Esc cancels; a combination used by another action is refused), "Clear" unbinds,
   "Reset to defaults". All global hotkeys are unregistered while recording so the OS does not

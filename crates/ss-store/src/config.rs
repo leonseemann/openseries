@@ -241,6 +241,22 @@ pub struct AppConfig {
     pub auto_fix_crackling: bool,
     /// Global hotkeys (`None` = unbound), e.g. `"Ctrl+Alt+M"`.
     pub hotkeys: HotkeysConfig,
+    /// Desktop notifications (CORE-15).
+    pub notifications: NotificationsConfig,
+}
+
+/// Desktop notifications.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct NotificationsConfig {
+    /// Show OS notifications (headset/base station connection, low battery, audio errors).
+    pub enabled: bool,
+}
+
+impl Default for NotificationsConfig {
+    fn default() -> Self {
+        Self { enabled: true }
+    }
 }
 
 /// Global hotkeys.

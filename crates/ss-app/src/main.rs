@@ -3,6 +3,7 @@
 //! Composition root: loads the config, starts the services and the UI.
 //!
 //! * `--headless` prints the state to the terminal instead of opening the window.
+//! * `--test-notification` shows one desktop notification and exits.
 //! * `STEALSERIES_NO_HEADSET=1` skips the headset thread (development runs that must not talk to
 //!   the base station).
 
@@ -10,6 +11,7 @@
 // for logs and `--headless`.
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
+mod alerts;
 mod audio;
 mod core;
 mod crackle;
@@ -38,6 +40,11 @@ const NO_HEADSET_ENV: &str = "STEALSERIES_NO_HEADSET";
 
 fn main() -> Result<()> {
     let headless = std::env::args().any(|a| a == "--headless");
+    if std::env::args().any(|a| a == "--test-notification") {
+        // Self-test of the OS notification path, no services started.
+        alerts::show("Test notification").map_err(|e| anyhow!("notification: {e}"))?;
+        return Ok(());
+    }
     let with_headset = std::env::var_os(NO_HEADSET_ENV).is_none();
     let store = Store::per_user().context("locating the config directory")?;
 
@@ -53,6 +60,8 @@ fn main() -> Result<()> {
     if let Some(warning) = core.snapshot().config_warning {
         eprintln!("warning: {warning}");
     }
+
+    alerts::spawn(Arc::downgrade(&core)).context("starting the notification thread")?;
 
     if headless {
         run_headless(&core)?;

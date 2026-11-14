@@ -20,6 +20,28 @@ pub fn show(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, capture: &mu
         core.update_config(|c| c.app.autostart = autostart);
     }
 
+    let mut notifications = snapshot.config.app.notifications.enabled;
+    ui.horizontal(|ui| {
+        if ui
+            .checkbox(&mut notifications, "Desktop notifications")
+            .on_hover_text(
+                "Headset or base station connected/disconnected, low headset battery, AudioMix or                  virtual microphone errors.",
+            )
+            .changed()
+        {
+            core.update_config(|c| c.app.notifications.enabled = notifications);
+        }
+        let id = ui.id().with("notification-test");
+        if ui.small_button("Test").clicked() {
+            let result = crate::alerts::show("Test notification")
+                .map_or_else(|e| format!("failed: {e}"), |()| "sent".to_owned());
+            ui.data_mut(|d| d.insert_temp(id, result));
+        }
+        if let Some(result) = ui.data(|d| d.get_temp::<String>(id)) {
+            ui.label(egui::RichText::new(result).weak());
+        }
+    });
+
     crackling(ui, core, snapshot);
 
     ui.add_space(8.0);
