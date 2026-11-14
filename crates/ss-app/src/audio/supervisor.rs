@@ -24,7 +24,13 @@ pub trait MixHandle {
 }
 
 /// A running mic feed; dropping it stops the feed.
-pub trait MicHandle {}
+pub trait MicHandle {
+    /// Applies a new chain while running. Returns `false` if this feed cannot (then it is
+    /// restarted with the new chain).
+    fn set_chain(&mut self, _chain: &ss_dsp::MicChainSettings) -> bool {
+        false
+    }
+}
 
 /// Everything the supervisor needs from the OS audio layer.
 pub trait AudioBackend {
@@ -351,6 +357,16 @@ impl<B: AudioBackend> AudioSupervisor<B> {
                 return;
             }
         };
+        // Only the chain changed: apply it live instead of restarting the feed.
+        if let Some((running, handle)) = self.mic.as_mut() {
+            if running.input_uid == plan.input_uid
+                && running.chain != plan.chain
+                && handle.set_chain(&plan.chain)
+            {
+                running.chain = plan.chain;
+                return;
+            }
+        }
         let unchanged = self
             .mic
             .as_ref()
@@ -411,6 +427,9 @@ mod tests {
         live_mixes: usize,
         refreshes: usize,
         default_inputs: Vec<String>,
+        live_chain_changes: usize,
+        /// Simulates a feed that cannot change its chain live.
+        no_live_chain: bool,
     }
 
     struct FakeMix(Rc<RefCell<Log>>);
@@ -432,8 +451,17 @@ mod tests {
         }
     }
 
-    struct FakeMic;
-    impl MicHandle for FakeMic {}
+    struct FakeMic(Rc<RefCell<Log>>);
+    impl MicHandle for FakeMic {
+        fn set_chain(&mut self, _chain: &ss_dsp::MicChainSettings) -> bool {
+            let mut log = self.0.borrow_mut();
+            if log.no_live_chain {
+                return false;
+            }
+            log.live_chain_changes += 1;
+            true
+        }
+    }
 
     struct FakeBackend {
         log: Rc<RefCell<Log>>,
@@ -464,7 +492,7 @@ mod tests {
 
         fn start_mic(&mut self, plan: &MicPlan) -> Result<Box<dyn MicHandle>, String> {
             self.log.borrow_mut().mic_starts.push(plan.clone());
-            Ok(Box::new(FakeMic))
+            Ok(Box::new(FakeMic(Rc::clone(&self.log))))
         }
 
         fn virtual_mic_uid(&self) -> Option<&'static str> {
@@ -610,6 +638,24 @@ mod tests {
     }
 
     #[test]
+    fn mic_chain_changes_apply_live_and_device_changes_restart() {
+        let mut h = harness(false);
+        h.supervisor.on_tick();
+        let mut config = Config::default();
+        config.mic.enabled = true;
+        h.supervisor.on_config(config.clone());
+        config.mic.stabilizer = true;
+        h.supervisor.on_config(config.clone());
+        config.mic.gain_db = 3.0;
+        h.supervisor.on_config(config.clone());
+        assert_eq!(h.log.borrow().mic_starts.len(), 1);
+        assert_eq!(h.log.borrow().live_chain_changes, 2);
+        config.mic.input_device_uid = Some("usb-mic".to_owned());
+        h.supervisor.on_config(config);
+        assert_eq!(h.log.borrow().mic_starts.len(), 2);
+    }
+
+    #[test]
     fn ticks_refresh_the_running_mix_only() {
         let mut h = harness(false);
         h.supervisor.on_tick();
@@ -713,8 +759,9 @@ mod tests {
     }
 
     #[test]
-    fn mic_chain_changes_restart_the_mic_feed() {
+    fn mic_chain_changes_restart_a_feed_without_live_control() {
         let mut h = harness(false);
+        h.log.borrow_mut().no_live_chain = true;
         let mut config = Config::default();
         config.mic.enabled = true;
         h.supervisor.on_config(config.clone());

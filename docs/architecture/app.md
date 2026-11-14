@@ -53,6 +53,9 @@ Notes on v1 behaviour:
   mute needs the mic command queue (later).
 - **Reconnect USB** is on the headset page, in the menu-bar menu and on a hotkey (default Ctrl+Alt+R): the manual cure for both kinds of crackling (`docs/hardware/macos-app.md` Findings).
 - **ChatMix hotkeys** move a software balance in steps of 10 %; moving the headset dial overrides it.
+- **Live mic chain changes**: changing denoise, gate, stabilizer, mic EQ or gain no longer
+  restarts the mic feed (no audible gap); only a different source device does. See
+  [mic-chain.md §5](mic-chain.md).
 - **Virtual mic as default input** (SON-06, macOS; Microphone page option, off by default): when
   the mic feed starts, the supervisor makes "StealSeries Microphone" the system default input
   (`kAudioHardwarePropertyDefaultInputDevice`, `ss_audio_macos::set_default_input_device`) and

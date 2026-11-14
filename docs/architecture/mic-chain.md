@@ -99,14 +99,23 @@ pub struct MicChain { /* Denoiser, NoiseGate, Compressor, ParametricEq, Gain */ 
 impl MicChain {
     pub fn new(sample_rate: f32, max_block: usize) -> Result<Self, DspError>; // mono
     pub fn set(&mut self, settings: &MicChainSettings);   // no allocation
+    pub fn warm_up(&mut self);                             // once per audio thread, see below
     pub fn latency_frames(&self) -> usize;
 }
 impl Processor for MicChain { /* in place, mono */ }
 ```
 
 - `MicFeedSession` (macOS) takes a `MicChain` and runs it in the IOProc between the mono mixdown
-  and the feed buffer. Live parameter changes come with the daemon (M5) via the usual `rtrb`
-  command queue; in M6 settings are fixed at start (`ssmix mic` flags).
+  and the feed buffer. **Live changes** (2026-11-14): `MicFeedSession::set_chain` pushes the new
+  `MicChainSettings` (`Copy`) into an `rtrb` queue (8 slots); the IOProc drains it and applies only
+  the newest with `set` before processing. The app's supervisor uses this whenever only the chain
+  changed and restarts the feed only when the source device changes (`MicHandle::set_chain`).
+- **Real-time safety of switching blocks on** (**Observed** in `tests/no_allocation.rs`): `set`
+  never allocates, but the first denoised frame on a thread allocated 48 times, because
+  `easyfft` caches FFT plans per thread. `MicChain::warm_up` runs one silent frame through the
+  denoiser and resets it; the feed calls it in its first callback, so the one-time allocation
+  happens at start (as it already did when denoise was on from the beginning) and never while
+  toggling. The test covers on/off/retune of every block after `warm_up`.
 - `ssdsp` gets the same flags for offline A/B listening tests on WAV files.
 - The same chain will run in the Windows mic path (M4), so presets sound identical.
 

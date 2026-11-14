@@ -169,6 +169,18 @@ impl MicChain {
         self.gain.set_db(settings.gain_db);
     }
 
+    /// Primes per-thread state on the **calling** thread so that switching blocks on later does
+    /// not allocate there. Call it once on the audio thread, e.g. in the first callback.
+    ///
+    /// Why: the denoiser's FFT plans are cached per thread by `easyfft`, so the first denoised
+    /// frame on a thread allocates (**Observed**: 48 allocations, `tests/no_allocation.rs`).
+    /// This runs one silent frame through the denoiser (allocating once, here) and resets it.
+    pub fn warm_up(&mut self) {
+        let mut silence = [0.0_f32; crate::denoise::DENOISE_FRAME];
+        self.denoiser.process(&mut silence);
+        self.denoiser.reset();
+    }
+
     /// Current input-to-output delay in frames (only the denoiser adds latency).
     #[must_use]
     pub const fn latency_frames(&self) -> usize {

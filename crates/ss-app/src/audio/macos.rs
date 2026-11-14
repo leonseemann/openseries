@@ -39,9 +39,13 @@ impl MixHandle for MixSession {
     }
 }
 
-struct MicSession(#[allow(dead_code)] MicFeedSession); // kept alive; drop stops the feed
+struct MicSession(MicFeedSession); // drop stops the feed
 
-impl MicHandle for MicSession {}
+impl MicHandle for MicSession {
+    fn set_chain(&mut self, chain: &ss_dsp::MicChainSettings) -> bool {
+        self.0.set_chain(*chain)
+    }
+}
 
 impl AudioBackend for MacAudioBackend {
     fn processes(&mut self) -> Result<Vec<ProcessInfo>, String> {

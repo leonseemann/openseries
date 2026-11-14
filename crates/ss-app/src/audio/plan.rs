@@ -150,8 +150,8 @@ pub fn resolve_device(
         .or_else(|| selected.map(str::to_owned))
 }
 
-/// The mic feed that should run. The chain is part of the plan because it cannot be changed
-/// while running yet (live control comes with the command queue).
+/// The mic feed that should run. A change of only `chain` is applied live
+/// ([`super::supervisor::MicHandle::set_chain`]); other changes restart the feed.
 #[derive(Debug, Clone, PartialEq)]
 pub struct MicPlan {
     /// Source mic UID, `None` = system default input.

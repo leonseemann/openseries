@@ -28,7 +28,7 @@ use super::probe::{CallbackLayout, Probe, ProbeSnapshot};
 use super::session::{IoBlock, StreamLayout, buffer_channels};
 use super::stream_usage::set_stream_usage;
 use crate::AudioError;
-use ss_dsp::{MicChain, Processor};
+use ss_dsp::{MicChain, MicChainSettings, Processor};
 
 /// UID of the hidden feed device published by `ss-hal-driver-macos`
 /// (`virtual-mic-driver.md` §2; checked against the driver's model in a test).
@@ -37,6 +37,9 @@ pub const FEED_DEVICE_UID: &str = "dev.stealseries.mic.feed";
 pub const VIRTUAL_MIC_UID: &str = "dev.stealseries.mic";
 /// Label of the dispatch queue running the IOProc.
 const QUEUE_LABEL: &str = "dev.stealseries.micfeed.io";
+/// Pending live chain changes; only the newest matters, a few slots absorb slider drags.
+const SETTINGS_QUEUE: usize = 8;
+
 /// Largest callback the mic chain is prepared for; larger callbacks are truncated (silence).
 const MAX_CALLBACK_FRAMES: usize = 4096;
 
@@ -51,6 +54,10 @@ struct FeedLayout {
 struct FeedProcessor {
     chain: MicChain,
     mono: Box<[f32]>,
+    /// Live chain changes from [`MicFeedSession::set_chain`].
+    settings: rtrb::Consumer<MicChainSettings>,
+    /// Per-thread state primed (first callback; see [`MicChain::warm_up`]).
+    warmed: bool,
 }
 
 /// A running mic → virtual-mic feed. Dropping it stops the feed (the virtual mic goes silent).
@@ -60,11 +67,18 @@ pub struct MicFeedSession {
     proc_id: AudioDeviceIOProcID,
     layout: FeedLayout,
     probe: Arc<Probe>,
+    settings: rtrb::Producer<MicChainSettings>,
     _block: IoBlock,
     _queue: DispatchRetained<DispatchQueue>,
 }
 
 impl MicFeedSession {
+    /// Changes the mic chain while running (applied at the next callback, no restart).
+    /// Returns `false` if the queue is full (call again later).
+    pub fn set_chain(&mut self, settings: MicChainSettings) -> bool {
+        self.settings.push(settings).is_ok()
+    }
+
     /// Starts feeding `mic` (channels mixed to mono, then processed by `chain`) into the
     /// virtual microphone.
     ///
@@ -86,9 +100,12 @@ impl MicFeedSession {
         let layout = FeedLayout {
             mic_device_outputs: buffer_channels(mic.id, kAudioObjectPropertyScopeOutput)?.len(),
         };
+        let (settings_tx, settings_rx) = rtrb::RingBuffer::new(SETTINGS_QUEUE);
         let processor = RefCell::new(FeedProcessor {
             chain,
             mono: vec![0.0; MAX_CALLBACK_FRAMES].into_boxed_slice(),
+            settings: settings_rx,
+            warmed: false,
         });
         let aggregate = AggregateDevice::create_with(
             &[
@@ -128,6 +145,7 @@ impl MicFeedSession {
             proc_id,
             layout,
             probe,
+            settings: settings_tx,
             _block: block,
             _queue: queue,
         };
@@ -215,7 +233,24 @@ fn render(
     let Ok(mut processor) = processor.try_borrow_mut() else {
         return;
     };
-    let FeedProcessor { chain, mono } = &mut *processor;
+    let FeedProcessor {
+        chain,
+        mono,
+        settings,
+        warmed,
+    } = &mut *processor;
+    if !*warmed {
+        // One-time allocation of thread-local FFT plans, before any live change (mic-chain.md §3).
+        chain.warm_up();
+        *warmed = true;
+    }
+    let mut latest = None;
+    while let Ok(next) = settings.pop() {
+        latest = Some(next);
+    }
+    if let Some(next) = latest {
+        chain.set(&next);
+    }
     let (mic_channels, feed_channels) = (channels(mic), channels(feed));
     let frames = (mic_samples.len() / mic_channels)
         .min(feed_samples.len() / feed_channels)

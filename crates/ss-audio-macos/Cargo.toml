@@ -21,12 +21,12 @@ objc2-core-audio = "0.3"
 objc2-core-audio-types = "0.3"
 block2 = "0.6"
 dispatch2 = "0.3"
+rtrb.workspace = true
 
 [target.'cfg(target_os = "macos")'.dev-dependencies]
 ss-hal-driver-macos.workspace = true
 # vpio_spike example only (M6 spike, mic-chain.md §6).
 objc2-audio-toolbox = "0.3"
-rtrb.workspace = true
 hound.workspace = true
 anyhow.workspace = true
 
