@@ -16,7 +16,7 @@
 | Mic chain: denoise, gate, stabilizer, mic EQ (M6) | [`architecture/mic-chain.md`](architecture/mic-chain.md) | ✅ (impact NR deferred) |
 | The app: menu bar, window, services, config (M5) | [`architecture/app.md`](architecture/app.md) | 🔄 in progress |
 | Virtual microphone driver (M3b) | [`architecture/virtual-mic-driver.md`](architecture/virtual-mic-driver.md) | ✅ |
-| Hardware test: Windows AudioMix (M4a session mixer) | [`hardware/windows-audiomix.md`](hardware/windows-audiomix.md) | ⏳ |
+| Hardware test: Windows AudioMix (M4a session mixer) | [`hardware/windows-audiomix.md`](hardware/windows-audiomix.md) | ✅ verified 2026-11-14 |
 | Hardware test: Windows app (before M4) | [`hardware/windows-app.md`](hardware/windows-app.md) | ✅ verified 2026-11-14 |
 | Hardware test: macOS app (M5) | [`hardware/macos-app.md`](hardware/macos-app.md) | ⏳ |
 | Hardware test: macOS mic chain (M6) | [`hardware/macos-mic-chain.md`](hardware/macos-mic-chain.md) | ✅ (typing noise + call latency deferred) |

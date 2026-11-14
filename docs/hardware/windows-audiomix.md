@@ -16,17 +16,19 @@ the per-app sliders move.
 
 ## Checklist
 
+Run on 2026-11-14: Windows 11 Pro (build 26300), Nova Pro Wireless, GG not running. **All checks passed.**
+
 | # | Check | Expected | Result |
 |---|-------|----------|--------|
 | 1 | fmt, clippy, tests | green | ✅ Observed 2026-11-14 |
 | 2 | Session volume is linear (**Inferred**): `winspike capture --name chrome.exe --silence half` | loopback ≈ 6 dB lower in phase 2 | ✅ Observed 2026-11-14: with volume 0.5 the loopback peak was 6.0–6.3 dB below the session meter in 8 of 9 seconds (once 7.3 dB, a quiet passage during the ramp); linear |
-| 3 | AudioMix page | apps listed by exe name (`chrome.exe`, `spotify.exe`), ▶ for playing ones; channel DSP replaced by the Windows note | ⏳ |
-| 4 | AudioMix on, assign e.g. Chrome → Game, Spotify/Discord → Chat | nothing audible changes at 100 %; app sliders in the Windows mixer unchanged | ⏳ |
-| 5 | Channel volume / mute (Game 50 %, then Mute) | only the Game app gets quieter / silent; its mixer slider follows | ⏳ |
-| 6 | ChatMix: app slider, Ctrl+Alt+←/→, base-station dial | Game and Chat apps change in opposite directions | ⏳ |
-| 7 | Master volume / mute | all apps follow | ⏳ |
-| 8 | Change an app's slider in the Windows mixer while AudioMix runs | the new level is kept (not snapped back) | ⏳ |
-| 9 | App started while AudioMix runs (e.g. open a new player) | lands on its channel / Media at the right level within ~2 s | ⏳ |
-| 10 | AudioMix off, and Quit | every app slider back to where it was before | ⏳ |
-| 11 | Crash safety: Game at 20 %, kill `stealseries.exe` in Task Manager, restart the app | app volumes restored on start; `%APPDATA%\StealSeries\session-volumes.txt` gone | ⏳ |
-| 12 | Virtual microphone switch | "needs the StealSeries audio driver (milestone M4b)", nothing crashes | ⏳ |
+| 3 | AudioMix page | apps listed by exe name (`chrome.exe`, `spotify.exe`), ▶ for playing ones; channel DSP replaced by the Windows note | ✅ Observed 2026-11-14 |
+| 4 | AudioMix on, assign e.g. Chrome → Game, Spotify/Discord → Chat | nothing audible changes at 100 %; app sliders in the Windows mixer unchanged | ✅ Observed 2026-11-14 |
+| 5 | Channel volume / mute (Game 50 %, then Mute) | only the Game app gets quieter / silent; its mixer slider follows | ✅ Observed 2026-11-14 |
+| 6 | ChatMix: app slider, Ctrl+Alt+←/→, base-station dial | Game and Chat apps change in opposite directions | ✅ Observed 2026-11-14 |
+| 7 | Master volume / mute | all apps follow | ✅ Observed 2026-11-14 |
+| 8 | Change an app's slider in the Windows mixer while AudioMix runs | the new level is kept (not snapped back) | ✅ Observed 2026-11-14 |
+| 9 | App started while AudioMix runs (e.g. open a new player) | lands on its channel / Media at the right level within ~2 s | ✅ Observed 2026-11-14 |
+| 10 | AudioMix off, and Quit | every app slider back to where it was before | ✅ Observed 2026-11-14 |
+| 11 | Crash safety: Game at 20 %, kill `stealseries.exe` in Task Manager, restart the app | app volumes restored on start; `%APPDATA%\StealSeries\session-volumes.txt` gone | ✅ Observed 2026-11-14 |
+| 12 | Virtual microphone switch | "needs the StealSeries audio driver (milestone M4b)", nothing crashes | ✅ Observed 2026-11-14 |
