@@ -5,12 +5,14 @@
 
 mod command;
 mod controller;
+mod drift;
 mod engine;
 mod limiter;
 mod upmix;
 
 pub use command::Command;
 pub use controller::{EngineBusy, EngineController};
+pub use drift::{DriftReader, DriftStats, DriftWriter, MAX_CORRECTION, drift_buffer};
 pub use engine::{ChannelInput, MixEngine};
 
 /// Capacity of the control queue (commands waiting for the next callback).

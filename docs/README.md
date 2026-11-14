@@ -15,6 +15,7 @@
 | Audio engine + platform backends (M3/M4) | [`architecture/audio-engine.md`](architecture/audio-engine.md) | ✅ |
 | Mic chain: denoise, gate, stabilizer, mic EQ (M6) | [`architecture/mic-chain.md`](architecture/mic-chain.md) | ✅ (impact NR deferred) |
 | The app: menu bar, window, services, config (M5) | [`architecture/app.md`](architecture/app.md) | 🔄 in progress |
+| Windows virtual audio driver + full AudioMix (M4b) | [`architecture/windows-virtual-driver.md`](architecture/windows-virtual-driver.md) | 🔄 design, user-mode prep |
 | Virtual microphone driver (M3b) | [`architecture/virtual-mic-driver.md`](architecture/virtual-mic-driver.md) | ✅ |
 | Hardware test: Windows AudioMix (M4a session mixer) | [`hardware/windows-audiomix.md`](hardware/windows-audiomix.md) | ✅ verified 2026-11-14 |
 | Hardware test: Windows app (before M4) | [`hardware/windows-app.md`](hardware/windows-app.md) | ✅ verified 2026-11-14 |
