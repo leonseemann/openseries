@@ -13,6 +13,7 @@
 | Architecture of the Rust rewrite | [`architecture/overview.md`](architecture/overview.md) | ✅ |
 | DSP design (M2) | [`architecture/dsp.md`](architecture/dsp.md) | ✅ |
 | Audio engine + platform backends (M3/M4) | [`architecture/audio-engine.md`](architecture/audio-engine.md) | ✅ |
+| Hardware test: macOS AudioMix (M3a) | [`hardware/macos-audiomix.md`](hardware/macos-audiomix.md) | ⏳ needs a Mac |
 | Hardware verification: Nova Pro Wireless | [`hardware/nova-pro-wireless.md`](hardware/nova-pro-wireless.md) | 🔄 in progress |
 | Decisions | [`adr/`](adr/) — [0001 v1 scope](adr/0001-v1-scope.md), [0002 macOS audio](adr/0002-macos-audio-strategy.md) | ✅ |
 
