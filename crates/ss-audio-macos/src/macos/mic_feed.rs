@@ -5,7 +5,7 @@
 //! feed device of `ss-hal-driver-macos` (drift compensated). One IOProc copies the mic into the
 //! feed; the mic chain (M6) will run at that point later.
 //!
-//! **Inferred** (to verify, `docs/hardware/macos-virtual-mic.md`): output buffers appear in
+//! **Observed** (`docs/hardware/macos-virtual-mic.md`, check 5): output buffers appear in
 //! sub-device order, i.e. the mic device's own output streams (if any) before the feed stream.
 
 use std::ptr::NonNull;

@@ -41,8 +41,8 @@ flowchart LR
 Why two devices instead of one BlackHole-style loopback device: a single device would also appear
 as an *output* called "StealSeries Microphone" in every app and in Sound settings, inviting users
 to send audio into their own mic. A hidden output device keeps the UI clean; the daemon opens it
-by UID. Whether the HAL lets a client run IO on a hidden device is **Inferred** (to verify, see
-[macos-virtual-mic.md](../hardware/macos-virtual-mic.md)).
+by UID. The HAL runs client IO on the hidden device normally (**Observed**,
+[macos-virtual-mic.md](../hardware/macos-virtual-mic.md) check 6).
 
 No volume/mute controls in v1: gain and mute live in the daemon (M6 mic chain). Apps use their
 own input level.
@@ -109,7 +109,8 @@ logic be tested on every OS.
   IOProc, so the mic path never touches playback.
 - IOProc: headset mic buffer → gain → feed buffer. M6 later inserts the mic chain (denoise, gate,
   compressor, EQ) at this point.
-- Stream order in this aggregate (sub-device list order) is **Inferred**; `--probe` reports it.
+- Stream order in this aggregate follows the sub-device list (**Observed**, check 5); `--probe`
+  reports it.
 
 ## 8. Out of scope for M3b
 
