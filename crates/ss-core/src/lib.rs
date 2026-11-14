@@ -5,6 +5,7 @@
 //! OS-specific dependencies; see `docs/architecture/overview.md` §3.
 
 pub mod battery;
+pub mod eq;
 pub mod error;
 pub mod headset;
 pub mod transport;
