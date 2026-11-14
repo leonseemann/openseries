@@ -35,6 +35,18 @@ macro_rules! bounded_level {
                 }
             }
 
+            /// Creates the value, clamping `value` into the accepted range.
+            #[must_use]
+            pub const fn saturating(value: u8) -> Self {
+                if value < Self::MIN {
+                    Self(Self::MIN)
+                } else if value > Self::MAX {
+                    Self(Self::MAX)
+                } else {
+                    Self(value)
+                }
+            }
+
             /// The raw level.
             #[must_use]
             pub const fn get(self) -> u8 {
@@ -215,6 +227,8 @@ mod tests {
         assert!(TransparencyLevel::new(11).is_err());
         assert!(Percent::new(0).is_ok());
         assert!(Percent::new(101).is_err());
+        assert_eq!(Percent::saturating(200).get(), 100);
+        assert_eq!(TransparencyLevel::saturating(0).get(), 1);
     }
 
     #[test]

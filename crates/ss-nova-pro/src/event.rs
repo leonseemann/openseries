@@ -110,8 +110,13 @@ pub enum Event {
         report_id: u8,
         /// Opcode byte.
         opcode: u8,
+        /// First argument bytes (zero-padded), for protocol exploration.
+        args: [u8; UNRECOGNIZED_ARGS],
     },
 }
+
+/// Number of argument bytes kept in [`Event::Unrecognized`].
+pub const UNRECOGNIZED_ARGS: usize = 4;
 
 /// Errors while decoding a report.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
@@ -135,7 +140,15 @@ impl Event {
         let reader = Reader(report);
         let report_id = reader.byte(0)?;
         let opcode = reader.byte(OPCODE_OFFSET)?;
-        let unrecognized = Self::Unrecognized { report_id, opcode };
+        let mut args = [0u8; UNRECOGNIZED_ARGS];
+        for (i, slot) in args.iter_mut().enumerate() {
+            *slot = report.get(ARGS_OFFSET + i).copied().unwrap_or(0);
+        }
+        let unrecognized = Self::Unrecognized {
+            report_id,
+            opcode,
+            args,
+        };
 
         let event = match (report_id, opcode) {
             (REPORT_ID_COMMAND, op::QUERY_STATUS) => Some(Self::Status(decode_status(&reader)?)),
@@ -397,14 +410,16 @@ mod tests {
             Event::decode(&report(&[0x07, 0x39, 9])).unwrap(),
             Event::Unrecognized {
                 report_id: 0x07,
-                opcode: 0x39
+                opcode: 0x39,
+                args: [9, 0, 0, 0]
             }
         );
         assert_eq!(
             Event::decode(&report(&[0x07, 0x2E, 7])).unwrap(),
             Event::Unrecognized {
                 report_id: 0x07,
-                opcode: 0x2E
+                opcode: 0x2E,
+                args: [7, 0, 0, 0]
             }
         );
     }

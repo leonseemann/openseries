@@ -7,7 +7,7 @@ Scope: playback processing per channel (SON-10…13), ChatMix (SON-07 / HS-08) a
 
 | Original | Evidence | Our decision |
 |---|---|---|
-| 10-band parametric EQ per channel, filter types `ByPass=0, LowPass=1, HighPass=2, BandPassPeakQ=3, BandPassPeak0dB=4, NotchFilter=5, AllPass=6, PeakingEQ=7, LowShelving=8, HighShelving=9` | Observed (enum + registry) | Same model and numeric values (preset import stays possible). RBJ "Audio EQ Cookbook" biquads via the `biquad` crate. |
+| 10-band parametric EQ per channel, filter types `ByPass=0, LowPass=1, HighPass=2, BandPassPeakQ=3, BandPassPeak0dB=4, NotchFilter=5, AllPass=6, PeakingEQ=7, LowShelving=8, HighShelving=9` | Observed (enum + registry) | Same model and numeric values (preset import stays possible). Own RBJ "Audio EQ Cookbook" biquads (the `biquad` crate lacks the two distinct band-pass variants; the formulas are short and fully unit-tested). |
 | Bass / treble / voice-clarity boost `{enabled, value}` | Observed (`kSet_BassBoostGainDB` …) | Implemented as low shelf / high shelf / peaking filter. **Corner frequencies are our choice** (original Unknown): bass 100 Hz, treble 8 kHz, clarity 2.5 kHz. |
 | General gain (`kSet_GeneralGainDB`) | Observed | Smoothed gain stage. |
 | Smart Volume `{volumeLevel, loudness: soft/balanced/extreme}`, multiband compressor | Observed (names only) | Single-band feed-forward compressor + makeup gain; three loudness presets map to threshold/ratio (our tuning). Multiband is a later refinement. |

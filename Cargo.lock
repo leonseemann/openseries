@@ -272,6 +272,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "ss-dsp"
+version = "0.1.0"
+dependencies = [
+ "ss-core",
+]
+
+[[package]]
 name = "ss-hid"
 version = "0.1.0"
 dependencies = [
