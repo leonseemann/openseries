@@ -395,7 +395,10 @@ mod tests {
         };
         let tail = input.len() * 2 / 3;
         let change = linear_to_db(rms(&output[tail..]) / rms(&input[tail..]));
-        assert!(change < -30.0, "steady noise only changed by {change:.1} dB");
+        assert!(
+            change < -30.0,
+            "steady noise only changed by {change:.1} dB"
+        );
     }
 
     #[test]
