@@ -2689,6 +2689,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "objc2-io-kit"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "33fafba39597d6dc1fb709123dfa8289d39406734be322956a69f0931c73bb15"
+dependencies = [
+ "bitflags 2.13.2",
+ "block2 0.6.2",
+ "dispatch2",
+ "libc",
+ "objc2 0.6.5",
+ "objc2-core-foundation",
+]
+
+[[package]]
 name = "objc2-io-surface"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2697,6 +2711,21 @@ dependencies = [
  "bitflags 2.13.2",
  "objc2 0.6.5",
  "objc2-core-foundation",
+]
+
+[[package]]
+name = "objc2-io-usb-host"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d0187e19ea8d0ad052f2cab5f4e6eb2e399cbb942a9510a2c6766728d704e11"
+dependencies = [
+ "bitflags 2.13.2",
+ "block2 0.6.2",
+ "dispatch2",
+ "objc2 0.6.5",
+ "objc2-core-foundation",
+ "objc2-foundation 0.3.2",
+ "objc2-io-kit",
 ]
 
 [[package]]
@@ -3534,6 +3563,7 @@ dependencies = [
  "ss-hid",
  "ss-nova-pro",
  "ss-store",
+ "ss-usb-macos",
  "tray-icon",
 ]
 
@@ -3618,6 +3648,18 @@ dependencies = [
  "serde_json",
  "ss-core",
  "ss-dsp",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "ss-usb-macos"
+version = "0.1.0"
+dependencies = [
+ "objc2 0.6.5",
+ "objc2-core-foundation",
+ "objc2-foundation 0.3.2",
+ "objc2-io-kit",
+ "objc2-io-usb-host",
  "thiserror 2.0.21",
 ]
 

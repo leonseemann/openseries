@@ -19,6 +19,7 @@ ss-store.workspace = true
 ss-nova-pro.workspace = true
 ss-hid.workspace = true
 ss-audio-macos.workspace = true
+ss-usb-macos.workspace = true
 anyhow.workspace = true
 ctrlc.workspace = true
 # UI (ADR 0005): all MIT OR Apache-2.0.

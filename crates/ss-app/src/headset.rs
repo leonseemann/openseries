@@ -37,8 +37,8 @@ pub enum HeadsetMsg {
     Send(Command),
     /// AudioMix master switch changed (controls the ChatMix hand-over).
     AudioMixEnabled(bool),
-    /// Close and reopen the base station connection.
-    Reconnect,
+    /// Reset the base station's USB connection (software re-plug) and reconnect.
+    ResetUsb,
     /// Restore the base station and stop.
     Shutdown,
 }
@@ -130,16 +130,7 @@ impl Worker {
                     self.send(command);
                     self.refresh_all();
                 }
-                Ok(HeadsetMsg::Reconnect) => {
-                    self.release_takeover();
-                    self.device = None;
-                    self.last_attempt = None;
-                    self.update(|s| {
-                        s.base_station = false;
-                        s.status = None;
-                        s.error = None;
-                    });
-                }
+                Ok(HeadsetMsg::ResetUsb) => self.reset_usb(),
                 Ok(HeadsetMsg::AudioMixEnabled(enabled)) => self.takeover_wanted = enabled,
                 Ok(HeadsetMsg::Shutdown) | Err(TryRecvError::Disconnected) => return false,
                 Err(TryRecvError::Empty) => return true,
@@ -231,6 +222,20 @@ impl Worker {
             Ok(status) => self.update(|s| s.status = Some(status)),
             Err(error) => self.disconnect(&error.to_string()),
         }
+    }
+
+    /// Software re-plug of the base station; the reconnect loop picks it up again afterwards.
+    fn reset_usb(&mut self) {
+        self.release_takeover();
+        self.device = None; // close our HID handles before the device disappears
+        let result = ss_usb_macos::reenumerate(ids::VENDOR_ID, &ids::PRODUCT_IDS);
+        // Give the base station time to re-enumerate before the next connection attempt.
+        self.last_attempt = Some(Instant::now());
+        self.update(|s| {
+            s.base_station = false;
+            s.status = None;
+            s.error = result.err().map(|e| e.to_string());
+        });
     }
 
     /// Re-reads status, settings and display after a host-side change.

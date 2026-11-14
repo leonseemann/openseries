@@ -54,6 +54,7 @@ impl AudioBackend for MacAudioBackend {
             .map(|d| DeviceInfo {
                 uid: d.uid,
                 name: d.name,
+                id: d.id,
             })
             .collect();
         let inputs = list_input_devices()
@@ -63,6 +64,7 @@ impl AudioBackend for MacAudioBackend {
             .map(|d| DeviceInfo {
                 uid: d.uid,
                 name: d.name,
+                id: d.id,
             })
             .collect();
         (outputs, inputs)

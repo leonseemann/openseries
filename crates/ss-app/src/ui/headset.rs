@@ -17,6 +17,22 @@ pub fn show(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
     if let Some(error) = &headset.error {
         ui.colored_label(ui.visuals().warn_fg_color, error);
     }
+    ui.horizontal(|ui| {
+        if ui
+            .button("Reconnect USB")
+            .on_hover_text(
+                "Resets the base station's USB connection, like unplugging and replugging the \
+                 cable (keeps power). Audio drops for about a second.",
+            )
+            .clicked()
+        {
+            core.reset_headset_usb();
+        }
+        ui.label(
+            egui::RichText::new("Battery is reported in 9 steps (12.5 %) by the base station.")
+                .weak(),
+        );
+    });
     let Some(status) = headset.status else {
         ui.label(if headset.base_station {
             "Reading the base station…"
@@ -28,19 +44,6 @@ pub fn show(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
     if !status.connected {
         ui.label("Base station connected, headset is off or out of range.");
     }
-    ui.horizontal(|ui| {
-        if ui
-            .button("Reconnect")
-            .on_hover_text("Close and reopen the connection to the base station")
-            .clicked()
-        {
-            core.reconnect_headset();
-        }
-        ui.label(
-            egui::RichText::new("Battery is reported in 9 steps (12.5 %) by the base station.")
-                .weak(),
-        );
-    });
 
     status_grid(ui, status);
     noise_control(ui, core, status);

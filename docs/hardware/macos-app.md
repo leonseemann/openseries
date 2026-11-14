@@ -17,8 +17,8 @@ The app lives in the menu bar (headphone icon); "Open StealSeries…" shows the 
 | # | Check | Expected | Result |
 |---|-------|----------|--------|
 | 1 | fmt, clippy, tests (store, supervisor, plan, hotkeys, autostart) | green | ✅ Observed 2026-11-14 |
-| 2 | Start from `~/Applications` | menu-bar icon, no Dock icon, window opens from the menu | ⏳ |
-| 3 | Headset page | battery, ANC, sidetone, mic volume shown; changing ANC/sidetone works | ⏳ |
+| 2 | Start from `~/Applications` | menu-bar icon, no Dock icon, window opens from the menu | ✅ Observed (first `open` after reinstall failed with −600, fixed in `app.sh`) |
+| 3 | Headset page | battery, ANC, sidetone, mic volume shown; changing ANC/sidetone works | ✅ Observed: values shown; ANC selection follows app changes and the headset button after the read-back fix (`2c0da0a`). Battery has only 9 hardware steps (12.5 %), shown as ≈ |
 | 4 | AudioMix **off** (default) | no permission prompt, nothing routed; FineTune works normally | ⏳ |
 | 5 | AudioMix **on** | macOS asks **StealSeries** (not the terminal) for audio capture; music keeps playing through the mix | ⏳ |
 | 6 | Assign an app to Game/Chat | routed; ChatMix dial affects it; assignment survives an app restart and a StealSeries restart | ⏳ |
@@ -29,3 +29,4 @@ The app lives in the menu bar (headphone icon); "Open StealSeries…" shows the 
 | 11 | Hotkeys Ctrl+Alt+←/→, Ctrl+Alt+M | ChatMix steps; mic feed toggles | ⏳ |
 | 12 | Autostart on, log out/in | app starts in the menu bar | ⏳ |
 | 13 | Quit from the menu | base station ChatMix returns to normal, apps play normally | ⏳ |
+| 14 | Headset page → **Reconnect USB** (IOUSBHost re-enumeration, `ss-usb-macos`) | base station re-plugs in software; app reconnects; running AudioMix/mic rebuild on the new device | ⏳ in the app. Spike 2026-11-14 (scratch tool, same calls): works **without admin rights**, base back within ~1 s with a new CoreAudio device id (119 → 143), audio normal again; the base-station display did **not** restart (power stays on) — so it is a USB reset, not a power cycle. Whether it cures the 2.4 GHz crackles (owner's fix: unplug the USB cable) is Unknown until they recur |

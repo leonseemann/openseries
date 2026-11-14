@@ -206,9 +206,9 @@ impl AppCore {
         let _ = self.audio_tx.send(AudioMsg::ChatMix(balance));
     }
 
-    /// Closes and reopens the connection to the base station.
-    pub fn reconnect_headset(&self) {
-        let _ = self.headset_tx.send(HeadsetMsg::Reconnect);
+    /// Resets the base station's USB connection (software re-plug) and reconnects.
+    pub fn reset_headset_usb(&self) {
+        let _ = self.headset_tx.send(HeadsetMsg::ResetUsb);
     }
 
     /// Sends a setting to the headset.

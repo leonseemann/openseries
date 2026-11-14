@@ -26,6 +26,8 @@ pub struct DeviceInfo {
     pub uid: String,
     /// Display name.
     pub name: String,
+    /// Current CoreAudio object id; changes when the device re-enumerates (replug, USB reset).
+    pub id: u32,
 }
 
 /// The AudioMix session that should run. Any difference requires rebuilding the taps.

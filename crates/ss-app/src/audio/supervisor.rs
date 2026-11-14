@@ -121,6 +121,11 @@ impl<B: AudioBackend> AudioSupervisor<B> {
             Err(error) => self.status.mix = ServiceStatus::Failed(error),
         }
         let (outputs, inputs) = self.backend.devices();
+        if outputs != self.status.outputs || inputs != self.status.inputs {
+            // A device appeared, vanished or re-enumerated (new object id after a replug or a
+            // USB reset): running sessions may point at a dead device, so rebuild both.
+            self.restart_sessions();
+        }
         self.status.outputs = outputs;
         self.status.inputs = inputs;
         self.status.processes.clone_from(&self.processes);
@@ -141,6 +146,14 @@ impl<B: AudioBackend> AudioSupervisor<B> {
         self.mic = None;
         self.status.mix = ServiceStatus::Off;
         self.status.mic = ServiceStatus::Off;
+    }
+
+    /// Drops running sessions and forgets failed attempts, so the next reconcile starts fresh.
+    fn restart_sessions(&mut self) {
+        self.mix = None;
+        self.failed_mix = None;
+        self.mic = None;
+        self.failed_mic = None;
     }
 
     fn reconcile(&mut self) {
@@ -285,6 +298,7 @@ mod tests {
     struct FakeBackend {
         log: Rc<RefCell<Log>>,
         processes: Rc<RefCell<Vec<ProcessInfo>>>,
+        outputs: Rc<RefCell<Vec<DeviceInfo>>>,
         fail_mix: bool,
     }
 
@@ -294,7 +308,7 @@ mod tests {
         }
 
         fn devices(&mut self) -> (Vec<DeviceInfo>, Vec<DeviceInfo>) {
-            (Vec::new(), Vec::new())
+            (self.outputs.borrow().clone(), Vec::new())
         }
 
         fn start_mix(&mut self, plan: &MixPlan) -> Result<Box<dyn MixHandle>, String> {
@@ -318,20 +332,24 @@ mod tests {
         supervisor: AudioSupervisor<FakeBackend>,
         log: Rc<RefCell<Log>>,
         processes: Rc<RefCell<Vec<ProcessInfo>>>,
+        outputs: Rc<RefCell<Vec<DeviceInfo>>>,
     }
 
     fn harness(fail_mix: bool) -> Harness {
         let log = Rc::new(RefCell::new(Log::default()));
         let processes = Rc::new(RefCell::new(Vec::new()));
+        let outputs = Rc::new(RefCell::new(Vec::new()));
         let backend = FakeBackend {
             log: Rc::clone(&log),
             processes: Rc::clone(&processes),
+            outputs: Rc::clone(&outputs),
             fail_mix,
         };
         Harness {
             supervisor: AudioSupervisor::new(backend, Config::default()),
             log,
             processes,
+            outputs,
         }
     }
 
@@ -467,6 +485,28 @@ mod tests {
         h.supervisor.on_config(config);
         assert_eq!(h.log.borrow().mic_starts.len(), 2);
         assert_eq!(h.supervisor.status().mic, ServiceStatus::Running);
+    }
+
+    #[test]
+    fn a_re_enumerated_output_device_triggers_a_rebuild() {
+        let headset = |id| DeviceInfo {
+            uid: "AppleUSBAudioEngine:SteelSeries:Arctis".to_owned(),
+            name: "Arctis Nova Pro Wireless".to_owned(),
+            id,
+        };
+        let mut h = harness(false);
+        h.outputs.borrow_mut().push(headset(119));
+        h.supervisor.on_tick();
+        h.supervisor.on_config(enabled_with(&[]));
+        h.supervisor.on_tick();
+        assert_eq!(h.log.borrow().mix_starts.len(), 1);
+
+        // USB reset: same UID, new object id.
+        h.outputs.borrow_mut()[0] = headset(143);
+        h.supervisor.on_tick();
+        let log = h.log.borrow();
+        assert_eq!(log.mix_starts.len(), 2);
+        assert_eq!(log.live_mixes, 1);
     }
 
     #[test]
