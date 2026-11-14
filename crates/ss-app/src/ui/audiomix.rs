@@ -149,8 +149,8 @@ fn channels(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
         ui.label(
             egui::RichText::new(
                 "On Windows, channels set the volume of their apps (volume, mute, ChatMix). \
-                 EQ, boosts and Smart Volume per channel need the StealSeries audio driver \
-                 (milestone M4b).",
+                 EQ, boosts and Smart Volume per channel are available on macOS only: on \
+                 Windows they would need a signed virtual audio driver.",
             )
             .weak(),
         );

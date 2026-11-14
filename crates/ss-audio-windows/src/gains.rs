@@ -29,7 +29,7 @@ impl Default for ChannelGains {
 }
 
 impl ChannelGains {
-    /// Applies a command. DSP strips are ignored (they need the M4b driver).
+    /// Applies a command. DSP strips are ignored (no audio passes through the session mixer).
     /// Returns `true` if a gain changed.
     pub fn apply(&mut self, command: &Command) -> bool {
         let before = self.clone();

@@ -5,7 +5,7 @@ capture an app while its playback is silenced (S3/S4, **Observed**), so per-chan
 virtual microphone need virtual endpoints. M4a (session mixer) stays as the fallback when the
 driver is not installed.
 
-Status (2026-11-14): **parked** — the driver cannot be loaded on the owner's PC (Secure Boot must stay on for anti-cheat; see ADR 0004 update). Development continues with VB-Cable as the channel endpoint; the user-mode pipeline in §2 is the same for both. First driver build done, not yet loaded. `drivers/windows/StealSeriesAudio`
+Status (2026-11-14): **parked, not planned for now** — the driver cannot be loaded on the owner's PC (Secure Boot must stay on for anti-cheat) and signing it for others costs money; the app must stay free, and VB-Cable is not used either (ADR 0004 updates). The user-mode pieces below remain as building blocks. First driver build done, not yet loaded. `drivers/windows/StealSeriesAudio`
 builds with `scripts/windows/driver.ps1` into a test-signed package (driver, INF, signed catalog);
 `scripts/windows/driver-install.ps1` installs/removes it once test-signing mode is on.
 

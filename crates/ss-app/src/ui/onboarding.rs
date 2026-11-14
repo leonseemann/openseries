@@ -50,7 +50,7 @@ impl Step {
                      asks for System Audio Recording permission (Privacy & Security)."
                 } else {
                     "Sets each app's volume by its channel (Game / Chat / Media / Aux) and \
-                     ChatMix. Per-channel EQ needs the StealSeries audio driver (later)."
+                     ChatMix. Per-channel EQ is available on macOS only."
                 }
             }
             Self::MicDriver => {

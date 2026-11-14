@@ -15,7 +15,7 @@ use super::supervisor::{AudioBackend, MicHandle, MixHandle};
 
 /// Shown when the virtual microphone is enabled on Windows.
 const NO_MIC: &str =
-    "The virtual microphone needs the StealSeries audio driver on Windows (milestone M4b)";
+    "The virtual microphone is available on macOS only (Windows would need a signed audio driver)";
 
 /// The Windows backend. Lives on the audio-control thread (COM objects are not `Send`).
 pub struct WinAudioBackend {

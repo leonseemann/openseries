@@ -6,7 +6,7 @@
 //! | [`set_autostart`] | per-user `LaunchAgent` | `HKCU\…\Run` registry value |
 //! | [`reset_base_usb`] | `IOUSBHost` re-enumeration (`ss-usb-macos`) | not yet |
 //! | [`watch_usb_underflows`] | `usbaudiod` log stream | not yet |
-//! | [`install_mic_driver`] | copies the bundled HAL driver with an admin prompt | not yet (M4b) |
+//! | [`install_mic_driver`] | copies the bundled HAL driver with an admin prompt | not available (ADR 0004) |
 //! | [`NativeWindow`] | not needed (no-op) | shows the hidden window via Win32 (`ss-window-windows`) |
 //!
 //! Each OS module exports the same names; the rest of the app never uses `cfg(target_os)`.

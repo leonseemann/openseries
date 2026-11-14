@@ -78,6 +78,18 @@ each channel can use *any* virtual render endpoint — VB-Cable now, our own dri
 channels without one keep using the M4a session mixer. Our driver stays in the repository and
 resumes once it can be attestation-signed (EV certificate; cost decision before a release).
 
+## Update 2026-11-14 (later): no per-channel DSP or virtual mic on Windows for now
+
+The owner wants StealSeries to stay **completely free**: no paid code-signing certificate (needed
+for our own driver on PCs with Secure Boot) and no dependency on VB-Cable (donationware; bundling
+needs a licence from VB-Audio). So the VB-Cable stand-in above is **not pursued**.
+
+**Windows scope = M4a session mixer** (per-app volume by channel, mute, master, ChatMix, presets
+of the headset EQ). Per-channel EQ/boosts/Smart Volume and the virtual microphone stay macOS-only;
+the Windows UI says so. Kept for later: the driver in `drivers/windows/`, the `DriftBuffer`, the
+verified `IAudioPolicyConfig` routing and `winspike` — they are the building blocks if a free
+signing route or another approach appears.
+
 ## Consequences
 
 - Windows gets a useful AudioMix (ChatMix and per-app volumes) quickly, but without per-channel
