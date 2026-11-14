@@ -5,6 +5,7 @@
 mod audiomix;
 mod headset;
 mod mic;
+mod onboarding;
 mod presets;
 mod settings;
 mod widgets;
@@ -119,6 +120,7 @@ impl eframe::App for App {
             tray.sync(&snapshot);
         }
         self.sync_hotkeys(&snapshot.config.app.hotkeys);
+        onboarding::show(ctx, &self.core, &snapshot);
 
         egui::TopBottomPanel::top("status").show(ctx, |ui| {
             ui.add_space(4.0);

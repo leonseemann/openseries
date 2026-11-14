@@ -53,6 +53,14 @@ Notes on v1 behaviour:
   mute needs the mic command queue (later).
 - **Reconnect USB** is on the headset page, in the menu-bar menu and on a hotkey (default Ctrl+Alt+R): the manual cure for both kinds of crackling (`docs/hardware/macos-app.md` Findings).
 - **ChatMix hotkeys** move a software balance in steps of 10 %; moving the headset dial overrides it.
+- **Getting started** (onboarding): a window on first start (until "Done", `app.onboarding_done`;
+  Settings → "Show getting started" reopens it) with a live checklist — base station connected,
+  headset on, AudioMix running, on macOS the mic driver installed and the virtual mic running,
+  start at login — each with its action button and a short hint (`ui::onboarding::steps`, unit
+  tested). **Install driver…** (macOS) copies `StealSeriesMic.driver` from
+  `StealSeries.app/Contents/Resources` (put there by `scripts/macos/app.sh`) to
+  `/Library/Audio/Plug-Ins/HAL` and restarts `coreaudiod` through `osascript … with administrator
+  privileges` — the same steps as `hal-driver.sh install`, **untested on the Mac** so far.
 - **Live mic chain changes**: changing denoise, gate, stabilizer, mic EQ or gain no longer
   restarts the mic feed (no audible gap); only a different source device does. See
   [mic-chain.md §5](mic-chain.md).

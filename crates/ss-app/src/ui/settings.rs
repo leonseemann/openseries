@@ -42,6 +42,10 @@ pub fn show(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, capture: &mu
         }
     });
 
+    if snapshot.config.app.onboarding_done && ui.button("Show getting started").clicked() {
+        core.update_config(|c| c.app.onboarding_done = false);
+    }
+
     crackling(ui, core, snapshot);
 
     ui.add_space(8.0);

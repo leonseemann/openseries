@@ -1,9 +1,11 @@
 //! macOS implementations of the platform surface.
 
 mod autostart;
+mod driver;
 mod underflow;
 
 pub use autostart::set as set_autostart;
+pub use driver::{install_mic_driver, mic_driver_installed};
 pub use underflow::{UnderflowWatch, watch_usb_underflows};
 
 use ss_nova_pro::ids;

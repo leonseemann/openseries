@@ -20,6 +20,10 @@ build() {
     mkdir -p "$BUNDLE/Contents/MacOS" "$BUNDLE/Contents/Resources"
     sed "s/@VERSION@/$version/g" "$ROOT/crates/$CRATE/bundle/Info.plist" > "$BUNDLE/Contents/Info.plist"
     cp "$ROOT/target/release/stealseries" "$BUNDLE/Contents/MacOS/stealseries"
+    # The virtual-mic driver travels inside the app so "Install driver…" can copy it
+    # (app.md §2, onboarding). Signed on its own by hal-driver.sh, then sealed with the app.
+    "$ROOT/scripts/macos/hal-driver.sh" build
+    cp -R "$ROOT/target/StealSeriesMic.driver" "$BUNDLE/Contents/Resources/"
     codesign --force --sign - "$BUNDLE"
     echo "built $BUNDLE"
 }

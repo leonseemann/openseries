@@ -35,6 +35,7 @@ The app lives in the menu bar (headphone icon); "Open StealSeries…" shows the 
 | 17 | Microphone → Backup microphones: add the MacBook mic; turn the headset off | virtual mic source switches to the MacBook mic and back | ⏳ |
 | 18 | Microphone → "Make StealSeries Microphone the system default input" on, feed on, then off; also quit with it on (SON-06) | System Settings → Sound → Input shows StealSeries Microphone while the feed runs and the previous input afterwards; picking another input by hand while it runs is kept | ⏳ (supervisor logic unit-tested; CoreAudio setter compile-checked for macOS only, written on Windows) |
 | 19 | Microphone page: toggle noise suppression, gate, stabilizer and drag the gain while recording in QuickTime | changes audible at once, no gap or click from a feed restart; "Started … times" counter of the mic does not grow | ⏳ (supervisor + no-allocation tests green; macOS feed compile-checked only) |
+| 20 | `scripts/macos/hal-driver.sh uninstall`, then `scripts/macos/app.sh install`; Getting started → **Install driver…** | admin password prompt; afterwards "StealSeries Microphone" appears under Sound → Input, step shows ✅; Cancel in the prompt shows "installation cancelled" | ⏳ (written on Windows; AppleScript generation checked standalone, Rust file not compiled for macOS) |
 
 ## Findings
 

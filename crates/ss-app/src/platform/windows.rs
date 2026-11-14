@@ -112,3 +112,17 @@ impl NativeWindow {
         ss_window_windows::show_window(self.0);
     }
 }
+
+/// The virtual-mic driver does not exist on this OS yet (`None` = not applicable).
+#[must_use]
+pub const fn mic_driver_installed() -> Option<bool> {
+    None
+}
+
+/// Not available on this OS.
+///
+/// # Errors
+/// Always.
+pub fn install_mic_driver() -> Result<(), String> {
+    Err("no virtual-mic driver for this operating system yet".to_owned())
+}

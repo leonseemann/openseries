@@ -253,6 +253,8 @@ pub struct AppConfig {
     pub hotkeys: HotkeysConfig,
     /// Desktop notifications (CORE-15).
     pub notifications: NotificationsConfig,
+    /// The "Getting started" window was closed with Done.
+    pub onboarding_done: bool,
 }
 
 /// Desktop notifications.
