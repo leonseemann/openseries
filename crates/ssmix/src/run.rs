@@ -12,8 +12,12 @@ use ss_audio_macos::{
     ProbeSnapshot, default_input_device, default_output_device, list_audio_processes,
     list_input_devices, list_output_devices,
 };
+use ss_core::eq::ParametricEqSettings;
 use ss_core::mixer::ChannelId;
-use ss_dsp::{BoostSettings, ChannelStripSettings, SmartVolume};
+use ss_dsp::{
+    BoostSettings, ChannelStripSettings, GateMode, MicChain, MicChainSettings, SmartVolume,
+    voice_stabilizer,
+};
 use ss_engine::Command as EngineCommand;
 
 use crate::cli::{Action, Cli, MicArgs, RunArgs};
@@ -69,12 +73,16 @@ pub fn execute(cli: Cli) -> Result<()> {
 
 fn mic(args: &MicArgs) -> Result<()> {
     let input = select_input(args.input.as_deref())?;
-    let gain = 10_f32.powf(args.gain_db / 20.0);
-    let session = MicFeedSession::start(&input, gain)
+    let settings = mic_chain_settings(args)?;
+    let mut chain = MicChain::new(MIC_SAMPLE_RATE)?;
+    chain.set(&settings);
+    let latency_ms = ms(chain.latency_frames());
+    let session = MicFeedSession::start(&input, chain)
         .context("starting the mic feed (grant microphone permission if macOS asked)")?;
     println!(
-        "Feeding \"{}\" into \"StealSeries Microphone\" ({:+.1} dB). Ctrl-C to stop.",
-        input.name, args.gain_db
+        "Feeding \"{}\" into \"StealSeries Microphone\": {}. Chain latency {latency_ms:.1} ms. Ctrl-C to stop.",
+        input.name,
+        describe(&settings)
     );
     if args.probe {
         let layout = session.stream_layout()?;
@@ -108,6 +116,56 @@ fn mic(args: &MicArgs) -> Result<()> {
     drop(session);
     println!("Stopped.");
     Ok(())
+}
+
+/// Sample rate of the virtual microphone and the mic chain (`virtual-mic-driver.md` §3).
+const MIC_SAMPLE_RATE: f32 = 48_000.0;
+
+fn ms(frames: usize) -> f32 {
+    #[allow(clippy::cast_precision_loss)]
+    let frames = frames as f32;
+    frames * 1000.0 / MIC_SAMPLE_RATE
+}
+
+fn mic_chain_settings(args: &MicArgs) -> Result<MicChainSettings> {
+    let gate = match (args.gate, args.auto_gate) {
+        (Some(threshold_db), _) => Some(GateMode::Manual { threshold_db }),
+        (None, Some(offset_db)) => Some(GateMode::Automatic { offset_db }),
+        (None, None) => None,
+    };
+    let mut eq = ParametricEqSettings::from_band_specs(&args.bands)?;
+    eq.enabled = !args.bands.is_empty();
+    Ok(MicChainSettings {
+        denoise: args.denoise.map(|mix| mix.clamp(0.0, 1.0)),
+        gate,
+        stabilizer: args.stabilizer.then(voice_stabilizer),
+        eq,
+        gain_db: args.gain_db,
+    })
+}
+
+fn describe(settings: &MicChainSettings) -> String {
+    let mut parts = Vec::new();
+    if let Some(mix) = settings.denoise {
+        parts.push(format!("denoise {mix:.2}"));
+    }
+    match settings.gate {
+        Some(GateMode::Manual { threshold_db }) => {
+            parts.push(format!("gate {threshold_db:.0} dBFS"));
+        }
+        Some(GateMode::Automatic { offset_db }) => {
+            parts.push(format!("auto gate +{offset_db:.0} dB"));
+        }
+        None => {}
+    }
+    if settings.stabilizer.is_some() {
+        parts.push("stabilizer".to_owned());
+    }
+    if settings.eq.enabled {
+        parts.push("mic EQ".to_owned());
+    }
+    parts.push(format!("gain {:+.1} dB", settings.gain_db));
+    parts.join(", ")
 }
 
 fn print_mic_probe(snapshot: &ProbeSnapshot) {

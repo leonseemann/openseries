@@ -19,6 +19,9 @@ pub const DEFAULT_AUTO_GATE_OFFSET_DB: f32 = 10.0;
 const AUTO_THRESHOLD_RANGE_DB: (f32, f32) = (-80.0, -20.0);
 /// How fast the tracked noise floor may rise (dB per second); it falls immediately.
 const NOISE_FLOOR_RISE_DB_PER_S: f32 = 3.0;
+/// Blocks quieter than this are digital silence (e.g. the denoiser's priming frames or a
+/// muted source), not room noise; they must not pull the floor down.
+const MIN_NOISE_FLOOR_DB: f32 = -100.0;
 
 /// How the gate threshold is chosen (SON-21).
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -79,7 +82,9 @@ pub const fn voice_stabilizer() -> CompressorSettings {
 }
 
 /// Tracks the noise floor with "minimum statistics": follows quieter blocks immediately and
-/// rises slowly, so speech does not pull it up.
+/// rises slowly, so speech does not pull it up. Measures block **peaks**, the same scale the
+/// gate's detector uses; an RMS floor would sit ~10 dB below the noise peaks and leave the gate
+/// chattering on noise (found with `ssdsp --mic`, `mic-chain.md` §4).
 #[derive(Debug, Clone)]
 struct NoiseFloor {
     floor_db: f32,
@@ -100,11 +105,14 @@ impl NoiseFloor {
         }
         #[allow(clippy::cast_precision_loss)] // block sizes are small
         let len = block.len() as f32;
-        let rms = (block.iter().map(|s| s * s).sum::<f32>() / len).sqrt();
-        let level = linear_to_db(rms);
+        let peak = block.iter().fold(0.0_f32, |max, s| max.max(s.abs()));
+        let level = linear_to_db(peak);
+        if level < MIN_NOISE_FLOOR_DB {
+            return self.floor_db;
+        }
         let rise = NOISE_FLOOR_RISE_DB_PER_S * len / self.sample_rate;
         self.floor_db = if self.floor_db <= SILENCE_DB {
-            level // first block
+            level // first real block
         } else {
             level.min(self.floor_db + rise)
         };
@@ -228,6 +236,26 @@ mod tests {
     use crate::DENOISE_LATENCY;
     use crate::test_util::{FS, sine};
 
+    /// Deterministic, approximately Gaussian noise (sum of 12 uniforms) with standard deviation
+    /// `sigma`: peaks ~12 dB above the RMS, like real mic noise. Uniform noise has a too-low
+    /// crest factor and would not expose an RMS-based floor.
+    fn gaussian_noise(seconds: f32, sigma: f32) -> Vec<f32> {
+        let mut state = 0x1234_5678_u32;
+        let mut uniform = move || {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            #[allow(clippy::cast_precision_loss)]
+            let unit = state as f32 / u32::MAX as f32;
+            unit
+        };
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        let len = (FS * seconds) as usize;
+        (0..len)
+            .map(|_| ((0..12).map(|_| uniform()).sum::<f32>() - 6.0) * sigma)
+            .collect()
+    }
+
     fn chain(settings: &MicChainSettings) -> MicChain {
         let mut chain = MicChain::new(FS).unwrap();
         chain.set(settings);
@@ -289,14 +317,14 @@ mod tests {
             }),
             ..MicChainSettings::default()
         });
-        // Constant floor at about −53 dBFS RMS (sine amplitude 0.00316 → RMS −53 dBFS).
+        // Constant floor with a peak of −50 dBFS (sine amplitude 0.00316).
         let mut floor = sine(150.0, 0.003_16, 2.0, 1);
         for block in floor.chunks_mut(512) {
             chain.process(block);
         }
         let threshold = chain.gate_threshold_db();
         assert!(
-            (threshold - (-53.0 + DEFAULT_AUTO_GATE_OFFSET_DB)).abs() < 1.5,
+            (threshold - (-50.0 + DEFAULT_AUTO_GATE_OFFSET_DB)).abs() < 1.0,
             "threshold {threshold}"
         );
     }
@@ -323,6 +351,51 @@ mod tests {
             after - before <= NOISE_FLOOR_RISE_DB_PER_S * 0.5 + 0.1,
             "threshold rose from {before} to {after}"
         );
+    }
+
+    #[test]
+    fn automatic_gate_closes_on_steady_noise() {
+        let mut chain = chain(&MicChainSettings {
+            gate: Some(GateMode::Automatic {
+                offset_db: DEFAULT_AUTO_GATE_OFFSET_DB,
+            }),
+            ..MicChainSettings::default()
+        });
+        let mut noise = gaussian_noise(2.0, 0.01);
+        for block in noise.chunks_mut(512) {
+            chain.process(block);
+        }
+        let tail_peak = noise[noise.len() / 2..]
+            .iter()
+            .fold(0.0_f32, |m, s| m.max(s.abs()));
+        assert!(tail_peak < 1e-3, "gate stays open on noise: {tail_peak}");
+    }
+
+    #[test]
+    fn full_chain_does_not_lift_steady_noise() {
+        // Regression: the denoiser's priming silence pinned the noise floor at −120 dB, so the
+        // automatic gate stayed open and the stabilizer amplified the noise.
+        let mut chain = chain(&MicChainSettings {
+            denoise: Some(DEFAULT_DENOISE_MIX),
+            gate: Some(GateMode::Automatic {
+                offset_db: DEFAULT_AUTO_GATE_OFFSET_DB,
+            }),
+            stabilizer: Some(voice_stabilizer()),
+            ..MicChainSettings::default()
+        });
+        let input = gaussian_noise(3.0, 0.02);
+        let mut output = input.clone();
+        for block in output.chunks_mut(512) {
+            chain.process(block);
+        }
+        let rms = |s: &[f32]| {
+            #[allow(clippy::cast_precision_loss)]
+            let n = s.len() as f32;
+            (s.iter().map(|x| x * x).sum::<f32>() / n).sqrt()
+        };
+        let tail = input.len() * 2 / 3;
+        let change = linear_to_db(rms(&output[tail..]) / rms(&input[tail..]));
+        assert!(change < -30.0, "steady noise only changed by {change:.1} dB");
     }
 
     #[test]

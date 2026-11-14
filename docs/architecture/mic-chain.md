@@ -56,9 +56,34 @@ Every block can be bypassed. Only the denoiser adds latency; with denoise off th
 
 ## 4. Automatic gate threshold
 
-`threshold = noise_floor + offset`, where `noise_floor` is the minimum of the block RMS (dBFS) over
+`threshold = noise_floor + offset`, where `noise_floor` is the minimum of the block **peak** (dBFS) over
 a sliding window of ~2 s with slow upward drift (minimum statistics), evaluated **after** the
 denoiser. Clamped to −80…−20 dBFS. Manual mode uses the configured threshold as today.
+Peak, not RMS: the gate detector works on peaks, and noise peaks sit ~10 dB above its RMS; an
+RMS floor left the gate chattering on steady noise (**Observed** with `ssdsp --mic` on synthetic
+noise, now covered by `automatic_gate_closes_on_steady_noise`).
+
+Blocks below −100 dBFS are ignored by the tracker: digital silence (the denoiser's priming
+frames, a muted source) is not room noise. Without this the floor stuck at −120 dB, the gate stayed
+open and the stabilizer amplified the noise (**Observed** with `ssdsp --mic`; regression test
+`full_chain_does_not_lift_steady_noise`).
+
+### Offline measurements (`ssdsp --mic`, synthetic 48 kHz files, 2026-11-14)
+
+Gaussian-like room noise at −55 dBFS RMS, a 220 Hz "voice" tone at −13.5 dBFS from 1 s to 2 s:
+
+| Chain | Noise, first second | Tone | Noise after the tone |
+|---|---|---|---|
+| input | −54.9 | −13.5 | −55.0 |
+| `--denoise` (mix 0.9) | −56.0 | −13.5 | −73.9 |
+| `--auto-gate` | −134.9 | −13.5 | −77.8 |
+| `--denoise --auto-gate --stabilizer` | −127.0 | −16.8 | −88.7 |
+
+Findings: RNNoise needs about **1 s** to learn stationary noise (first second only −1…−3 dB).
+At mix 0.9 the denoiser alone cannot go below −20 dB (10 % dry). The gate's release is a time
+constant: closing to −80 dB takes about 1 s (~3.5 dB per 50 ms) — tune in the listening test.
+Very loud noise (> −30 dBFS peaks) keeps the gate open because the automatic threshold is capped
+at −20 dBFS so speech is never cut.
 
 ## 5. API (platform-free, `ss-dsp`)
 

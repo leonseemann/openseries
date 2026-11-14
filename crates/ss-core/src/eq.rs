@@ -1,5 +1,9 @@
 //! Software parametric equalizer model (Sonar-style, `docs/architecture/dsp.md` §1).
 
+use std::str::FromStr;
+
+use thiserror::Error;
+
 use crate::RangeError;
 
 /// Number of bands of the software parametric EQ.
@@ -173,9 +177,98 @@ impl Default for ParametricEqSettings {
     }
 }
 
+/// Why a textual band spec (`FREQ:GAIN_DB:Q[:TYPE]`) was rejected.
+#[derive(Debug, Clone, PartialEq, Error)]
+pub enum BandSpecError {
+    /// Not of the form `FREQ:GAIN_DB:Q[:TYPE]`.
+    #[error("band `{0}` must be FREQ:GAIN_DB:Q[:TYPE]")]
+    Syntax(String),
+    /// A field is not a number.
+    #[error("band `{0}`: `{1}` is not a number")]
+    Number(String, String),
+    /// A value is out of range.
+    #[error("band `{0}`: {1}")]
+    Range(String, RangeError),
+    /// Unknown Sonar filter id.
+    #[error("band `{0}`: unknown filter type `{1}` (0–9)")]
+    FilterType(String, String),
+    /// More bands than the EQ has.
+    #[error("at most {PEQ_BANDS} bands are supported")]
+    TooManyBands,
+}
+
+impl FromStr for PeqBand {
+    type Err = BandSpecError;
+
+    /// Parses `FREQ:GAIN_DB:Q[:TYPE]`, TYPE = Sonar filter id (default 7 = peaking).
+    fn from_str(spec: &str) -> Result<Self, Self::Err> {
+        let parts: Vec<&str> = spec.split(':').collect();
+        let [freq, gain, q, rest @ ..] = parts.as_slice() else {
+            return Err(BandSpecError::Syntax(spec.to_owned()));
+        };
+        if rest.len() > 1 {
+            return Err(BandSpecError::Syntax(spec.to_owned()));
+        }
+        let number = |field: &str| {
+            field
+                .parse::<f32>()
+                .map_err(|_| BandSpecError::Number(spec.to_owned(), field.to_owned()))
+        };
+        let range = |error| BandSpecError::Range(spec.to_owned(), error);
+        let filter = match rest.first() {
+            Some(id) => id
+                .parse::<u8>()
+                .ok()
+                .and_then(FilterType::from_sonar_id)
+                .ok_or_else(|| BandSpecError::FilterType(spec.to_owned(), (*id).to_owned()))?,
+            None => FilterType::Peaking,
+        };
+        Ok(Self {
+            enabled: true,
+            filter,
+            frequency: Frequency::new(number(freq)?).map_err(range)?,
+            gain: BandGain::new(number(gain)?).map_err(range)?,
+            q: QFactor::new(number(q)?).map_err(range)?,
+        })
+    }
+}
+
+impl ParametricEqSettings {
+    /// A flat EQ whose lowest slots are replaced by `bands` (remaining slots stay flat).
+    ///
+    /// # Errors
+    /// [`BandSpecError`] for an invalid spec or more than [`PEQ_BANDS`] bands.
+    pub fn from_band_specs<S: AsRef<str>>(specs: &[S]) -> Result<Self, BandSpecError> {
+        if specs.len() > PEQ_BANDS {
+            return Err(BandSpecError::TooManyBands);
+        }
+        let mut settings = Self::flat();
+        for (slot, spec) in settings.bands.iter_mut().zip(specs) {
+            *slot = spec.as_ref().parse()?;
+        }
+        Ok(settings)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parses_band_specs() {
+        let eq = ParametricEqSettings::from_band_specs(&["120:-3:0.7", "8000:4:1:9"]).unwrap();
+        assert!((eq.bands[0].gain.get() + 3.0).abs() < f32::EPSILON);
+        assert_eq!(eq.bands[1].filter, FilterType::HighShelf);
+        assert!(eq.bands[2].gain.get().abs() < f32::EPSILON);
+        assert!(ParametricEqSettings::from_band_specs(&["1000:3"]).is_err());
+        assert!(ParametricEqSettings::from_band_specs(&["1000:30:1"]).is_err());
+        assert!(ParametricEqSettings::from_band_specs(&["1000:3:1:42"]).is_err());
+        assert!(ParametricEqSettings::from_band_specs(&["x:3:1"]).is_err());
+        assert_eq!(
+            ParametricEqSettings::from_band_specs(&["100:0:1"; 11]),
+            Err(BandSpecError::TooManyBands)
+        );
+    }
 
     #[test]
     fn sonar_ids_round_trip() {

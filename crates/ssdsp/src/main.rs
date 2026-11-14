@@ -1,4 +1,5 @@
-//! `ssdsp` — run a WAV file through the StealSeries channel strip for listening tests.
+//! `ssdsp` — run a WAV file through the StealSeries playback channel strip or, with `--mic`,
+//! the mic chain (denoise → gate → stabilizer → mic EQ) for listening tests.
 //!
 //! Audio is processed in small blocks, exactly as the real-time engine will do it.
 
@@ -6,10 +7,11 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result, bail};
 use clap::{Parser, ValueEnum};
-use ss_core::eq::{BandGain, FilterType, Frequency, PEQ_BANDS, ParametricEqSettings, QFactor};
+use ss_core::eq::ParametricEqSettings;
 use ss_dsp::{
-    BoostSettings, ChannelStrip, ChannelStripSettings, Format, NoiseGate, NoiseGateSettings,
-    Processor, SmartVolume,
+    BoostSettings, ChannelStrip, ChannelStripSettings, DENOISE_SAMPLE_RATE, Format, GateMode,
+    MicChain, MicChainSettings, NoiseGate, NoiseGateSettings, Processor, SmartVolume,
+    voice_stabilizer,
 };
 
 /// Frames per processing block (typical audio callback size).
@@ -44,6 +46,18 @@ struct Args {
     /// Enable a noise gate with this threshold in dBFS (e.g. -50).
     #[arg(long, allow_negative_numbers = true)]
     gate: Option<f32>,
+    /// Use the mic chain instead of the playback strip (48 kHz input; mixed to mono).
+    #[arg(long)]
+    mic: bool,
+    /// Mic: RNNoise denoise with this dry/wet mix 0–1 (flag alone = 0.9, Sonar's default).
+    #[arg(long, value_name = "MIX", num_args = 0..=1, default_missing_value = "0.9", requires = "mic")]
+    denoise: Option<f32>,
+    /// Mic: automatic gate threshold = noise floor + OFFSET dB (flag alone = 10).
+    #[arg(long, value_name = "OFFSET", num_args = 0..=1, default_missing_value = "10", requires = "mic", conflicts_with = "gate")]
+    auto_gate: Option<f32>,
+    /// Mic: volume stabilizer (voice compressor).
+    #[arg(long, requires = "mic")]
+    stabilizer: bool,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -65,6 +79,9 @@ impl From<Loudness> for SmartVolume {
 
 fn main() -> Result<()> {
     let args = Args::parse();
+    if args.mic {
+        return run_mic(&args);
+    }
     let (spec, mut samples) = read_wav(&args.input)?;
     #[allow(clippy::cast_precision_loss)]
     let format = Format::new(spec.sample_rate as f32, usize::from(spec.channels))?;
@@ -93,6 +110,72 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+/// Mic mode: mono mixdown → [`MicChain`] → mono 48 kHz output.
+fn run_mic(args: &Args) -> Result<()> {
+    if [args.bass, args.treble, args.clarity]
+        .iter()
+        .any(|b| *b != 0.0)
+        || args.smart_volume.is_some()
+    {
+        bail!("--bass/--treble/--clarity/--smart-volume belong to the playback strip, not --mic");
+    }
+    let (spec, samples) = read_wav(&args.input)?;
+    #[allow(clippy::cast_precision_loss)]
+    let rate = spec.sample_rate as f32;
+    if (rate - DENOISE_SAMPLE_RATE).abs() > f32::EPSILON {
+        bail!(
+            "--mic needs a 48 kHz recording, got {} Hz",
+            spec.sample_rate
+        );
+    }
+    let channels = usize::from(spec.channels).max(1);
+    #[allow(clippy::cast_precision_loss)]
+    let scale = 1.0 / channels as f32;
+    let mut mono: Vec<f32> = samples
+        .chunks_exact(channels)
+        .map(|frame| frame.iter().sum::<f32>() * scale)
+        .collect();
+
+    let mut chain = MicChain::new(rate)?;
+    chain.set(&mic_settings(args)?);
+    for block in mono.chunks_mut(BLOCK_FRAMES) {
+        chain.process(block);
+    }
+    // Remove the chain's latency so the output lines up with the input for A/B comparison.
+    let latency = chain.latency_frames().min(mono.len());
+    mono.drain(..latency);
+    mono.extend(std::iter::repeat_n(0.0, latency));
+
+    let out_spec = hound::WavSpec {
+        channels: 1,
+        ..spec
+    };
+    write_wav(&args.output, out_spec, &mono)?;
+    println!(
+        "wrote {} (mono, mic chain latency {} frames compensated)",
+        args.output.display(),
+        latency
+    );
+    Ok(())
+}
+
+fn mic_settings(args: &Args) -> Result<MicChainSettings> {
+    let gate = match (args.gate, args.auto_gate) {
+        (Some(threshold_db), _) => Some(GateMode::Manual { threshold_db }),
+        (None, Some(offset_db)) => Some(GateMode::Automatic { offset_db }),
+        (None, None) => None,
+    };
+    let mut eq = eq_settings(&args.bands)?;
+    eq.enabled = !args.bands.is_empty();
+    Ok(MicChainSettings {
+        denoise: args.denoise.map(|mix| mix.clamp(0.0, 1.0)),
+        gate,
+        stabilizer: args.stabilizer.then(voice_stabilizer),
+        eq,
+        gain_db: args.gain,
+    })
+}
+
 fn strip_settings(args: &Args) -> Result<ChannelStripSettings> {
     Ok(ChannelStripSettings {
         eq: eq_settings(&args.bands)?,
@@ -109,25 +192,7 @@ fn strip_settings(args: &Args) -> Result<ChannelStripSettings> {
 /// Builds EQ settings: listed bands replace the default bands from the lowest slot up;
 /// remaining slots stay flat.
 fn eq_settings(specs: &[String]) -> Result<ParametricEqSettings> {
-    if specs.len() > PEQ_BANDS {
-        bail!("at most {PEQ_BANDS} bands are supported");
-    }
-    let mut settings = ParametricEqSettings::flat();
-    for (slot, spec) in settings.bands.iter_mut().zip(specs) {
-        let parts: Vec<&str> = spec.split(':').collect();
-        let [freq, gain, q, rest @ ..] = parts.as_slice() else {
-            bail!("band `{spec}` must be FREQ:GAIN_DB:Q[:TYPE]");
-        };
-        slot.frequency = Frequency::new(freq.parse()?)?;
-        slot.gain = BandGain::new(gain.parse()?)?;
-        slot.q = QFactor::new(q.parse()?)?;
-        slot.filter = match rest.first() {
-            Some(id) => FilterType::from_sonar_id(id.parse()?)
-                .with_context(|| format!("unknown filter type `{id}`"))?,
-            None => FilterType::Peaking,
-        };
-    }
-    Ok(settings)
+    Ok(ParametricEqSettings::from_band_specs(specs)?)
 }
 
 fn read_wav(path: &PathBuf) -> Result<(hound::WavSpec, Vec<f32>)> {
@@ -169,12 +234,40 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parses_band_specs() {
-        let eq = eq_settings(&["120:-3:0.7".into(), "8000:4:1:9".into()]).unwrap();
-        assert!((eq.bands[0].gain.get() + 3.0).abs() < f32::EPSILON);
-        assert_eq!(eq.bands[1].filter, FilterType::HighShelf);
-        assert_eq!(eq.bands[2].gain.get(), 0.0);
-        assert!(eq_settings(&["1000:3".into()]).is_err());
-        assert!(eq_settings(&["1000:30:1".into()]).is_err());
+    fn mic_flag_defaults_match_the_dsp_defaults() {
+        let args = Args::parse_from([
+            "ssdsp",
+            "in.wav",
+            "out.wav",
+            "--mic",
+            "--denoise",
+            "--auto-gate",
+        ]);
+        let settings = mic_settings(&args).unwrap();
+        assert_eq!(settings.denoise, Some(ss_dsp::DEFAULT_DENOISE_MIX));
+        assert_eq!(
+            settings.gate,
+            Some(GateMode::Automatic {
+                offset_db: ss_dsp::DEFAULT_AUTO_GATE_OFFSET_DB
+            })
+        );
+        assert!(!settings.eq.enabled, "no bands → mic EQ off");
+    }
+
+    #[test]
+    fn mic_options_require_mic_mode() {
+        assert!(Args::try_parse_from(["ssdsp", "a.wav", "b.wav", "--denoise"]).is_err());
+        assert!(
+            Args::try_parse_from([
+                "ssdsp",
+                "a.wav",
+                "b.wav",
+                "--mic",
+                "--gate",
+                "-50",
+                "--auto-gate"
+            ])
+            .is_err()
+        );
     }
 }

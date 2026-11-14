@@ -8,6 +8,7 @@
 //! **Observed** (`docs/hardware/macos-virtual-mic.md`, check 5): output buffers appear in
 //! sub-device order, i.e. the mic device's own output streams (if any) before the feed stream.
 
+use std::cell::RefCell;
 use std::ptr::NonNull;
 use std::sync::Arc;
 
@@ -27,6 +28,7 @@ use super::probe::{CallbackLayout, Probe, ProbeSnapshot};
 use super::session::{IoBlock, StreamLayout, buffer_channels};
 use super::stream_usage::set_stream_usage;
 use crate::AudioError;
+use ss_dsp::{MicChain, Processor};
 
 /// UID of the hidden feed device published by `ss-hal-driver-macos`
 /// (`virtual-mic-driver.md` §2; checked against the driver's model in a test).
@@ -35,14 +37,20 @@ pub const FEED_DEVICE_UID: &str = "dev.stealseries.mic.feed";
 pub const VIRTUAL_MIC_UID: &str = "dev.stealseries.mic";
 /// Label of the dispatch queue running the IOProc.
 const QUEUE_LABEL: &str = "dev.stealseries.micfeed.io";
+/// Largest callback the mic chain is prepared for; larger callbacks are truncated (silence).
+const MAX_CALLBACK_FRAMES: usize = 4096;
 
 /// Where the mic and the feed sit in the aggregate's buffer lists.
 #[derive(Debug, Clone, Copy)]
 struct FeedLayout {
     /// Output buffers of the mic device itself, before the feed buffer.
     mic_device_outputs: usize,
-    /// Linear gain applied to the mic.
-    gain: f32,
+}
+
+/// State owned by the IOProc: the mic chain and a mono scratch buffer (allocated up front).
+struct FeedProcessor {
+    chain: MicChain,
+    mono: Box<[f32]>,
 }
 
 /// A running mic → virtual-mic feed. Dropping it stops the feed (the virtual mic goes silent).
@@ -57,12 +65,13 @@ pub struct MicFeedSession {
 }
 
 impl MicFeedSession {
-    /// Starts copying `mic` (channels mixed to mono, times `gain`) into the virtual microphone.
+    /// Starts feeding `mic` (channels mixed to mono, then processed by `chain`) into the
+    /// virtual microphone.
     ///
     /// # Errors
     /// [`AudioError::NotFound`] if the driver is not installed, [`AudioError::Unsupported`] if
     /// `mic` is the virtual microphone itself, [`AudioError::Os`] for CoreAudio failures.
-    pub fn start(mic: &InputDevice, gain: f32) -> Result<Self, AudioError> {
+    pub fn start(mic: &InputDevice, chain: MicChain) -> Result<Self, AudioError> {
         if mic.uid == VIRTUAL_MIC_UID {
             return Err(AudioError::Unsupported(
                 "the virtual microphone cannot feed itself".to_owned(),
@@ -76,8 +85,11 @@ impl MicFeedSession {
         })?;
         let layout = FeedLayout {
             mic_device_outputs: buffer_channels(mic.id, kAudioObjectPropertyScopeOutput)?.len(),
-            gain,
         };
+        let processor = RefCell::new(FeedProcessor {
+            chain,
+            mono: vec![0.0; MAX_CALLBACK_FRAMES].into_boxed_slice(),
+        });
         let aggregate = AggregateDevice::create_with(
             &[
                 SubDevice {
@@ -95,7 +107,7 @@ impl MicFeedSession {
         let probe = Arc::new(Probe::default());
         let rt_probe = Arc::clone(&probe);
         let block: IoBlock = RcBlock::new(move |_now, input, _input_time, output, _output_time| {
-            render(&layout, &rt_probe, input, output);
+            render(layout, &processor, &rt_probe, input, output);
         });
         let queue = DispatchQueue::new(QUEUE_LABEL, None);
 
@@ -182,7 +194,8 @@ impl Drop for MicFeedSession {
 
 /// The IOProc body. Runs on the real-time thread: no allocation, no locks, no logging.
 fn render(
-    layout: &FeedLayout,
+    layout: FeedLayout,
+    processor: &RefCell<FeedProcessor>,
     probe: &Probe,
     input: NonNull<AudioBufferList>,
     output: NonNull<AudioBufferList>,
@@ -199,13 +212,18 @@ fn render(
     // SAFETY: as above; input buffers are read-only, the feed buffer is ours.
     let (mic_samples, feed_samples) =
         unsafe { (buffers::samples(mic), buffers::samples_mut(feed)) };
-    copy_to_mono_feed(
-        mic_samples,
-        channels(mic),
-        feed_samples,
-        channels(feed),
-        layout.gain,
-    );
+    let Ok(mut processor) = processor.try_borrow_mut() else {
+        return;
+    };
+    let FeedProcessor { chain, mono } = &mut *processor;
+    let (mic_channels, feed_channels) = (channels(mic), channels(feed));
+    let frames = (mic_samples.len() / mic_channels)
+        .min(feed_samples.len() / feed_channels)
+        .min(mono.len());
+    let mono = &mut mono[..frames];
+    mix_to_mono(mic_samples, mic_channels, mono);
+    chain.process(mono);
+    spread_mono(mono, feed_samples, feed_channels);
 
     record_probe(probe, inputs, outputs, feed_samples);
 }
@@ -214,23 +232,19 @@ fn channels(buffer: &AudioBuffer) -> usize {
     (buffer.mNumberChannels as usize).max(1)
 }
 
-/// Mixes interleaved `mic` frames to mono, applies `gain` and writes the result to every
-/// channel of the interleaved `feed`. Real-time safe.
-fn copy_to_mono_feed(
-    mic: &[f32],
-    mic_channels: usize,
-    feed: &mut [f32],
-    feed_channels: usize,
-    gain: f32,
-) {
+/// Averages interleaved `mic` frames into `mono` (one sample per frame). Real-time safe.
+fn mix_to_mono(mic: &[f32], mic_channels: usize, mono: &mut [f32]) {
     #[allow(clippy::cast_precision_loss)] // channel counts are tiny
-    let scale = gain / mic_channels as f32;
-    for (mic_frame, feed_frame) in mic
-        .chunks_exact(mic_channels)
-        .zip(feed.chunks_exact_mut(feed_channels))
-    {
-        let mono = mic_frame.iter().sum::<f32>() * scale;
-        feed_frame.fill(mono);
+    let scale = 1.0 / mic_channels as f32;
+    for (frame, out) in mic.chunks_exact(mic_channels).zip(mono.iter_mut()) {
+        *out = frame.iter().sum::<f32>() * scale;
+    }
+}
+
+/// Writes each mono sample to every channel of the interleaved `feed`. Real-time safe.
+fn spread_mono(mono: &[f32], feed: &mut [f32], feed_channels: usize) {
+    for (sample, frame) in mono.iter().zip(feed.chunks_exact_mut(feed_channels)) {
+        frame.fill(*sample);
     }
 }
 
@@ -255,19 +269,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn stereo_mic_is_averaged_and_scaled_into_a_mono_feed() {
+    fn stereo_mic_is_averaged_to_mono() {
         let mic = [0.2, 0.4, -0.2, -0.4];
-        let mut feed = [9.0; 2];
-        copy_to_mono_feed(&mic, 2, &mut feed, 1, 2.0);
-        assert!((feed[0] - 0.6).abs() < 1e-6);
-        assert!((feed[1] + 0.6).abs() < 1e-6);
+        let mut mono = [9.0; 2];
+        mix_to_mono(&mic, 2, &mut mono);
+        assert!((mono[0] - 0.3).abs() < 1e-6);
+        assert!((mono[1] + 0.3).abs() < 1e-6);
     }
 
     #[test]
     fn mono_mic_fills_every_feed_channel() {
-        let mic = [0.5, 0.25];
+        let mono = [0.5, 0.25];
         let mut feed = [0.0; 4];
-        copy_to_mono_feed(&mic, 1, &mut feed, 2, 1.0);
+        spread_mono(&mono, &mut feed, 2);
         assert_eq!(feed, [0.5, 0.5, 0.25, 0.25]);
     }
 
