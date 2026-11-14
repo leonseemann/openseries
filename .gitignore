@@ -5,3 +5,10 @@
 # Never commit extracted vendor binaries / proprietary sources
 /vendor-extract/
 /scratch/
+# Windows driver build output (drivers/windows, MSBuild)
+/drivers/windows/**/x64/
+/drivers/windows/**/ARM64/
+/drivers/windows/**/Debug/
+/drivers/windows/**/Release/
+/drivers/windows/**/.vs/
+/drivers/windows/**/*.user
