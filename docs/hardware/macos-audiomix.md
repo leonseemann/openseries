@@ -9,10 +9,13 @@ on a real Mac with the Arctis Nova Pro Wireless.
 - Xcode Command Line Tools: `xcode-select --install`
 - Rust: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
 - The repository checked out on the Mac.
-- Permission: on first start macOS asks to allow the terminal app to record system audio.
-  If no prompt appears and output stays silent, enable the terminal under
-  *System Settings → Privacy & Security → Screen & System Audio Recording → System Audio Recording Only*
-  (**Inferred**, to verify).
+- Permission (**Observed** 2026-11-14, macOS 27.2.1, Ghostty): macOS does **not** prompt for
+  system-audio capture when `ssmix` runs from a terminal. Without the permission the taps still
+  mute the tapped apps but deliver exact digital silence, so nothing is audible. Add the terminal
+  manually under *System Settings → Privacy & Security → Screen & System Audio Recording →
+  System Audio Recording Only* and restart it. `ssmix` warns after 3 s of exact silence on all taps.
+- macOS additionally asks for **microphone** access on first start, because the aggregate device
+  contains the headset's input stream (see check 6).
 
 ## Steps
 
@@ -23,6 +26,9 @@ cargo build --release -p ssmix
 ./target/release/ssmix run --output "Arctis" --game com.valvesoftware.steam --chat com.hnc.Discord --dial
 ```
 
+Add `--probe` to print the aggregate stream layout and the peak of every input buffer once per
+second (used for checks 6 and 7). Quit other tap-based tools (e.g. FineTune) before testing.
+
 While running: play music (Media), a game (Game) and a Discord call (Chat); turn the ChatMix dial.
 Ctrl-C stops the mix and all apps play normally again.
 
@@ -30,15 +36,24 @@ Ctrl-C stops the mix and all apps play normally again.
 
 | # | Check | Expected | Result |
 |---|-------|----------|--------|
-| 1 | `cargo build` on macOS incl. hidapi and `dial.rs` (never compiled on macOS yet) | builds | ⏳ |
-| 2 | `ssmix devices` | Nova Pro output listed with channel count | ⏳ |
-| 3 | `ssmix apps` | running audio apps with PID / bundle id | ⏳ |
-| 4 | `ssmix run` without assignments | music still audible through the headset (Media tap → engine → output) | ⏳ |
-| 5 | Tapped apps are muted at the source | no doubled/echoed audio | ⏳ |
-| 6 | **Input stream order** of the aggregate device (session.rs, Inferred) | headset mic buffers first, then taps in tap-list order | ⏳ |
-| 7 | Output buffer is interleaved `f32` with the device's channel count | sound, not silence | ⏳ |
+| 1 | `cargo build` on macOS incl. hidapi and `dial.rs` (never compiled on macOS yet) | builds | ✅ Observed: builds, fmt/clippy/tests green without changes (macOS 27.2.1, Apple silicon, Rust 1.99) |
+| 2 | `ssmix devices` | Nova Pro output listed with channel count | ✅ Observed: `Arctis Nova Pro Wireless`, 2 ch out, 1 ch in, 48 kHz, UID `AppleUSBAudioEngine:SteelSeries:Arctis Nova Pro Wireless:2143000:1,2` (base station on USB-1) |
+| 3 | `ssmix apps` | running audio apps with PID / bundle id | ✅ Observed: PIDs and bundle ids listed (e.g. `us.zoom.xos`, `com.google.Chrome.helper`); some daemons have no bundle id; `playing` flag shown |
+| 4 | `ssmix run` without assignments | music still audible through the headset (Media tap → engine → output) | ✅ Observed: music audible through the Nova Pro, normal again after Ctrl-C. **Only after** granting System Audio Recording manually (first run: silent, see Prerequisites) |
+| 5 | Tapped apps are muted at the source | no doubled/echoed audio | ✅ Observed: no doubling reported; without permission the source is muted and the tap is silent (total silence) |
+| 6 | **Input stream order** of the aggregate device (session.rs, Inferred) | headset mic buffers first, then taps in tap-list order | ✅ Observed with `--probe`: input buffers `[1 ch, 2 ch]`; #0 rose from −50 to −22 dBFS only while speaking into the headset mic, #1 carried the music (−8…−27 dBFS). Mic first, tap second. Order among *several* taps: see check 8 |
+| 7 | Output buffer is interleaved `f32` with the device's channel count | sound, not silence | ✅ Observed: 1 output buffer × 2 ch (interleaved), 512 frames per callback, ≈ 95 callbacks/s at 48 kHz |
 | 8 | `--game` / `--chat` assignment | each app ends up on its channel | ⏳ |
 | 9 | `--dial` | turning the dial lowers game or chat; base station returns to normal after Ctrl-C | ⏳ |
 | 10 | `--game-bass 6`, `--media-smart-volume` | audible effect | ⏳ |
 | 11 | Latency / glitches under load | no crackles | ⏳ |
-| 12 | Does the Nova Pro expose a separate "chat" output device on macOS? (ADR 0002, Unknown) | note device list | ⏳ |
+| 12 | Does the Nova Pro expose a separate "chat" output device on macOS? (ADR 0002, Unknown) | note device list | ✅ Observed: no — one output device (2 ch) and one input (1 ch mic) only; ChatMix must stay software-side |
+
+## Findings and follow-ups
+
+- **Silent taps without permission** (check 4): handled by the `ssmix` warning; a GUI app will
+  need a proper permission flow (`NSAudioCaptureUsageDescription`, ADR 0002).
+- **Microphone prompt for playback-only mixing** (check 6): the headset input is part of the
+  aggregate device and runs with the IOProc. Open: disable it via
+  `kAudioDevicePropertyIOProcStreamUsage` (or drop it from the aggregate) so AudioMix playback
+  does not need microphone access.

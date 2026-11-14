@@ -44,5 +44,6 @@ Options considered:
   output buffer. Windows (M4) reuses it with WASAPI process-loopback capture.
 - Apps that bypass the default output (exclusive/hog mode) cannot be tapped; documented limitation.
 - The Nova Pro base station exposes its own audio interface; the aggregate device uses it as the
-  output sub-device. Whether its separate "chat" USB endpoint can serve as a hardware ChatMix target
-  is **Unknown** and will be checked on the Mac.
+  output sub-device. On macOS it appears as a single 2-channel output plus a 1-channel mic, with no
+  separate "chat" output (**Observed**, [macos-audiomix.md](../hardware/macos-audiomix.md) check 12),
+  so ChatMix is applied in software by `ss-engine`.

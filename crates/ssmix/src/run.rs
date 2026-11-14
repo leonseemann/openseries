@@ -8,8 +8,8 @@ use std::time::Duration;
 use anyhow::{Context, Result, bail};
 use ss_audio_macos::plan::{Pid, plan_taps};
 use ss_audio_macos::{
-    AudioMixSession, AudioProcess, MAX_PROBED_BUFFERS, OutputDevice, default_output_device,
-    list_audio_processes, list_output_devices,
+    AudioMixSession, AudioProcess, MAX_PROBED_BUFFERS, OutputDevice, ProbeSnapshot,
+    default_output_device, list_audio_processes, list_output_devices,
 };
 use ss_core::mixer::ChannelId;
 use ss_dsp::{BoostSettings, ChannelStripSettings, SmartVolume};
@@ -23,6 +23,8 @@ const IDLE_POLL: Duration = Duration::from_millis(200);
 const POLLS_PER_PROBE_REPORT: u32 = 5;
 /// Peaks below this are printed as silence.
 const SILENCE_DBFS: f32 = -120.0;
+/// Seconds of exact digital silence on every tap before warning about the permission.
+const SILENT_TAP_WARNING_SECONDS: u32 = 3;
 
 /// Runs the selected action.
 ///
@@ -75,10 +77,15 @@ fn run(args: &RunArgs) -> Result<()> {
         print_stream_layout(&session)?;
     }
     let mut polls = 0_u32;
+    let mut silence = SilentTapWatch::default();
     wait_for_ctrl_c(|| {
         polls += 1;
-        if args.probe && polls % POLLS_PER_PROBE_REPORT == 0 {
-            print_probe(&session);
+        if polls % POLLS_PER_PROBE_REPORT == 0 {
+            let snapshot = session.probe();
+            silence.observe(&session, &snapshot);
+            if args.probe {
+                print_probe(&snapshot);
+            }
         }
     })?;
     if let Some(dial) = dial {
@@ -205,8 +212,38 @@ fn print_stream_layout(session: &AudioMixSession) -> Result<()> {
     Ok(())
 }
 
-fn print_probe(session: &AudioMixSession) {
-    let snapshot = session.probe();
+/// Warns once when all taps deliver exact zeros: macOS does that (and still mutes the tapped
+/// apps) when the terminal lacks "System Audio Recording" permission
+/// (`docs/hardware/macos-audiomix.md`, Prerequisites).
+#[derive(Debug, Default)]
+struct SilentTapWatch {
+    silent_seconds: u32,
+    warned: bool,
+}
+
+impl SilentTapWatch {
+    fn observe(&mut self, session: &AudioMixSession, snapshot: &ProbeSnapshot) {
+        let Ok(layout) = session.stream_layout() else {
+            return;
+        };
+        let taps = layout.device_inputs..snapshot.input_buffers.min(MAX_PROBED_BUFFERS);
+        if taps.is_empty() || snapshot.peaks[taps].iter().any(|p| p.to_bits() != 0) {
+            self.silent_seconds = 0;
+            return;
+        }
+        self.silent_seconds += 1;
+        if !self.warned && self.silent_seconds >= SILENT_TAP_WARNING_SECONDS {
+            self.warned = true;
+            eprintln!(
+                "warning: all taps deliver digital silence. If apps are playing, allow this \
+                 terminal under System Settings → Privacy & Security → Screen & System Audio \
+                 Recording → System Audio Recording Only, then restart the terminal."
+            );
+        }
+    }
+}
+
+fn print_probe(snapshot: &ProbeSnapshot) {
     let shown = snapshot.input_buffers.min(MAX_PROBED_BUFFERS);
     let peaks: Vec<String> = (0..shown)
         .map(|i| {
