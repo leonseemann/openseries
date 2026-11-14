@@ -40,3 +40,14 @@ The app lives in the menu bar (headphone icon); "Open StealSeries…" shows the 
   when the device in use changes). **Observed** after the fix: "Started 1 time(s)" stays at 1,
   stutter gone (owner: "ist glaube ich weg"). Regression test
   `unrelated_devices_coming_and_going_do_not_interrupt_the_mix`.
+- **Crackling = USB underflows from the base station** (2026-11-14). The owner hears crackling with
+  and without StealSeries (also on Windows with the original app); "Reconnect USB" (USB reset)
+  stops it. macOS's USB audio daemon logs it (`/usr/bin/log show --predicate 'process == "usbaudiod"'`;
+  note: in zsh `log` is a builtin, use the full path). **Observed** around 13:45: 13:45:09–13:45:16
+  continuous `AUAInputTransferManager completeBlock USB underflow -64` (~160) with an
+  `AUAAudioDevice_updateTimeStamp ioDriftNS` correction every ~2 s and occasional zero-length
+  transfers; 13:45:19 re-enumeration (Reconnect USB); afterwards no underflows, only sparse drift
+  updates. Same bursts at 12:30, 13:30–13:32 and 13:39. **Inferred:** the base station's USB
+  audio stream intermittently delivers too little data, the HAL keeps re-timing the device clock,
+  which is audible as clicks; a USB reset re-synchronises it — a device firmware/USB issue, not
+  StealSeries. Live watch: `/usr/bin/log stream --predicate 'process == "usbaudiod" AND eventMessage CONTAINS "underflow"'`.
