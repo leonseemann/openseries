@@ -1,0 +1,15 @@
+[package]
+name = "ss-hid"
+description = "hidapi-based implementation of the ss-core HID transport port."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+ss-core.workspace = true
+hidapi.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true

@@ -14,7 +14,7 @@ ss-nova-pro = { path = "crates/ss-nova-pro" }
 ss-hid = { path = "crates/ss-hid" }
 thiserror = "2"
 anyhow = "1"
-hidapi = { version = "2", default-features = false }
+hidapi = "2"
 clap = { version = "4", features = ["derive"] }
 
 [workspace.lints.rust]
