@@ -8,6 +8,7 @@ pub mod battery;
 pub mod eq;
 pub mod error;
 pub mod headset;
+pub mod mixer;
 pub mod transport;
 
 pub use error::RangeError;
