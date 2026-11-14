@@ -62,19 +62,43 @@ pub fn show(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, show_idle: &
             core.update_config(|c| c.audiomix.output_device_uid = uid.into_uid());
         }
     });
-    if let Some(balance) = snapshot.headset.chatmix {
-        ui.label(format!(
-            "ChatMix dial: Game {} % · Chat {} %",
-            balance.game.get(),
-            balance.chat.get()
-        ));
-    }
+    chatmix(ui, core, snapshot);
 
     ui.add_space(8.0);
     ui.separator();
     channels(ui, core, snapshot);
     ui.separator();
     apps(ui, core, snapshot, show_idle);
+}
+
+/// Software ChatMix (SON-07): Game ↔ Chat balance, following the headset dial.
+fn chatmix(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
+    ui.horizontal(|ui| {
+        ui.label("ChatMix");
+        ui.label("Game");
+        let mut position = snapshot.chatmix_position;
+        let response = ui.add(
+            egui::Slider::new(&mut position, -1.0..=1.0)
+                .show_value(false)
+                .clamping(egui::SliderClamping::Always),
+        );
+        ui.label("Chat");
+        if response.changed() {
+            core.set_chatmix(position);
+        }
+        if ui.small_button("Centre").clicked() {
+            core.set_chatmix(0.0);
+        }
+        let balance = ss_dsp::balance_from_slider(snapshot.chatmix_position);
+        ui.label(
+            egui::RichText::new(format!(
+                "Game {} % · Chat {} %",
+                balance.game.get(),
+                balance.chat.get()
+            ))
+            .weak(),
+        );
+    });
 }
 
 fn channels(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {

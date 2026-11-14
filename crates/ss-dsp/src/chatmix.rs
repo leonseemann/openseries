@@ -50,9 +50,32 @@ pub fn balance_from_slider(position: f32) -> ChatMixBalance {
     }
 }
 
+/// Inverse of [`balance_from_slider`]: the slider position for a balance (e.g. from the dial).
+/// The side that is attenuated decides the direction; full levels on both sides are the centre.
+#[must_use]
+pub fn slider_from_balance(balance: ChatMixBalance) -> f32 {
+    let fraction = |level: Percent| f32::from(level.get()) / 100.0;
+    match balance.game.get().cmp(&balance.chat.get()) {
+        std::cmp::Ordering::Less => 1.0 - fraction(balance.game),
+        std::cmp::Ordering::Greater => fraction(balance.chat) - 1.0,
+        std::cmp::Ordering::Equal => 0.0,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn slider_and_balance_round_trip() {
+        for position in [-1.0, -0.5, -0.1, 0.0, 0.25, 0.9, 1.0] {
+            let back = slider_from_balance(balance_from_slider(position));
+            assert!((back - position).abs() < 0.006, "{position} → {back}");
+        }
+        assert!(slider_from_balance(balance(100, 100)).abs() < f32::EPSILON);
+        // Dial at "mostly chat": game attenuated → positive.
+        assert!(slider_from_balance(balance(25, 100)) > 0.7);
+    }
 
     fn balance(game: u8, chat: u8) -> ChatMixBalance {
         ChatMixBalance {

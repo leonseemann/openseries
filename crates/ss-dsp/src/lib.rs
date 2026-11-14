@@ -22,7 +22,7 @@ mod test_util;
 pub use biquad::{Biquad, Coefficients};
 pub use boost::{BoostSettings, Boosts};
 pub use chain::{ChannelStrip, ChannelStripSettings};
-pub use chatmix::{ChatMixGains, balance_from_slider, chatmix_gains};
+pub use chatmix::{ChatMixGains, balance_from_slider, chatmix_gains, slider_from_balance};
 pub use denoise::{DENOISE_FRAME, DENOISE_LATENCY, DENOISE_SAMPLE_RATE, Denoiser};
 pub use dynamics::{Compressor, CompressorSettings, NoiseGate, NoiseGateSettings, SmartVolume};
 pub use error::DspError;

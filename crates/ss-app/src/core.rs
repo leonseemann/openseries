@@ -36,6 +36,8 @@ pub struct Snapshot {
     pub save_error: Option<String>,
     /// Automatic crackling fix.
     pub crackle: CrackleStatus,
+    /// ChatMix position, −1 (game) … +1 (chat); follows the dial and the slider.
+    pub chatmix_position: f32,
 }
 
 /// Shared application core.
@@ -53,7 +55,7 @@ pub struct AppCore {
     /// The first `service_threads` handles are the audio (and headset) threads.
     service_threads: usize,
     /// Software ChatMix position for hotkeys, −1 (game) … +1 (chat).
-    chatmix_position: Mutex<f32>,
+    chatmix_position: Arc<Mutex<f32>>,
     crackle_status: Arc<Mutex<CrackleStatus>>,
     crackle_watch: Mutex<Option<crate::platform::UnderflowWatch>>,
     notify: Notifier,
@@ -106,13 +108,19 @@ impl AppCore {
         }
         let service_threads = threads.len();
 
-        // Dial events go from the headset thread to the audio thread.
+        // Dial events go from the headset thread to the audio thread; the software slider
+        // follows the dial.
+        let chatmix_position = Arc::new(Mutex::new(0.0_f32));
+        let forward_position = Arc::clone(&chatmix_position);
+        let forward_notify = Arc::clone(notify);
         let forward_tx = audio_tx.clone();
         threads.push(
             std::thread::Builder::new()
                 .name("chatmix-forward".to_owned())
                 .spawn(move || {
                     for balance in chatmix_rx {
+                        *lock(&forward_position) = ss_dsp::slider_from_balance(balance);
+                        forward_notify();
                         if forward_tx.send(AudioMsg::ChatMix(balance)).is_err() {
                             return;
                         }
@@ -158,7 +166,7 @@ impl AppCore {
             save_tx,
             threads: Mutex::new(threads),
             service_threads,
-            chatmix_position: Mutex::new(0.0),
+            chatmix_position,
             crackle_status: Arc::new(Mutex::new(CrackleStatus::default())),
             crackle_watch: Mutex::new(None),
             notify: Arc::clone(notify),
@@ -241,13 +249,17 @@ impl AppCore {
         }
     }
 
-    /// Moves the software ChatMix by `step` (hotkeys). The headset dial overrides it when moved.
+    /// Moves the software ChatMix by `step` (hotkeys).
     pub fn nudge_chatmix(&self, step: f32) {
-        let position = {
-            let mut position = lock(&self.chatmix_position);
-            *position = (*position + step).clamp(-1.0, 1.0);
-            *position
-        };
+        let position = *lock(&self.chatmix_position) + step;
+        self.set_chatmix(position);
+    }
+
+    /// Sets the software ChatMix (−1 = only game … 0 = centre … +1 = only chat). Turning the
+    /// headset dial overrides it, and the slider follows the dial.
+    pub fn set_chatmix(&self, position: f32) {
+        let position = position.clamp(-1.0, 1.0);
+        *lock(&self.chatmix_position) = position;
         let balance = ss_dsp::balance_from_slider(position);
         let _ = self.audio_tx.send(AudioMsg::ChatMix(balance));
     }
@@ -272,6 +284,7 @@ impl AppCore {
             config_warning: self.config_warning.clone(),
             save_error: lock(&self.save_error).clone(),
             crackle: lock(&self.crackle_status).clone(),
+            chatmix_position: *lock(&self.chatmix_position),
         }
     }
 
