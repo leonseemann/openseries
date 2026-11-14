@@ -26,5 +26,21 @@ foreach ($project in "EndpointsCommon\EndpointsCommon.vcxproj", "TabletAudioSamp
     & $msbuild (Join-Path $root $project) "/p:Configuration=$Configuration" /p:Platform=x64 /m /nologo /v:minimal
     if ($LASTEXITCODE -ne 0) { throw "build failed: $project" }
 }
-Get-ChildItem (Join-Path $root "TabletAudioSample\x64\$Configuration") -Recurse -Include *.sys, *.inf, *.cat |
-    ForEach-Object { $_.FullName }
+# Package: driver + INF + catalog, signed with the WDK test certificate the build created
+# (CN=WDKTestCert <user>, in CurrentUser\My). Loads only in test-signing mode.
+$out = Join-Path $root "TabletAudioSample\x64\$Configuration"
+$package = Join-Path $out "package"
+Remove-Item $package -Recurse -Force -ErrorAction SilentlyContinue
+New-Item -ItemType Directory $package | Out-Null
+Copy-Item (Join-Path $out "StealSeriesAudio.sys"), (Join-Path $out "StealSeriesAudio.inf"), (Join-Path $out "StealSeriesAudio.cer") $package
+
+$kitBin = Join-Path ${env:ProgramFiles(x86)} "Windows Kits\10\bin\10.0.26100.0"
+# The INF targets Windows 11 22H2 (NT...10.0...22621) and newer.
+& (Join-Path $kitBin "x86\Inf2Cat.exe") "/driver:$package" /os:10_NI_X64,10_GE_X64 /uselocaltime
+if ($LASTEXITCODE -ne 0) { throw "Inf2Cat failed" }
+
+$cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2 (Join-Path $package "StealSeriesAudio.cer")
+& (Join-Path $kitBin "x64\signtool.exe") sign /sha1 $cert.Thumbprint /fd SHA256 /s My (Join-Path $package "stealseriesaudio.cat")
+if ($LASTEXITCODE -ne 0) { throw "signing the catalog failed" }
+
+Get-ChildItem $package | ForEach-Object { $_.FullName }

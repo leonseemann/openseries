@@ -43,6 +43,9 @@ Abstract:
 #include "micarray2wavtable.h"
 #include "micarray3wavtable.h"
 
+// StealSeries sinks (Game/Chat/Media/Aux), see stealseriestoptable.h.
+#include "stealseriestoptable.h"
+
 NTSTATUS
 CreateMiniportWaveRTSYSVAD
 ( 
@@ -506,13 +509,64 @@ ENDPOINT_MINIPAIR MicArray3Miniports =
 //
 // Render miniport pairs.
 //
+/*********************************************************************
+* StealSeries sinks: speaker-style topology (custom endpoint name)    *
+* + the HDMI wave filter (stereo, no offload pin, loopback pin), so   *
+* every app stream goes through the audio engine mix and WASAPI       *
+* loopback capture sees it (windows-virtual-driver.md, section 2).    *
+*                                                                    *
+*              +------+                +------+                      *
+*              | Wave |                | Topo |                      *
+* System   --->|0    1|---> Loopback   |      |                      *
+*              |     2|--------------->|0    1|---> Line Out         *
+*              +------+                +------+                      *
+*********************************************************************/
 static
-PENDPOINT_MINIPAIR  g_RenderEndpoints[] = 
+PHYSICALCONNECTIONTABLE StealSeriesSinkPhysicalConnections[] =
 {
-    &SpeakerMiniports,
-    &SpeakerHpMiniports,
-    &HdmiMiniports,
-    &SpdifMiniports,
+    {
+        KSPIN_TOPO_WAVEOUT_SOURCE,  // TopologyIn
+        KSPIN_WAVE_RENDER2_SOURCE,  // WaveOut (no offloading)
+        CONNECTIONTYPE_WAVE_OUTPUT
+    }
+};
+
+#define STEALSERIES_SINK_MINIPAIR(Channel)                                                   \
+static                                                                                       \
+ENDPOINT_MINIPAIR Channel##Miniports =                                                       \
+{                                                                                            \
+    eSpeakerDevice,                                                                          \
+    L"Topology" #Channel,      /* must match KSNAME_Topology<Channel> in the INF */         \
+    NULL,                                                                                    \
+    CreateMiniportTopologySYSVAD,                                                            \
+    &Channel##TopoMiniportFilterDescriptor,                                                  \
+    0, NULL,                                                                                 \
+    L"Wave" #Channel,          /* must match KSNAME_Wave<Channel> in the INF */             \
+    NULL,                                                                                    \
+    CreateMiniportWaveRTSYSVAD,                                                              \
+    &HdmiWaveMiniportFilterDescriptor,                                                       \
+    0, NULL,                                                                                 \
+    HDMI_DEVICE_MAX_CHANNELS,                                                                \
+    HdmiPinDeviceFormatsAndModes,                                                            \
+    SIZEOF_ARRAY(HdmiPinDeviceFormatsAndModes),                                              \
+    StealSeriesSinkPhysicalConnections,                                                      \
+    SIZEOF_ARRAY(StealSeriesSinkPhysicalConnections),                                        \
+    ENDPOINT_LOOPBACK_SUPPORTED,                                                             \
+    NULL, 0, NULL,                                                                           \
+};
+
+STEALSERIES_SINK_MINIPAIR(Game)
+STEALSERIES_SINK_MINIPAIR(Chat)
+STEALSERIES_SINK_MINIPAIR(Media)
+STEALSERIES_SINK_MINIPAIR(Aux)
+
+static
+PENDPOINT_MINIPAIR  g_RenderEndpoints[] =
+{
+    &GameMiniports,
+    &ChatMiniports,
+    &MediaMiniports,
+    &AuxMiniports,
 };
 
 #define g_cRenderEndpoints  (SIZEOF_ARRAY(g_RenderEndpoints))
@@ -522,12 +576,9 @@ PENDPOINT_MINIPAIR  g_RenderEndpoints[] =
 // Capture miniport pairs.
 //
 static
-PENDPOINT_MINIPAIR  g_CaptureEndpoints[] = 
+PENDPOINT_MINIPAIR  g_CaptureEndpoints[] =
 {
-    &MicInMiniports,
-    &MicArray1Miniports,
-    &MicArray2Miniports,
-    &MicArray3Miniports,
+    &MicInMiniports,            // "StealSeries Microphone" (name set in the INF)
 };
 
 #define g_cCaptureEndpoints (SIZEOF_ARRAY(g_CaptureEndpoints))
