@@ -1,7 +1,7 @@
 //! Conversions between domain values (`ss-core`) and wire bytes (prior-art.md §1.3).
 
 use ss_core::battery::{BatteryLevel, ChargeState};
-use ss_core::headset::{AutoOff, EqGain, EqPreset, NoiseControl, SidetoneLevel};
+use ss_core::headset::{AutoOff, EqGain, EqPreset, NoiseControl, Percent, SidetoneLevel};
 
 /// Battery is reported in eighths (0–8, 12.5 % per step).
 const BATTERY_STEPS: u8 = 8;
@@ -37,6 +37,19 @@ pub fn power_state(code: u8) -> (bool, ChargeState) {
         8 => (true, ChargeState::Discharging),
         _ => (false, ChargeState::Unknown),
     }
+}
+
+/// Largest volume attenuation value (silent).
+const MAX_VOLUME_ATTENUATION: u8 = 56;
+
+/// Converts a volume attenuation (0 = loudest … 56 = silent) into a 0–100 % level.
+pub fn volume_from_attenuation(attenuation: u8) -> Option<Percent> {
+    let remaining = MAX_VOLUME_ATTENUATION.checked_sub(attenuation)?;
+    let max = u16::from(MAX_VOLUME_ATTENUATION);
+    let percent = (u16::from(remaining) * 100 + max / 2) / max;
+    u8::try_from(percent)
+        .ok()
+        .and_then(|p| Percent::new(p).ok())
 }
 
 pub fn noise_control_to_byte(mode: NoiseControl) -> u8 {
@@ -170,6 +183,14 @@ mod tests {
         assert_eq!(eq_gain_to_byte(EqGain::from_db(10.0).unwrap()), 40);
         assert_eq!(eq_gain_to_byte(EqGain::from_db(1.3).unwrap()), 0x14 + 3);
         assert!(eq_gain_from_byte(41).is_none());
+    }
+
+    #[test]
+    fn volume_attenuation_maps_to_percent() {
+        assert_eq!(volume_from_attenuation(0).unwrap().get(), 100);
+        assert_eq!(volume_from_attenuation(28).unwrap().get(), 50);
+        assert_eq!(volume_from_attenuation(56).unwrap().get(), 0);
+        assert!(volume_from_attenuation(57).is_none());
     }
 
     #[test]

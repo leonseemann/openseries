@@ -90,6 +90,7 @@ pub fn print_event(event: &Event) {
             percent(b.spare),
             b.state
         ),
+        Event::Volume(v) => println!("Volume    {:>3} %", v.get()),
         Event::Unrecognized { report_id, opcode } => {
             println!("Unknown   report {report_id:#04x} opcode {opcode:#04x}");
         }

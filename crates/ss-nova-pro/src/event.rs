@@ -73,6 +73,8 @@ pub enum Event {
     Display(Display),
     /// Battery levels (reply to [`crate::Command::QueryBattery`] or periodic event).
     Battery(BatteryReport),
+    /// Headset volume dial turned.
+    Volume(Percent),
     /// Sidetone changed.
     Sidetone(SidetoneLevel),
     /// Microphone volume changed.
@@ -142,6 +144,9 @@ impl Event {
             }
             (REPORT_ID_COMMAND, op::QUERY_DISPLAY) => Some(Self::Display(decode_display(&reader)?)),
             (REPORT_ID_COMMAND | REPORT_ID_EVENT, op::BATTERY) => decode_battery(&reader)?,
+            (REPORT_ID_EVENT, op::VOLUME) => {
+                codec::volume_from_attenuation(reader.arg(0)?).map(Self::Volume)
+            }
             (REPORT_ID_EVENT, op::SIDETONE) => {
                 codec::sidetone_from_byte(reader.arg(0)?).map(Self::Sidetone)
             }
@@ -356,6 +361,11 @@ mod tests {
 
     #[test]
     fn decodes_simple_events() {
+        // Observed on hardware: volume dial sends 07 25 <attenuation>.
+        assert_eq!(
+            Event::decode(&report(&[0x07, 0x25, 0x1c])).unwrap(),
+            Event::Volume(Percent::new(50).unwrap())
+        );
         assert_eq!(
             Event::decode(&report(&[0x07, 0x39, 2])).unwrap(),
             Event::Sidetone(SidetoneLevel::Medium)

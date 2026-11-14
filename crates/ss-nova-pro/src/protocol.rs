@@ -22,6 +22,8 @@ pub mod op {
     pub const SAVE: u8 = 0x09;
     /// Read the audio settings block (EQ, mic volume, sidetone, ChatMix).
     pub const QUERY_SETTINGS: u8 = 0x20;
+    /// Headset volume dial (event, attenuation 0 = loudest … 56 = silent).
+    pub const VOLUME: u8 = 0x25;
     /// Equalizer preset.
     pub const EQ_PRESET: u8 = 0x2E;
     /// Single EQ band changed on the base station (event).
