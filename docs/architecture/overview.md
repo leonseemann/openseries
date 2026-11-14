@@ -79,9 +79,8 @@ traits ("ports") defined in `ss-core`; binaries wire concrete adapters into serv
 | `ss-audio-windows` | lib | Device enumeration, WASAPI streams, process-loopback capture, `IAudioPolicyConfig` routing | v1 – planned |
 | `ss-audio-macos` | lib | CoreAudio devices, AUHAL I/O, Audio Process Taps, driver IPC | v1 – planned |
 | `ss-hal-driver-macos` | cdylib | Minimal AudioServerPlugIn exposing virtual channels; ring buffer to the daemon | v1 – planned |
-| `ss-store` | lib | Versioned JSON config/preset files in the per-user config dir | v1 – planned |
-| `ss-daemon` | bin | Long-running service: devices, audio engine, local API, hotkeys, tray | v1 – planned |
-| `ss-ui` | bin | Tauri 2 UI talking to the daemon | v1 – planned |
+| `ss-store` | lib | Versioned JSON config/preset files in the per-user config dir | v1 – M5 |
+| `ss-app` | bin | The menu-bar app: services in-process, egui window, tray, hotkeys, autostart ([app.md](app.md), [ADR 0005](../adr/0005-single-app-pure-rust-ui.md); replaces the planned `ss-daemon` + Tauri `ss-ui`) | v1 – M5 |
 
 ## 5. Headset control path
 
@@ -165,5 +164,5 @@ changes travel as small messages over an `rtrb` SPSC queue; meters travel back t
 2. ✅ **M2 – DSP:** `ss-dsp` with tests; offline WAV processing tool for listening tests.
 3. ✅ **M3 – macOS audio** ([ADR 0002](../adr/0002-macos-audio-strategy.md)): M3a `ss-engine` + `ss-audio-macos` with Process Taps (per-app routing, ChatMix dial) — verified on hardware ([macos-audiomix.md](../hardware/macos-audiomix.md)); M3b virtual-mic HAL driver ([virtual-mic-driver.md](virtual-mic-driver.md)) — verified on hardware ([macos-virtual-mic.md](../hardware/macos-virtual-mic.md)).
 4. **M4 – Windows audio:** spike + ADR 0004, `ss-audio-windows`.
-5. **M5 – Daemon + UI:** local API, tray, hotkeys, presets, onboarding, AudioMix master switch (§7).
-6. **M6 – Mic chain:** denoise (nnnoiseless → DeepFilterNet), gate, compressor, mic EQ ([mic-chain.md](mic-chain.md)).
+5. **M5 – App:** one menu-bar app with egui window, tray, hotkeys, autostart, config store, AudioMix master switch ([app.md](app.md), [ADR 0005](../adr/0005-single-app-pure-rust-ui.md)).
+6. ✅ **M6 – Mic chain:** RNNoise denoise, gate (manual/auto), stabilizer, mic EQ ([mic-chain.md](mic-chain.md), [checklist](../hardware/macos-mic-chain.md)). **Deferred (owner, 2026-11-14):** keyboard/impact noise (SON-22 or DeepFilterNet), live-call latency check, stabilizer tuning.
