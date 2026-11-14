@@ -46,4 +46,7 @@ pub struct RunArgs {
     /// Enable Smart Volume (balanced) on the Media channel.
     #[arg(long)]
     pub media_smart_volume: bool,
+    /// Print the aggregate stream layout and per-buffer input peaks every second.
+    #[arg(long)]
+    pub probe: bool,
 }

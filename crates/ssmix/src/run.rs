@@ -8,8 +8,8 @@ use std::time::Duration;
 use anyhow::{Context, Result, bail};
 use ss_audio_macos::plan::{Pid, plan_taps};
 use ss_audio_macos::{
-    AudioMixSession, AudioProcess, OutputDevice, default_output_device, list_audio_processes,
-    list_output_devices,
+    AudioMixSession, AudioProcess, MAX_PROBED_BUFFERS, OutputDevice, default_output_device,
+    list_audio_processes, list_output_devices,
 };
 use ss_core::mixer::ChannelId;
 use ss_dsp::{BoostSettings, ChannelStripSettings, SmartVolume};
@@ -19,6 +19,10 @@ use crate::cli::{Action, Cli, RunArgs};
 
 /// How often the main thread checks for Ctrl-C.
 const IDLE_POLL: Duration = Duration::from_millis(200);
+/// Main-loop polls between two probe reports (= one second).
+const POLLS_PER_PROBE_REPORT: u32 = 5;
+/// Peaks below this are printed as silence.
+const SILENCE_DBFS: f32 = -120.0;
 
 /// Runs the selected action.
 ///
@@ -67,7 +71,16 @@ fn run(args: &RunArgs) -> Result<()> {
     configure_strips(args, &mut controller)?;
     let dial = start_dial(args.dial, controller)?;
 
-    wait_for_ctrl_c()?;
+    if args.probe {
+        print_stream_layout(&session)?;
+    }
+    let mut polls = 0_u32;
+    wait_for_ctrl_c(|| {
+        polls += 1;
+        if args.probe && polls % POLLS_PER_PROBE_REPORT == 0 {
+            print_probe(&session);
+        }
+    })?;
     if let Some(dial) = dial {
         dial.stop()?;
     }
@@ -174,12 +187,62 @@ fn own_pid() -> Pid {
     Pid::try_from(std::process::id()).unwrap_or(Pid::MAX)
 }
 
-fn wait_for_ctrl_c() -> Result<()> {
+fn print_stream_layout(session: &AudioMixSession) -> Result<()> {
+    let layout = session.stream_layout()?;
+    println!(
+        "probe: device input buffers (skipped) = {}, taps = {:?}",
+        layout.device_inputs,
+        session.tap_channels()
+    );
+    println!(
+        "probe: aggregate input  channels per buffer = {:?}",
+        layout.inputs
+    );
+    println!(
+        "probe: aggregate output channels per buffer = {:?}",
+        layout.outputs
+    );
+    Ok(())
+}
+
+fn print_probe(session: &AudioMixSession) {
+    let snapshot = session.probe();
+    let shown = snapshot.input_buffers.min(MAX_PROBED_BUFFERS);
+    let peaks: Vec<String> = (0..shown)
+        .map(|i| {
+            format!(
+                "#{i}({}ch) {:>6.1}",
+                snapshot.channels[i],
+                to_dbfs(snapshot.peaks[i])
+            )
+        })
+        .collect();
+    println!(
+        "probe: cb={} frames={} out={}x{}ch | in dBFS: {}",
+        snapshot.callbacks,
+        snapshot.frames,
+        snapshot.output_buffers,
+        snapshot.output_channels,
+        peaks.join("  ")
+    );
+}
+
+fn to_dbfs(peak: f32) -> f32 {
+    if peak > 0.0 {
+        (20.0 * peak.log10()).max(SILENCE_DBFS)
+    } else {
+        SILENCE_DBFS
+    }
+}
+
+/// Blocks until Ctrl-C, calling `tick` every [`IDLE_POLL`].
+fn wait_for_ctrl_c(mut tick: impl FnMut()) -> Result<()> {
     let running = Arc::new(AtomicBool::new(true));
     let flag = Arc::clone(&running);
     ctrlc::set_handler(move || flag.store(false, Ordering::SeqCst))?;
     while running.load(Ordering::SeqCst) {
         std::thread::sleep(IDLE_POLL);
+        tick();
     }
     Ok(())
 }

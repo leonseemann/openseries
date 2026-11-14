@@ -6,21 +6,24 @@
 
 use std::cell::RefCell;
 use std::ptr::NonNull;
+use std::sync::Arc;
 
 use block2::RcBlock;
 use dispatch2::{DispatchQueue, DispatchRetained};
 use objc2_core_audio::{
     AudioDeviceCreateIOProcIDWithBlock, AudioDeviceDestroyIOProcID, AudioDeviceIOProcID,
-    AudioDeviceStart, AudioDeviceStop, kAudioDevicePropertyStreamConfiguration,
-    kAudioObjectPropertyScopeInput,
+    AudioDeviceStart, AudioDeviceStop, AudioObjectID, AudioObjectPropertyScope,
+    kAudioDevicePropertyStreamConfiguration, kAudioObjectPropertyScopeInput,
+    kAudioObjectPropertyScopeOutput,
 };
-use objc2_core_audio_types::{AudioBufferList, AudioTimeStamp};
+use objc2_core_audio_types::{AudioBuffer, AudioBufferList, AudioTimeStamp};
 use ss_core::mixer::ChannelId;
 use ss_engine::{ChannelInput, EngineController, MixEngine};
 
 use super::aggregate::AggregateDevice;
 use super::buffers;
 use super::device::OutputDevice;
+use super::probe::{CallbackLayout, Probe, ProbeSnapshot};
 use super::property;
 use super::tap::ProcessTap;
 use crate::AudioError;
@@ -52,12 +55,25 @@ struct InputLayout {
     count: usize,
 }
 
+/// Static stream configuration of the running aggregate device (channels per buffer).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StreamLayout {
+    /// Input buffers the output device itself contributes (skipped before the taps).
+    pub device_inputs: usize,
+    /// Channels per aggregate input buffer.
+    pub inputs: Vec<usize>,
+    /// Channels per aggregate output buffer.
+    pub outputs: Vec<usize>,
+}
+
 /// A running mix. Dropping it stops audio and removes the taps (apps become audible again).
 pub struct AudioMixSession {
     // Field order = drop order after `Drop::drop`: aggregate device before its taps.
     aggregate: AggregateDevice,
     taps: Vec<ProcessTap>,
     proc_id: AudioDeviceIOProcID,
+    layout: InputLayout,
+    probe: Arc<Probe>,
     _block: IoBlock,
     _queue: DispatchRetained<DispatchQueue>,
 }
@@ -88,8 +104,10 @@ impl AudioMixSession {
                 .map_err(|e| AudioError::Unsupported(e.to_string()))?;
 
         let engine = RefCell::new(engine);
+        let probe = Arc::new(Probe::default());
+        let rt_probe = Arc::clone(&probe);
         let block: IoBlock = RcBlock::new(move |_now, input, _input_time, output, _output_time| {
-            render(&engine, &layout, input, output);
+            render(&engine, &layout, &rt_probe, input, output);
         });
         let queue = DispatchQueue::new(QUEUE_LABEL, None);
 
@@ -109,6 +127,8 @@ impl AudioMixSession {
             aggregate,
             taps,
             proc_id,
+            layout,
+            probe,
             _block: block,
             _queue: queue,
         };
@@ -122,6 +142,30 @@ impl AudioMixSession {
     #[must_use]
     pub fn tap_count(&self) -> usize {
         self.taps.len()
+    }
+
+    /// Mixer channel fed by each tap, in tap-list order.
+    #[must_use]
+    pub fn tap_channels(&self) -> &[ChannelId] {
+        &self.layout.channels[..self.layout.count]
+    }
+
+    /// Stream configuration of the aggregate device as reported by CoreAudio.
+    ///
+    /// # Errors
+    /// [`AudioError`] if a stream configuration cannot be read.
+    pub fn stream_layout(&self) -> Result<StreamLayout, AudioError> {
+        Ok(StreamLayout {
+            device_inputs: self.layout.skip,
+            inputs: buffer_channels(self.aggregate.id(), kAudioObjectPropertyScopeInput)?,
+            outputs: buffer_channels(self.aggregate.id(), kAudioObjectPropertyScopeOutput)?,
+        })
+    }
+
+    /// Measurements of the IOProc since the previous call (peaks are reset).
+    #[must_use]
+    pub fn probe(&self) -> ProbeSnapshot {
+        self.probe.take()
     }
 }
 
@@ -147,35 +191,37 @@ fn input_layout(output: &OutputDevice, specs: &[TapSpec]) -> Result<InputLayout,
         *slot = spec.channel;
     }
     Ok(InputLayout {
-        skip: input_stream_count(output)?,
+        skip: buffer_channels(output.id, kAudioObjectPropertyScopeInput)?.len(),
         channels,
         count: specs.len(),
     })
 }
 
-/// Number of input streams (buffers) of the output device itself.
-fn input_stream_count(output: &OutputDevice) -> Result<usize, AudioError> {
-    let raw = property::get_raw(
-        output.id,
-        kAudioDevicePropertyStreamConfiguration,
-        kAudioObjectPropertyScopeInput,
-    )?;
+/// Channels of every stream (buffer) of `device` in `scope`.
+fn buffer_channels(
+    device: AudioObjectID,
+    scope: AudioObjectPropertyScope,
+) -> Result<Vec<usize>, AudioError> {
+    let raw = property::get_raw(device, kAudioDevicePropertyStreamConfiguration, scope)?;
     let Some(list) = NonNull::new(raw.as_ptr().cast_mut().cast::<AudioBufferList>()) else {
-        return Ok(0);
+        return Ok(Vec::new());
     };
     // SAFETY: `raw` holds the complete AudioBufferList and outlives this call.
-    Ok(unsafe { buffers::buffers(list) }.len())
+    let streams = unsafe { buffers::buffers(list) };
+    Ok(streams.iter().map(|b| b.mNumberChannels as usize).collect())
 }
 
 /// The IOProc body. Runs on the real-time thread: no allocation, no locks, no logging.
 fn render(
     engine: &RefCell<MixEngine>,
     layout: &InputLayout,
+    probe: &Probe,
     input: NonNull<AudioBufferList>,
     output: NonNull<AudioBufferList>,
 ) {
     // SAFETY: CoreAudio passes valid buffer lists that live for the duration of the callback.
     let (inputs, outputs) = unsafe { (buffers::buffers(input), buffers::buffers(output)) };
+    record_probe(probe, inputs, outputs);
     let Some((main, rest)) = outputs.split_first() else {
         return;
     };
@@ -212,4 +258,23 @@ fn render(
         count += 1;
     }
     engine.process(&channel_inputs[..count], out);
+}
+
+/// Feeds the probe with this callback's buffer shapes and input peaks. Real-time safe.
+fn record_probe(probe: &Probe, inputs: &[AudioBuffer], outputs: &[AudioBuffer]) {
+    let output_channels = outputs.first().map_or(0, |b| b.mNumberChannels as usize);
+    let frames = outputs.first().map_or(0, |b| {
+        (b.mDataByteSize as usize / size_of::<f32>()) / output_channels.max(1)
+    });
+    probe.record_layout(CallbackLayout {
+        input_buffers: inputs.len(),
+        output_buffers: outputs.len(),
+        output_channels,
+        frames,
+    });
+    for (index, buffer) in inputs.iter().enumerate() {
+        // SAFETY: input buffers are valid and read-only for the callback.
+        let samples = unsafe { buffers::samples(buffer) };
+        probe.record_input(index, buffer.mNumberChannels as usize, samples);
+    }
 }

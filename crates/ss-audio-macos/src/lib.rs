@@ -19,6 +19,6 @@ mod macos;
 pub use error::AudioError;
 #[cfg(target_os = "macos")]
 pub use macos::{
-    AudioMixSession, AudioProcess, OutputDevice, default_output_device, list_audio_processes,
-    list_output_devices,
+    AudioMixSession, AudioProcess, MAX_PROBED_BUFFERS, OutputDevice, ProbeSnapshot, StreamLayout,
+    default_output_device, list_audio_processes, list_output_devices,
 };
