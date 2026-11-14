@@ -1,9 +1,9 @@
 //! A running AudioMix session: taps → aggregate device → IOProc → [`MixEngine`].
 //!
-//! **Observed** (`docs/hardware/macos-audiomix.md`, check 6): the aggregate device delivers the
-//! main sub-device's own input streams first, followed by the tap streams. The headset's input
-//! buffer count is therefore skipped before mapping buffers to channels. That several taps keep
-//! tap-list order is still **Inferred** (check 8).
+//! **Observed** (`docs/hardware/macos-audiomix.md`, checks 6 and 8): the aggregate device delivers the
+//! main sub-device's own input streams first, followed by one stream per tap in tap-list order
+//! (check 8). The headset's input buffer count is therefore skipped before mapping buffers to
+//! channels.
 
 use std::cell::RefCell;
 use std::ptr::NonNull;
