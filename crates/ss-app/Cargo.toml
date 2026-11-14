@@ -1,0 +1,29 @@
+[package]
+name = "ss-app"
+description = "StealSeries menu-bar app: headset control, AudioMix and virtual mic (docs/architecture/app.md)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "stealseries"
+path = "src/main.rs"
+
+[dependencies]
+ss-core.workspace = true
+ss-dsp.workspace = true
+ss-engine.workspace = true
+ss-store.workspace = true
+ss-nova-pro.workspace = true
+ss-hid.workspace = true
+ss-audio-macos.workspace = true
+anyhow.workspace = true
+ctrlc.workspace = true
+# UI (ADR 0005): all MIT OR Apache-2.0.
+eframe = "0.32"
+tray-icon = "0.24"
+
+[lints]
+workspace = true
