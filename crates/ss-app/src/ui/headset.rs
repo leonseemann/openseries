@@ -28,6 +28,19 @@ pub fn show(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
     if !status.connected {
         ui.label("Base station connected, headset is off or out of range.");
     }
+    ui.horizontal(|ui| {
+        if ui
+            .button("Reconnect")
+            .on_hover_text("Close and reopen the connection to the base station")
+            .clicked()
+        {
+            core.reconnect_headset();
+        }
+        ui.label(
+            egui::RichText::new("Battery is reported in 9 steps (12.5 %) by the base station.")
+                .weak(),
+        );
+    });
 
     status_grid(ui, status);
     noise_control(ui, core, status);
@@ -42,7 +55,7 @@ fn status_grid(ui: &mut egui::Ui, status: Status) {
             ui.label("Battery");
             ui.label(match status.headset_battery {
                 Some(level) => format!(
-                    "{} % ({})",
+                    "≈{} % ({})",
                     level.percent(),
                     charge_text(status.charge_state)
                 ),
@@ -52,7 +65,7 @@ fn status_grid(ui: &mut egui::Ui, status: Status) {
             ui.label("Spare battery");
             ui.label(status.spare_battery.map_or_else(
                 || "none".to_owned(),
-                |level| format!("{} %", level.percent()),
+                |level| format!("≈{} %", level.percent()),
             ));
             ui.end_row();
             ui.label("Microphone");

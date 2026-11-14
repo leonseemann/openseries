@@ -92,7 +92,7 @@ impl Tray {
         let text = match snapshot.headset.status {
             Some(status) if status.connected => status.headset_battery.map_or_else(
                 || "Headset connected".to_owned(),
-                |b| format!("Headset · {} %", b.percent()),
+                |b| format!("Headset · ≈{} %", b.percent()),
             ),
             _ => "Headset not connected".to_owned(),
         };

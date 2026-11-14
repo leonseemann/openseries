@@ -125,7 +125,7 @@ fn status_bar(ui: &mut egui::Ui, snapshot: &Snapshot) {
         let headset = &snapshot.headset;
         let headset_text = match headset.status {
             Some(status) if status.connected => match status.headset_battery {
-                Some(battery) => format!("Headset · {} %", battery.percent()),
+                Some(battery) => format!("Headset · ≈{} %", battery.percent()),
                 None => "Headset · connected".to_owned(),
             },
             Some(_) => "Headset · base station only".to_owned(),

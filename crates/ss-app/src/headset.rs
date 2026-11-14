@@ -37,6 +37,8 @@ pub enum HeadsetMsg {
     Send(Command),
     /// AudioMix master switch changed (controls the ChatMix hand-over).
     AudioMixEnabled(bool),
+    /// Close and reopen the base station connection.
+    Reconnect,
     /// Restore the base station and stop.
     Shutdown,
 }
@@ -122,7 +124,22 @@ impl Worker {
     fn handle_messages(&mut self) -> bool {
         loop {
             match self.rx.try_recv() {
-                Ok(HeadsetMsg::Send(command)) => self.send(command),
+                Ok(HeadsetMsg::Send(command)) => {
+                    // The base station reports button presses, but not changes made by the
+                    // host, so read the result back right away.
+                    self.send(command);
+                    self.refresh_all();
+                }
+                Ok(HeadsetMsg::Reconnect) => {
+                    self.release_takeover();
+                    self.device = None;
+                    self.last_attempt = None;
+                    self.update(|s| {
+                        s.base_station = false;
+                        s.status = None;
+                        s.error = None;
+                    });
+                }
                 Ok(HeadsetMsg::AudioMixEnabled(enabled)) => self.takeover_wanted = enabled,
                 Ok(HeadsetMsg::Shutdown) | Err(TryRecvError::Disconnected) => return false,
                 Err(TryRecvError::Empty) => return true,
@@ -213,6 +230,23 @@ impl Worker {
         match device.status() {
             Ok(status) => self.update(|s| s.status = Some(status)),
             Err(error) => self.disconnect(&error.to_string()),
+        }
+    }
+
+    /// Re-reads status, settings and display after a host-side change.
+    fn refresh_all(&mut self) {
+        self.refresh_status();
+        let Some(device) = self.device.as_mut() else {
+            return;
+        };
+        let settings = device.settings();
+        let display = device.display();
+        match (settings, display) {
+            (Ok(settings), Ok(display)) => self.update(|s| {
+                s.settings = Some(settings);
+                s.display = Some(display);
+            }),
+            (Err(error), _) | (_, Err(error)) => self.disconnect(&error.to_string()),
         }
     }
 
