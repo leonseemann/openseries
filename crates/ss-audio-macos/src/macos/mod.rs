@@ -7,6 +7,7 @@ mod probe;
 mod process;
 mod property;
 mod session;
+mod stream_usage;
 mod tap;
 
 pub use device::{OutputDevice, default_output_device, list_output_devices};

@@ -15,7 +15,7 @@ on a real Mac with the Arctis Nova Pro Wireless.
   manually under *System Settings → Privacy & Security → Screen & System Audio Recording →
   System Audio Recording Only* and restart it. `ssmix` warns after 3 s of exact silence on all taps.
 - macOS additionally asks for **microphone** access on first start, because the aggregate device
-  contains the headset's input stream (see check 6).
+  contains the headset's input stream. The stream itself is kept closed (see Findings).
 
 ## Steps
 
@@ -55,7 +55,12 @@ Run on 2026-11-14: macOS 27.2.1 (arm64), Ghostty, Nova Pro base station on USB-1
 
 - **Silent taps without permission** (check 4): handled by the `ssmix` warning; a GUI app will
   need a proper permission flow (`NSAudioCaptureUsageDescription`, ADR 0002).
-- **Microphone prompt for playback-only mixing** (check 6): the headset input is part of the
-  aggregate device and runs with the IOProc. Open: disable it via
-  `kAudioDevicePropertyIOProcStreamUsage` (or drop it from the aggregate) so AudioMix playback
-  does not need microphone access.
+- **Microphone for playback-only mixing** (check 6): the headset input is part of the aggregate
+  device. Fixed: `ss-audio-macos` switches the device's own input streams off for its IOProc
+  (`kAudioDevicePropertyIOProcStreamUsage`). **Observed** after `tccutil reset Microphone
+  com.mitchellh.ghostty`: buffer #0 stays empty (no data even while speaking; before: −47 dBFS
+  noise floor), no orange microphone indicator, playback unchanged. The microphone **prompt still
+  appears** — macOS asks as soon as a device with inputs is part of the aggregate. Avoiding it
+  would mean removing the headset from the aggregate (separate output path with ring buffer and
+  drift handling, against ADR 0002); not worth it, since the mic features (SON-19…25, M3b) need the
+  permission anyway. Accepted.

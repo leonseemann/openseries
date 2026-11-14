@@ -26,6 +26,7 @@ use super::buffers;
 use super::device::OutputDevice;
 use super::probe::{CallbackLayout, Probe, ProbeSnapshot};
 use super::property;
+use super::stream_usage::set_stream_usage;
 use super::tap::ProcessTap;
 use crate::AudioError;
 use crate::plan::TapSpec;
@@ -133,10 +134,29 @@ impl AudioMixSession {
             _block: block,
             _queue: queue,
         };
+        session.close_device_inputs()?;
         // SAFETY: device and IOProc id were created above.
         let status = unsafe { AudioDeviceStart(session.aggregate.id(), session.proc_id) };
         AudioError::check(status, "AudioDeviceStart")?;
         Ok((session, controller))
+    }
+
+    /// Switches the output device's own input streams (the headset mic) off for our IOProc, so
+    /// playback mixing neither opens the microphone nor needs microphone permission. Their
+    /// buffers stay in the list (with no data), so the tap mapping is unchanged.
+    fn close_device_inputs(&self) -> Result<(), AudioError> {
+        if self.layout.skip == 0 {
+            return Ok(());
+        }
+        let streams = buffer_channels(self.aggregate.id(), kAudioObjectPropertyScopeInput)?.len();
+        let skip = self.layout.skip;
+        set_stream_usage(
+            self.aggregate.id(),
+            self.proc_id,
+            kAudioObjectPropertyScopeInput,
+            streams,
+            |index| index >= skip,
+        )
     }
 
     /// Number of active taps.
