@@ -51,7 +51,7 @@ sequenceDiagram
 | `ss-engine` | any | `MixEngine`, `EngineController`, commands, channel model; fully unit-tested on Windows |
 | `ss-audio-macos` | macOS | Process list, process taps, private aggregate device, IOProc → `MixEngine` |
 | `ss-hal-driver-macos` | macOS | M3b: loopback AudioServerPlugIn for the virtual microphone ([design](virtual-mic-driver.md)) |
-| `ss-audio-windows` | Windows | M4: WASAPI process loopback + render → `MixEngine` |
+| `ss-audio-windows` | Windows | M4a: session mixer (per-app session volumes, ChatMix); M4b: virtual-driver capture → `MixEngine` → headset ([ADR 0004](../adr/0004-windows-audio-strategy.md); process loopback alone cannot silence the original) |
 
 ## 4. macOS backend outline (M3a)
 
