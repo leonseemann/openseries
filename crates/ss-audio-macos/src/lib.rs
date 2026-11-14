@@ -2,7 +2,8 @@
 //!
 //! * [`plan`] — OS-independent: turns app→channel assignments into a list of process taps.
 //! * `macos` (macOS only) — CoreAudio FFI: process taps, a private aggregate device and the
-//!   IOProc that feeds [`ss_engine::MixEngine`].
+//!   IOProc that feeds [`ss_engine::MixEngine`]; plus the mic feed into the virtual microphone
+//!   of `ss-hal-driver-macos`.
 //!
 //! On other operating systems only the portable planning code is compiled, so the workspace
 //! builds and tests everywhere.
@@ -19,6 +20,8 @@ mod macos;
 pub use error::AudioError;
 #[cfg(target_os = "macos")]
 pub use macos::{
-    AudioMixSession, AudioProcess, MAX_PROBED_BUFFERS, OutputDevice, ProbeSnapshot, StreamLayout,
-    default_output_device, list_audio_processes, list_output_devices,
+    AudioMixSession, AudioProcess, FEED_DEVICE_UID, InputDevice, MAX_PROBED_BUFFERS,
+    MicFeedSession, OutputDevice, ProbeSnapshot, StreamLayout, VIRTUAL_MIC_UID,
+    default_input_device, default_output_device, device_id_for_uid, list_audio_processes,
+    list_input_devices, list_output_devices,
 };

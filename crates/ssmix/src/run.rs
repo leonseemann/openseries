@@ -8,14 +8,15 @@ use std::time::Duration;
 use anyhow::{Context, Result, bail};
 use ss_audio_macos::plan::{Pid, plan_taps};
 use ss_audio_macos::{
-    AudioMixSession, AudioProcess, MAX_PROBED_BUFFERS, OutputDevice, ProbeSnapshot,
-    default_output_device, list_audio_processes, list_output_devices,
+    AudioMixSession, AudioProcess, InputDevice, MAX_PROBED_BUFFERS, MicFeedSession, OutputDevice,
+    ProbeSnapshot, default_input_device, default_output_device, list_audio_processes,
+    list_input_devices, list_output_devices,
 };
 use ss_core::mixer::ChannelId;
 use ss_dsp::{BoostSettings, ChannelStripSettings, SmartVolume};
 use ss_engine::Command as EngineCommand;
 
-use crate::cli::{Action, Cli, RunArgs};
+use crate::cli::{Action, Cli, MicArgs, RunArgs};
 
 /// How often the main thread checks for Ctrl-C.
 const IDLE_POLL: Duration = Duration::from_millis(200);
@@ -53,7 +54,78 @@ pub fn execute(cli: Cli) -> Result<()> {
             Ok(())
         }
         Action::Run(args) => run(&args),
+        Action::Inputs => {
+            for d in list_input_devices()? {
+                println!(
+                    "{:>4}  {:<40} {} ch  {}",
+                    d.id, d.name, d.input_channels, d.uid
+                );
+            }
+            Ok(())
+        }
+        Action::Mic(args) => mic(&args),
     }
+}
+
+fn mic(args: &MicArgs) -> Result<()> {
+    let input = select_input(args.input.as_deref())?;
+    let gain = 10_f32.powf(args.gain_db / 20.0);
+    let session = MicFeedSession::start(&input, gain)
+        .context("starting the mic feed (grant microphone permission if macOS asked)")?;
+    println!(
+        "Feeding \"{}\" into \"StealSeries Microphone\" ({:+.1} dB). Ctrl-C to stop.",
+        input.name, args.gain_db
+    );
+    if args.probe {
+        let layout = session.stream_layout()?;
+        println!(
+            "probe: aggregate input  channels per buffer = {:?}",
+            layout.inputs
+        );
+        println!(
+            "probe: aggregate output channels per buffer = {:?}, feed = #{}",
+            layout.outputs,
+            session.feed_buffer_index()
+        );
+    }
+    let mut polls = 0_u32;
+    wait_for_ctrl_c(|| {
+        polls += 1;
+        if args.probe && polls % POLLS_PER_PROBE_REPORT == 0 {
+            print_mic_probe(&session.probe());
+        }
+    })?;
+    drop(session);
+    println!("Stopped.");
+    Ok(())
+}
+
+fn print_mic_probe(snapshot: &ProbeSnapshot) {
+    let shown = snapshot.input_buffers.min(MAX_PROBED_BUFFERS);
+    let Some(feed) = shown.checked_sub(1) else {
+        return;
+    };
+    let mics: Vec<String> = (0..feed)
+        .map(|i| format!("mic#{i} {:>6.1}", to_dbfs(snapshot.peaks[i])))
+        .collect();
+    println!(
+        "probe: cb={} frames={} | dBFS: {}  feed {:>6.1}",
+        snapshot.callbacks,
+        snapshot.frames,
+        mics.join("  "),
+        to_dbfs(snapshot.peaks[feed])
+    );
+}
+
+fn select_input(filter: Option<&str>) -> Result<InputDevice> {
+    let Some(filter) = filter else {
+        return Ok(default_input_device()?);
+    };
+    let needle = filter.to_lowercase();
+    list_input_devices()?
+        .into_iter()
+        .find(|d| d.name.to_lowercase().contains(&needle))
+        .with_context(|| format!("no input device matching \"{filter}\""))
 }
 
 fn run(args: &RunArgs) -> Result<()> {

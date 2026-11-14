@@ -38,7 +38,7 @@ const MAX_TAPS: usize = ChannelId::COUNT;
 /// Label of the dispatch queue running the IOProc.
 const QUEUE_LABEL: &str = "dev.stealseries.audiomix.io";
 
-type IoBlock = RcBlock<
+pub(super) type IoBlock = RcBlock<
     dyn Fn(
         NonNull<AudioTimeStamp>,
         NonNull<AudioBufferList>,
@@ -219,7 +219,7 @@ fn input_layout(output: &OutputDevice, specs: &[TapSpec]) -> Result<InputLayout,
 }
 
 /// Channels of every stream (buffer) of `device` in `scope`.
-fn buffer_channels(
+pub(super) fn buffer_channels(
     device: AudioObjectID,
     scope: AudioObjectPropertyScope,
 ) -> Result<Vec<usize>, AudioError> {

@@ -5,10 +5,12 @@ use std::ptr::NonNull;
 use objc2_core_audio::{
     AudioObjectID, AudioObjectPropertyScope, kAudioDevicePropertyDeviceUID,
     kAudioDevicePropertyNominalSampleRate, kAudioDevicePropertyStreamConfiguration,
-    kAudioHardwarePropertyDefaultOutputDevice, kAudioHardwarePropertyDevices,
+    kAudioHardwarePropertyDefaultInputDevice, kAudioHardwarePropertyDefaultOutputDevice,
+    kAudioHardwarePropertyDevices, kAudioHardwarePropertyTranslateUIDToDevice,
     kAudioObjectPropertyName, kAudioObjectPropertyScopeInput, kAudioObjectPropertyScopeOutput,
 };
 use objc2_core_audio_types::AudioBufferList;
+use objc2_core_foundation::CFString;
 
 use super::buffers;
 use super::property::{self, GLOBAL, SYSTEM_OBJECT};
@@ -94,4 +96,75 @@ pub fn default_output_device() -> Result<OutputDevice, AudioError> {
         None,
     )?;
     OutputDevice::load(id)
+}
+
+/// An audio device that can record (e.g. the headset microphone).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InputDevice {
+    /// CoreAudio object id (valid while the device is connected).
+    pub id: AudioObjectID,
+    /// Persistent unique id.
+    pub uid: String,
+    /// Display name.
+    pub name: String,
+    /// Number of input channels.
+    pub input_channels: usize,
+}
+
+impl InputDevice {
+    fn load(id: AudioObjectID) -> Result<Self, AudioError> {
+        Ok(Self {
+            id,
+            uid: property::get_string(id, kAudioDevicePropertyDeviceUID)?,
+            name: property::get_string(id, kAudioObjectPropertyName)?,
+            input_channels: channel_count(id, kAudioObjectPropertyScopeInput)?,
+        })
+    }
+}
+
+/// All devices with at least one input channel.
+///
+/// # Errors
+/// [`AudioError`] if the device list cannot be read.
+pub fn list_input_devices() -> Result<Vec<InputDevice>, AudioError> {
+    let ids: Vec<AudioObjectID> =
+        property::get_vec(SYSTEM_OBJECT, kAudioHardwarePropertyDevices, GLOBAL)?;
+    Ok(ids
+        .into_iter()
+        .filter_map(|id| InputDevice::load(id).ok())
+        .filter(|device| device.input_channels > 0)
+        .collect())
+}
+
+/// The system's current default input device.
+///
+/// # Errors
+/// [`AudioError`] if no default input exists or it cannot be read.
+pub fn default_input_device() -> Result<InputDevice, AudioError> {
+    let id: AudioObjectID = property::get::<AudioObjectID, ()>(
+        SYSTEM_OBJECT,
+        kAudioHardwarePropertyDefaultInputDevice,
+        GLOBAL,
+        None,
+    )?;
+    InputDevice::load(id)
+}
+
+/// Resolves a device UID, including hidden devices that are not in the device list.
+///
+/// # Errors
+/// [`AudioError::NotFound`] if no device has this UID.
+pub fn device_id_for_uid(uid: &str) -> Result<AudioObjectID, AudioError> {
+    let uid_string = CFString::from_str(uid);
+    let qualifier: *const CFString = &raw const *uid_string;
+    let id: AudioObjectID = property::get(
+        SYSTEM_OBJECT,
+        kAudioHardwarePropertyTranslateUIDToDevice,
+        GLOBAL,
+        Some(&qualifier),
+    )?;
+    if id == 0 {
+        return Err(AudioError::NotFound(format!("audio device with UID {uid}")));
+    }
+    Ok(id)
 }

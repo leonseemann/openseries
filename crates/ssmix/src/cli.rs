@@ -20,6 +20,24 @@ pub enum Action {
     Apps,
     /// Start mixing until Ctrl-C.
     Run(RunArgs),
+    /// List input devices (microphones).
+    Inputs,
+    /// Feed a microphone into the virtual "StealSeries Microphone" until Ctrl-C.
+    Mic(MicArgs),
+}
+
+/// Options of `ssmix mic`.
+#[derive(Debug, clap::Args)]
+pub struct MicArgs {
+    /// Source microphone (substring of its name); default: current system input.
+    #[arg(long)]
+    pub input: Option<String>,
+    /// Gain applied to the microphone in dB.
+    #[arg(long, default_value_t = 0.0, allow_negative_numbers = true)]
+    pub gain_db: f32,
+    /// Print the aggregate stream layout and the mic/feed peaks every second.
+    #[arg(long)]
+    pub probe: bool,
 }
 
 /// Options of `ssmix run`. Apps are given as PID or bundle id (e.g. `com.hnc.Discord`).

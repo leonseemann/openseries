@@ -340,6 +340,7 @@ dependencies = [
  "objc2-foundation",
  "ss-core",
  "ss-engine",
+ "ss-hal-driver-macos",
  "thiserror",
 ]
 

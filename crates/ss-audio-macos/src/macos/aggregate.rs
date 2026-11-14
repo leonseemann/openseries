@@ -9,8 +9,8 @@ use objc2_core_audio::{
     kAudioAggregateDeviceIsPrivateKey, kAudioAggregateDeviceMainSubDeviceKey,
     kAudioAggregateDeviceNameKey, kAudioAggregateDeviceSubDeviceListKey,
     kAudioAggregateDeviceTapAutoStartKey, kAudioAggregateDeviceTapListKey,
-    kAudioAggregateDeviceUIDKey, kAudioSubDeviceUIDKey, kAudioSubTapDriftCompensationKey,
-    kAudioSubTapUIDKey,
+    kAudioAggregateDeviceUIDKey, kAudioSubDeviceDriftCompensationKey, kAudioSubDeviceUIDKey,
+    kAudioSubTapDriftCompensationKey, kAudioSubTapUIDKey,
 };
 use objc2_core_foundation::CFDictionary;
 use objc2_foundation::{NSArray, NSMutableDictionary, NSNumber, NSString, NSUUID};
@@ -24,6 +24,16 @@ const DEVICE_NAME: &str = "StealSeries AudioMix";
 /// Prefix of the aggregate device UID; a random suffix keeps sessions unique.
 const UID_PREFIX: &str = "dev.stealseries.audiomix.";
 
+/// One physical (or driver) device inside an aggregate device.
+#[derive(Debug, Clone, Copy)]
+pub struct SubDevice<'a> {
+    /// Device UID.
+    pub uid: &'a str,
+    /// Resample this device to the main device's clock (needed for every non-main device on
+    /// a different clock).
+    pub drift_compensation: bool,
+}
+
 /// An aggregate device owned by this process; destroyed on drop.
 #[derive(Debug)]
 pub struct AggregateDevice {
@@ -36,6 +46,26 @@ impl AggregateDevice {
     /// # Errors
     /// [`AudioError::Os`] if CoreAudio rejects the description.
     pub fn create(output: &OutputDevice, taps: &[ProcessTap]) -> Result<Self, AudioError> {
+        let main = SubDevice {
+            uid: &output.uid,
+            drift_compensation: false,
+        };
+        Self::create_with(&[main], taps)
+    }
+
+    /// Creates a private aggregate device from `sub_devices` (the first one is the main device
+    /// and clock source) plus `taps`. Sub-device streams appear in list order.
+    ///
+    /// # Errors
+    /// [`AudioError::Os`] if CoreAudio rejects the description,
+    /// [`AudioError::Unsupported`] if `sub_devices` is empty.
+    pub fn create_with(
+        sub_devices: &[SubDevice<'_>],
+        taps: &[ProcessTap],
+    ) -> Result<Self, AudioError> {
+        let main = sub_devices
+            .first()
+            .ok_or_else(|| AudioError::Unsupported("aggregate without sub-devices".to_owned()))?;
         let description = Dictionary::new();
         description.set(
             kAudioAggregateDeviceNameKey,
@@ -53,14 +83,24 @@ impl AggregateDevice {
         );
         description.set(
             kAudioAggregateDeviceMainSubDeviceKey,
-            &NSString::from_str(&output.uid),
+            &NSString::from_str(main.uid),
         );
 
-        let sub_device = Dictionary::new();
-        sub_device.set(kAudioSubDeviceUIDKey, &NSString::from_str(&output.uid));
+        let sub_entries: Vec<Retained<NSMutableDictionary<NSString, AnyObject>>> = sub_devices
+            .iter()
+            .map(|sub| {
+                let entry = Dictionary::new();
+                entry.set(kAudioSubDeviceUIDKey, &NSString::from_str(sub.uid));
+                entry.set(
+                    kAudioSubDeviceDriftCompensationKey,
+                    &NSNumber::numberWithBool(sub.drift_compensation),
+                );
+                entry.0
+            })
+            .collect();
         description.set(
             kAudioAggregateDeviceSubDeviceListKey,
-            &NSArray::from_retained_slice(&[sub_device.0]),
+            &NSArray::from_retained_slice(&sub_entries),
         );
 
         let tap_entries: Vec<Retained<NSMutableDictionary<NSString, AnyObject>>> = taps
