@@ -21,6 +21,7 @@
 | Hardware test: macOS virtual microphone (M3b) | [`hardware/macos-virtual-mic.md`](hardware/macos-virtual-mic.md) | ✅ verified 2026-11-14 |
 | Hardware test: macOS AudioMix (M3a) | [`hardware/macos-audiomix.md`](hardware/macos-audiomix.md) | ✅ verified 2026-11-14 |
 | Hardware verification: Nova Pro Wireless | [`hardware/nova-pro-wireless.md`](hardware/nova-pro-wireless.md) | 🔄 in progress |
+| Continuous integration (fmt, clippy, tests on Windows/macOS) | [`architecture/ci.md`](architecture/ci.md) | ✅ |
 | Decisions | [`adr/`](adr/) — [0001 v1 scope](adr/0001-v1-scope.md), [0002 macOS audio](adr/0002-macos-audio-strategy.md), [0003 license](adr/0003-license.md), [0005 one app, egui](adr/0005-single-app-pure-rust-ui.md) | ✅ |
 
 ## Evidence convention

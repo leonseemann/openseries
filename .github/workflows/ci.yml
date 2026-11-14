@@ -1,0 +1,84 @@
+# Checks from AGENTS.md (fmt, clippy -D warnings, tests) in CI.
+#
+# Cost (private repo bills Windows ×2, macOS ×10): fmt and Windows run on every push; macOS runs on
+# pull requests and on demand only, because development happens on a Mac where the same checks
+# run before every commit (docs/architecture/ci.md).
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["docs/**", "**/*.md", "LICENSE*"]
+  pull_request:
+    paths-ignore: ["docs/**", "**/*.md", "LICENSE*"]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  # Incremental artefacts are useless between CI runs and only bloat the cache.
+  CARGO_INCREMENTAL: "0"
+  # Less debug info: smaller target dir, smaller cache, faster linking.
+  CARGO_PROFILE_DEV_DEBUG: "0"
+  CARGO_PROFILE_TEST_DEBUG: "0"
+  RUST_BACKTRACE: short
+
+jobs:
+  fmt:
+    name: rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --all -- --check
+
+  windows:
+    name: clippy + test (Windows)
+    needs: fmt
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      # Caches ~/.cargo (registry, git) and target/ per OS and Cargo.lock; clippy and tests share
+      # one job so the compiled dependencies are reused between them.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: workspace
+          cache-on-failure: true
+      - name: Build tests
+        run: cargo test --workspace --no-run --locked
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Tests
+        run: cargo test --workspace --locked
+
+  macos:
+    name: clippy + test (macOS)
+    needs: fmt
+    # macOS minutes cost 10×; the same checks run locally on the development Mac.
+    if: github.event_name != 'push'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      # Caches ~/.cargo (registry, git) and target/ per OS and Cargo.lock; clippy and tests share
+      # one job so the compiled dependencies are reused between them.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: workspace
+          cache-on-failure: true
+      - name: Build tests
+        run: cargo test --workspace --no-run --locked
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Tests
+        run: cargo test --workspace --locked
