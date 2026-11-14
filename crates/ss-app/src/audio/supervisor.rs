@@ -10,6 +10,7 @@ use ss_store::config::Channel;
 
 use super::plan::{
     DeviceInfo, DeviceSet, MicPlan, MixDecision, MixPlan, ProcessInfo, mic_plan, mix_decision,
+    resolve_device,
 };
 
 /// A running AudioMix session; dropping it stops the mix.
@@ -96,6 +97,8 @@ pub struct AudioSupervisor<B: AudioBackend> {
     devices: DeviceSet,
     failed_mic: Option<MicPlan>,
     chatmix: Option<ChatMixBalance>,
+    /// Headset link as last reported (`None` = unknown); drives the "headset off" fallback.
+    headset_linked: Option<bool>,
     status: AudioStatus,
 }
 
@@ -114,6 +117,7 @@ impl<B: AudioBackend> AudioSupervisor<B> {
             devices: DeviceSet::default(),
             failed_mic: None,
             chatmix: None,
+            headset_linked: None,
             status: AudioStatus::default(),
         }
     }
@@ -171,6 +175,19 @@ impl<B: AudioBackend> AudioSupervisor<B> {
         }
     }
 
+    /// The headset was turned on or off (base-station link).
+    pub fn on_headset_link(&mut self, linked: bool) {
+        if self.headset_linked != Some(linked) {
+            self.headset_linked = Some(linked);
+            self.reconcile();
+        }
+    }
+
+    /// Whether the headset's devices count as missing right now.
+    fn headset_off(&self) -> bool {
+        self.config.audiomix.fallback_when_headset_off && self.headset_linked == Some(false)
+    }
+
     /// Stops everything (app quit).
     pub fn shutdown(&mut self) {
         self.mix = None;
@@ -201,7 +218,16 @@ impl<B: AudioBackend> AudioSupervisor<B> {
                 ));
                 return;
             }
-            MixDecision::Run(plan) => plan,
+            MixDecision::Run(mut plan) => {
+                plan.output_uid = resolve_device(
+                    plan.output_uid.as_deref(),
+                    &self.config.audiomix.output_fallback,
+                    &self.devices.outputs,
+                    self.devices.default_output.as_deref(),
+                    self.headset_off(),
+                );
+                plan
+            }
         };
         let unchanged = self
             .mix
@@ -236,7 +262,16 @@ impl<B: AudioBackend> AudioSupervisor<B> {
                 self.status.mic = ServiceStatus::Off;
                 return;
             }
-            Ok(Some(plan)) => plan,
+            Ok(Some(mut plan)) => {
+                plan.input_uid = resolve_device(
+                    plan.input_uid.as_deref(),
+                    &self.config.mic.input_fallback,
+                    &self.devices.inputs,
+                    self.devices.default_input.as_deref(),
+                    self.headset_off(),
+                );
+                plan
+            }
             Err(error) => {
                 self.mic = None;
                 self.status.mic = ServiceStatus::Failed(error);
@@ -411,6 +446,50 @@ mod tests {
         h.supervisor.on_config(Config::default());
         assert_eq!(h.log.borrow().mix_starts.len(), 0);
         assert_eq!(h.supervisor.status().mix, ServiceStatus::Off);
+    }
+
+    #[test]
+    fn headset_off_moves_the_mix_to_the_backup_and_back() {
+        let mut h = harness(false);
+        *h.devices.borrow_mut() = DeviceSet {
+            outputs: vec![
+                DeviceInfo {
+                    uid: "hs".to_owned(),
+                    name: "Arctis Nova Pro Wireless".to_owned(),
+                    id: 1,
+                },
+                DeviceInfo {
+                    uid: "spk".to_owned(),
+                    name: "Speakers".to_owned(),
+                    id: 2,
+                },
+            ],
+            ..DeviceSet::default()
+        };
+        let mut config = enabled_with(&[]);
+        config.audiomix.output_device_uid = Some("hs".to_owned());
+        config.audiomix.output_fallback = vec!["spk".to_owned()];
+        config.audiomix.fallback_when_headset_off = true;
+        h.supervisor.on_tick();
+        h.supervisor.on_config(config);
+        h.supervisor.on_headset_link(true);
+        h.supervisor.on_headset_link(false);
+        h.supervisor.on_headset_link(true);
+        let outputs: Vec<_> = h
+            .log
+            .borrow()
+            .mix_starts
+            .iter()
+            .map(|p| p.output_uid.clone())
+            .collect();
+        assert_eq!(
+            outputs,
+            vec![
+                Some("hs".to_owned()),
+                Some("spk".to_owned()),
+                Some("hs".to_owned())
+            ]
+        );
     }
 
     #[test]

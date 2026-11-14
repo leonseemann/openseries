@@ -109,3 +109,60 @@ pub fn device_combo(
         DeviceChoice::Device(uid) => selected != Some(uid.as_str()),
     })
 }
+
+/// Editable priority list of backup devices (SON-27). Returns the new list when it changed.
+pub fn fallback_list(
+    ui: &mut egui::Ui,
+    id_salt: &str,
+    list: &[String],
+    devices: &[crate::audio::plan::DeviceInfo],
+) -> Option<Vec<String>> {
+    let name_of = |uid: &str| {
+        devices
+            .iter()
+            .find(|d| d.uid == uid)
+            .map_or_else(|| format!("{uid} (not connected)"), |d| d.name.clone())
+    };
+    let mut changed: Option<Vec<String>> = None;
+    for (index, uid) in list.iter().enumerate() {
+        ui.horizontal(|ui| {
+            ui.label(format!("{}. {}", index + 1, name_of(uid)));
+            if ui
+                .add_enabled(index > 0, egui::Button::new("↑").small())
+                .clicked()
+            {
+                let mut new = list.to_vec();
+                new.swap(index, index - 1);
+                changed = Some(new);
+            }
+            if ui
+                .add_enabled(index + 1 < list.len(), egui::Button::new("↓").small())
+                .clicked()
+            {
+                let mut new = list.to_vec();
+                new.swap(index, index + 1);
+                changed = Some(new);
+            }
+            if ui.small_button("✕").clicked() {
+                let mut new = list.to_vec();
+                new.remove(index);
+                changed = Some(new);
+            }
+        });
+    }
+    let candidates: Vec<_> = devices.iter().filter(|d| !list.contains(&d.uid)).collect();
+    if !candidates.is_empty() {
+        egui::ComboBox::from_id_salt((id_salt, "add-backup"))
+            .selected_text("Add backup…")
+            .show_ui(ui, |ui| {
+                for device in candidates {
+                    if ui.selectable_label(false, &device.name).clicked() {
+                        let mut new = list.to_vec();
+                        new.push(device.uid.clone());
+                        changed = Some(new);
+                    }
+                }
+            });
+    }
+    changed
+}

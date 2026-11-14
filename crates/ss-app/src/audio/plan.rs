@@ -114,6 +114,42 @@ fn assigned_channel(config: &AudioMixConfig, bundle_id: &str) -> Option<ChannelI
         .map(|(_, &channel)| channel.into())
 }
 
+/// Part of the name of the Nova Pro's own audio devices (**Observed** on macOS and Windows:
+/// "Arctis Nova Pro Wireless", e.g. "Kopfhörer (2- Arctis Nova Pro Wireless)").
+const HEADSET_DEVICE_NAME: &str = "Arctis Nova Pro Wireless";
+
+/// Picks the device a session should use (SON-27/28): the selected one (`None` = system
+/// default), else the first connected backup in priority order. With `headset_off`, the
+/// headset's own devices count as missing. If nothing usable is connected, the selection is kept
+/// unchanged (the session then fails or waits as before). Without backups and with the headset
+/// on, the result is exactly `selected`, so "system default" keeps following the default.
+#[must_use]
+pub fn resolve_device(
+    selected: Option<&str>,
+    fallback: &[String],
+    devices: &[DeviceInfo],
+    default: Option<&str>,
+    headset_off: bool,
+) -> Option<String> {
+    if fallback.is_empty() && !headset_off {
+        return selected.map(str::to_owned);
+    }
+    let usable = |uid: &str| {
+        devices
+            .iter()
+            .any(|d| d.uid == uid && !(headset_off && d.name.contains(HEADSET_DEVICE_NAME)))
+    };
+    let primary = selected.or(default);
+    if primary.is_some_and(usable) {
+        return selected.map(str::to_owned);
+    }
+    fallback
+        .iter()
+        .find(|uid| usable(uid))
+        .cloned()
+        .or_else(|| selected.map(str::to_owned))
+}
+
 /// The mic feed that should run. The chain is part of the plan because it cannot be changed
 /// while running yet (live control comes with the command queue).
 #[derive(Debug, Clone, PartialEq)]
@@ -209,6 +245,65 @@ mod tests {
         let config = enabled(&[]);
         let decision = mix_decision(&config, &[process(5, "com.finetuneapp.FineTune")]);
         assert_eq!(decision, MixDecision::Blocked(vec!["FineTune"]));
+    }
+
+    fn device(uid: &str, name: &str) -> DeviceInfo {
+        DeviceInfo {
+            uid: uid.to_owned(),
+            name: name.to_owned(),
+            id: 0,
+        }
+    }
+
+    #[test]
+    fn selected_device_wins_while_connected() {
+        let devices = [
+            device("hs", "Arctis Nova Pro Wireless"),
+            device("spk", "Speakers"),
+        ];
+        let backups = ["spk".to_owned()];
+        assert_eq!(
+            resolve_device(Some("hs"), &backups, &devices, None, false).as_deref(),
+            Some("hs")
+        );
+        // System default stays "None" so it keeps following the default.
+        assert_eq!(
+            resolve_device(None, &backups, &devices, Some("hs"), false),
+            None
+        );
+        assert_eq!(resolve_device(None, &[], &devices, Some("hs"), false), None);
+    }
+
+    #[test]
+    fn missing_device_falls_back_in_priority_order() {
+        let devices = [device("spk", "Speakers"), device("usb", "USB DAC")];
+        let backups = ["gone".to_owned(), "usb".to_owned(), "spk".to_owned()];
+        assert_eq!(
+            resolve_device(Some("hs"), &backups, &devices, None, false).as_deref(),
+            Some("usb")
+        );
+        // Nothing usable: keep the selection.
+        assert_eq!(
+            resolve_device(Some("hs"), &["gone".to_owned()], &devices, None, false).as_deref(),
+            Some("hs")
+        );
+    }
+
+    #[test]
+    fn headset_off_skips_the_headset_devices() {
+        let devices = [
+            device("hs", "Kopfhörer (2- Arctis Nova Pro Wireless)"),
+            device("spk", "Speakers"),
+        ];
+        let backups = ["spk".to_owned()];
+        assert_eq!(
+            resolve_device(Some("hs"), &backups, &devices, None, true).as_deref(),
+            Some("spk")
+        );
+        assert_eq!(
+            resolve_device(None, &backups, &devices, Some("hs"), true).as_deref(),
+            Some("spk")
+        );
     }
 
     #[test]

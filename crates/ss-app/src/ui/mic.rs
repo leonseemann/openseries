@@ -49,6 +49,16 @@ pub fn show(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
             core.update_config(|c| c.mic.input_device_uid = uid.into_uid());
         }
     });
+    egui::CollapsingHeader::new("Backup microphones")
+        .id_salt("backup-inputs")
+        .default_open(!config.input_fallback.is_empty())
+        .show(ui, |ui| {
+            if let Some(list) =
+                widgets::fallback_list(ui, "input", &config.input_fallback, &snapshot.audio.inputs)
+            {
+                core.update_config(|c| c.mic.input_fallback = list);
+            }
+        });
 
     ui.add_space(8.0);
     ui.heading("Processing");

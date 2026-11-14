@@ -66,6 +66,7 @@ pub fn show(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, show_idle: &
             core.update_config(|c| c.audiomix.output_device_uid = uid.into_uid());
         }
     });
+    backup_devices(ui, core, snapshot);
     chatmix(ui, core, snapshot);
 
     ui.add_space(8.0);
@@ -73,6 +74,37 @@ pub fn show(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, show_idle: &
     channels(ui, core, snapshot);
     ui.separator();
     apps(ui, core, snapshot, show_idle);
+}
+
+/// Backup outputs and the headset-off trigger (SON-27/28).
+fn backup_devices(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
+    let config = &snapshot.config.audiomix;
+    egui::CollapsingHeader::new("Backup outputs")
+        .id_salt("backup-outputs")
+        .default_open(!config.output_fallback.is_empty())
+        .show(ui, |ui| {
+            ui.label(
+                egui::RichText::new(
+                    "Used in this order when the selected output is missing. Also applies to                      the microphone's backups.",
+                )
+                .weak(),
+            );
+            if let Some(list) = widgets::fallback_list(
+                ui,
+                "output",
+                &config.output_fallback,
+                &snapshot.audio.outputs,
+            ) {
+                core.update_config(|c| c.audiomix.output_fallback = list);
+            }
+            let mut trigger = config.fallback_when_headset_off;
+            if ui
+                .checkbox(&mut trigger, "Switch to the backups while the headset is turned off")
+                .changed()
+            {
+                core.update_config(|c| c.audiomix.fallback_when_headset_off = trigger);
+            }
+        });
 }
 
 /// Software ChatMix (SON-07): Game ↔ Chat balance, following the headset dial.

@@ -20,6 +20,8 @@ use crate::notify::Notifier;
 
 /// Quiet time before a changed config is written (slider drags write once).
 const SAVE_DEBOUNCE: Duration = Duration::from_millis(500);
+/// How often the headset link is checked for the "headset off" device fallback.
+const LINK_POLL: Duration = Duration::from_millis(500);
 
 /// Everything the UI needs to render one frame.
 #[derive(Debug, Clone, Default)]
@@ -107,6 +109,13 @@ impl AppCore {
             drop((headset_rx, chatmix_tx));
         }
         let service_threads = threads.len();
+
+        if with_headset {
+            threads.push(spawn_link_forward(
+                Arc::clone(&headset_state),
+                audio_tx.clone(),
+            )?);
+        }
 
         // Dial events go from the headset thread to the audio thread; the software slider
         // follows the dial.
@@ -318,6 +327,31 @@ impl AppCore {
             *lock(&self.save_error) = Some(error.to_string());
         }
     }
+}
+
+/// Headset on/off → audio thread (device fallback, SON-28). Polling keeps the headset thread
+/// unaware of the audio side. Ends once the audio thread is gone.
+fn spawn_link_forward(
+    state: Arc<Mutex<HeadsetState>>,
+    audio_tx: Sender<AudioMsg>,
+) -> std::io::Result<JoinHandle<()>> {
+    std::thread::Builder::new()
+        .name("headset-link-forward".to_owned())
+        .spawn(move || {
+            let mut last = None;
+            loop {
+                let linked = lock(&state).status.map(|s| s.connected);
+                if let Some(now) = linked {
+                    if last != Some(now) {
+                        last = Some(now);
+                        if audio_tx.send(AudioMsg::HeadsetLinked(now)).is_err() {
+                            return;
+                        }
+                    }
+                }
+                std::thread::sleep(LINK_POLL);
+            }
+        })
 }
 
 /// Locks a mutex, continuing with the data if another thread panicked while holding it.

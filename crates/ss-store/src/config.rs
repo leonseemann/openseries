@@ -60,6 +60,11 @@ pub struct AudioMixConfig {
     pub enabled: bool,
     /// Output device UID; `None` = system default output.
     pub output_device_uid: Option<String>,
+    /// Backup outputs in priority order, used when the selected one is missing (SON-27/28).
+    pub output_fallback: Vec<String>,
+    /// Treat the headset's own devices as missing while the headset is turned off, so output and
+    /// mic switch to their backups (SON-28 "wireless trigger").
+    pub fallback_when_headset_off: bool,
     /// App bundle id (prefix) → channel. Unlisted apps play on Media.
     pub assignments: BTreeMap<String, Channel>,
     /// Per-channel settings.
@@ -202,6 +207,8 @@ pub struct MicConfig {
     pub enabled: bool,
     /// Source microphone UID; `None` = system default input.
     pub input_device_uid: Option<String>,
+    /// Backup microphones in priority order (SON-27/28).
+    pub input_fallback: Vec<String>,
     /// Denoise dry/wet mix, `None` = off.
     pub denoise: Option<f32>,
     /// Noise gate, `None` = off.

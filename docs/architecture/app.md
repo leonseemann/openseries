@@ -53,6 +53,15 @@ Notes on v1 behaviour:
   mute needs the mic command queue (later).
 - **Reconnect USB** is on the headset page, in the menu-bar menu and on a hotkey (default Ctrl+Alt+R): the manual cure for both kinds of crackling (`docs/hardware/macos-app.md` Findings).
 - **ChatMix hotkeys** move a software balance in steps of 10 %; moving the headset dial overrides it.
+- **Backup devices** (SON-27/28): AudioMix output and mic source each have an ordered backup
+  list ("Backup outputs" / "Backup microphones"). `plan::resolve_device` picks the selected device
+  (or the system default) while it is connected, else the first connected backup; the plan then
+  differs and the supervisor rebuilds the session, and it switches back when the selection
+  returns. Option "Switch to the backups while the headset is turned off": the headset's devices
+  (name contains "Arctis Nova Pro Wireless") count as missing while the base station reports the
+  headset unlinked — a polling thread forwards the link state to the audio thread
+  (`AudioMsg::HeadsetLinked`). Without backups the selection behaves exactly as before. On Windows
+  (M4a session mixer) no audio passes through the app, so this has no effect until M4b.
 - **Desktop notifications** (CORE-15, NTU-02; Settings → "Desktop notifications", on by default,
   "Test" button): headset linked/unlinked, base station gone/back (e.g. its input switched to the
   other computer, see `nova-pro-wireless.md`), headset battery ≤ 25 % while discharging (once,

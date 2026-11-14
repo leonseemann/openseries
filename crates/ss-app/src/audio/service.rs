@@ -22,6 +22,8 @@ pub enum AudioMsg {
     Config(Box<Config>),
     /// The ChatMix dial moved.
     ChatMix(ChatMixBalance),
+    /// The headset was turned on (`true`) or off.
+    HeadsetLinked(bool),
     /// Stop everything and end the thread.
     Shutdown,
 }
@@ -49,6 +51,7 @@ where
                 match rx.recv_timeout(RESCAN_INTERVAL) {
                     Ok(AudioMsg::Config(config)) => supervisor.on_config(*config),
                     Ok(AudioMsg::ChatMix(balance)) => supervisor.on_chatmix(balance),
+                    Ok(AudioMsg::HeadsetLinked(linked)) => supervisor.on_headset_link(linked),
                     Ok(AudioMsg::Shutdown) | Err(RecvTimeoutError::Disconnected) => {
                         supervisor.shutdown();
                         publish(&supervisor, &status, &notify);
