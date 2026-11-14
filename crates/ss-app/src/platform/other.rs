@@ -10,6 +10,8 @@ pub fn audio_backend() -> AudioBackend {
     crate::audio::unsupported::UnsupportedBackend
 }
 
+/// No audio backend, so no channel DSP.
+pub const CHANNEL_DSP_SUPPORTED: bool = false;
 /// Whether [`reset_base_usb`] can work on this OS.
 pub const USB_RESET_SUPPORTED: bool = false;
 /// Whether [`watch_usb_underflows`] can work on this OS.

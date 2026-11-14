@@ -16,6 +16,7 @@
 | Mic chain: denoise, gate, stabilizer, mic EQ (M6) | [`architecture/mic-chain.md`](architecture/mic-chain.md) | ✅ (impact NR deferred) |
 | The app: menu bar, window, services, config (M5) | [`architecture/app.md`](architecture/app.md) | 🔄 in progress |
 | Virtual microphone driver (M3b) | [`architecture/virtual-mic-driver.md`](architecture/virtual-mic-driver.md) | ✅ |
+| Hardware test: Windows AudioMix (M4a session mixer) | [`hardware/windows-audiomix.md`](hardware/windows-audiomix.md) | ⏳ |
 | Hardware test: Windows app (before M4) | [`hardware/windows-app.md`](hardware/windows-app.md) | ✅ verified 2026-11-14 |
 | Hardware test: macOS app (M5) | [`hardware/macos-app.md`](hardware/macos-app.md) | ⏳ |
 | Hardware test: macOS mic chain (M6) | [`hardware/macos-mic-chain.md`](hardware/macos-mic-chain.md) | ✅ (typing noise + call latency deferred) |
@@ -23,7 +24,7 @@
 | Hardware test: macOS AudioMix (M3a) | [`hardware/macos-audiomix.md`](hardware/macos-audiomix.md) | ✅ verified 2026-11-14 |
 | Hardware verification: Nova Pro Wireless | [`hardware/nova-pro-wireless.md`](hardware/nova-pro-wireless.md) | 🔄 in progress |
 | Continuous integration (fmt, clippy, tests on Windows/macOS) | [`architecture/ci.md`](architecture/ci.md) | ✅ |
-| Decisions | [`adr/`](adr/) — [0001 v1 scope](adr/0001-v1-scope.md), [0002 macOS audio](adr/0002-macos-audio-strategy.md), [0003 license](adr/0003-license.md), [0004 Windows audio (proposed)](adr/0004-windows-audio-strategy.md), [0005 one app, egui](adr/0005-single-app-pure-rust-ui.md) | ✅ |
+| Decisions | [`adr/`](adr/) — [0001 v1 scope](adr/0001-v1-scope.md), [0002 macOS audio](adr/0002-macos-audio-strategy.md), [0003 license](adr/0003-license.md), [0004 Windows audio](adr/0004-windows-audio-strategy.md), [0005 one app, egui](adr/0005-single-app-pure-rust-ui.md) | ✅ |
 
 ## Evidence convention
 

@@ -1,6 +1,7 @@
 # ADR 0004 — Windows AudioMix: session mixer now, virtual audio driver for full parity
 
-- **Status:** Proposed (2026-11-14) — waiting for the owner's decision
+- **Status:** Accepted (2026-11-14): M4a session mixer first, then M4b own driver. Test-signing
+  mode for M4b development (open question 2) is still to be confirmed by the owner before M4b starts.
 - **Deciders:** project owner
 - **Context docs:** [sonar.md §2.3, §6](../re/sonar.md), [prior-art §3](../research/prior-art.md),
   [ADR 0002](0002-macos-audio-strategy.md), [audio-engine.md](../architecture/audio-engine.md)
@@ -50,7 +51,7 @@ different clocks, so the capture → render path needs a ring buffer with drift 
 `IAudioPolicyConfig` is ignored by some apps (Sonar keeps a "routing-error-prone" list), so the
 default-device fallback (SON-06) matters.
 
-## Decision (proposed)
+## Decision
 
 1. **M4a — session mixer (option A) now.** `ss-audio-windows` implements the app's audio backend
    with what works without a driver: app list, channel assignment, channel faders, mute, ChatMix

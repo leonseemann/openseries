@@ -2,7 +2,7 @@
 //!
 //! | Function | macOS | Windows |
 //! |---|---|---|
-//! | [`audio_backend`] | process taps + virtual mic (`ss-audio-macos`) | not yet (M4): reports "not available" |
+//! | [`audio_backend`] | process taps + virtual mic (`ss-audio-macos`) | session mixer, no mic (`ss-audio-windows`, M4a) |
 //! | [`set_autostart`] | per-user `LaunchAgent` | `HKCU\…\Run` registry value |
 //! | [`reset_base_usb`] | `IOUSBHost` re-enumeration (`ss-usb-macos`) | not yet |
 //! | [`watch_usb_underflows`] | `usbaudiod` log stream | not yet |

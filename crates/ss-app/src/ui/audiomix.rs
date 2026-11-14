@@ -19,6 +19,8 @@ const CHANNELS: [(Channel, &str); 4] = [
 const MAX_BOOST_DB: f32 = 12.0;
 /// Largest per-channel volume boost (dB); our choice, Sonar's range is Unknown.
 const MAX_VOLUME_BOOST_DB: f32 = 12.0;
+/// Whether the channel DSP controls do anything on this OS.
+const DSP: bool = crate::platform::CHANNEL_DSP_SUPPORTED;
 
 pub fn show(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, show_idle: &mut bool) {
     let config = &snapshot.config.audiomix;
@@ -109,6 +111,16 @@ fn chatmix(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
 fn channels(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
     let config = &snapshot.config.audiomix;
     ui.heading("Channels");
+    if !DSP {
+        ui.label(
+            egui::RichText::new(
+                "On Windows, channels set the volume of their apps (volume, mute, ChatMix). \
+                 EQ, boosts and Smart Volume per channel need the StealSeries audio driver \
+                 (milestone M4b).",
+            )
+            .weak(),
+        );
+    }
     ui.horizontal(|ui| {
         ui.label("Master");
         let master = config.master;
@@ -142,8 +154,13 @@ fn channels(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
                             c.audiomix.channels.get_mut(channel).fader.muted = muted;
                         });
                     }
-                    smart_volume(ui, core, channel, settings.smart_volume);
+                    if DSP {
+                        smart_volume(ui, core, channel, settings.smart_volume);
+                    }
                 });
+                if !DSP {
+                    return;
+                }
                 ui.horizontal(|ui| {
                     let boosts = settings.boosts;
                     if let Some(db) =

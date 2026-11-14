@@ -40,7 +40,7 @@ pub fn run(args: &[String]) -> Res<()> {
         _ => {
             eprintln!(
                 "usage: winspike endpoints | sessions | capture (--pid N | --name exe) \
-                 [--silence none|mute|volume] [--seconds 30] [--exclude] [--wav file]"
+                 [--silence none|mute|volume|half] [--seconds 30] [--exclude] [--wav file]"
             );
             Ok(())
         }
@@ -218,6 +218,8 @@ enum Silence {
     None,
     Mute,
     Volume,
+    /// Session volume 0.5: checks whether session volume is a linear factor (≈ −6 dB).
+    Half,
 }
 
 struct CaptureArgs {
@@ -252,6 +254,7 @@ impl CaptureArgs {
                         "none" => Silence::None,
                         "mute" => Silence::Mute,
                         "volume" => Silence::Volume,
+                        "half" => Silence::Half,
                         other => return Err(format!("unknown --silence {other}").into()),
                     }
                 }
@@ -292,6 +295,7 @@ fn silence(sessions: &[Session], how: Silence) -> Res<Vec<Saved>> {
                 Silence::None => {}
                 Silence::Mute => s.volume.SetMute(true, std::ptr::null())?,
                 Silence::Volume => s.volume.SetMasterVolume(0.0, std::ptr::null())?,
+                Silence::Half => s.volume.SetMasterVolume(0.5, std::ptr::null())?,
             }
         }
     }

@@ -1,0 +1,26 @@
+[package]
+name = "ss-audio-windows"
+description = "Windows backend for AudioMix (M4a): per-app session volumes driven by channel faders and ChatMix."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+ss-core.workspace = true
+ss-dsp.workspace = true
+ss-engine.workspace = true
+thiserror.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+wasapi = "0.27"
+windows = { version = "0.62", features = [
+    "Win32_Foundation",
+    "Win32_Media_Audio",
+    "Win32_System_Com",
+    "Win32_System_Diagnostics_ToolHelp",
+] }
+
+[lints]
+workspace = true

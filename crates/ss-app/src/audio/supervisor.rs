@@ -16,6 +16,10 @@ use super::plan::{
 pub trait MixHandle {
     /// Sends a live parameter change to the engine. Returns `false` if the queue was full.
     fn send(&mut self, command: EngineCommand) -> bool;
+
+    /// Periodic rescan while running (every tick). The Windows session mixer adopts new app
+    /// sessions here; macOS taps need nothing.
+    fn refresh(&mut self) {}
 }
 
 /// A running mic feed; dropping it stops the feed.
@@ -154,6 +158,9 @@ impl<B: AudioBackend> AudioSupervisor<B> {
         self.status.inputs.clone_from(&self.devices.inputs);
         self.status.processes.clone_from(&self.processes);
         self.reconcile();
+        if let Some((_, handle)) = self.mix.as_mut() {
+            handle.refresh();
+        }
     }
 
     /// The headset's ChatMix dial moved.
@@ -294,6 +301,7 @@ mod tests {
         mic_starts: Vec<MicPlan>,
         commands: usize,
         live_mixes: usize,
+        refreshes: usize,
     }
 
     struct FakeMix(Rc<RefCell<Log>>);
@@ -302,6 +310,10 @@ mod tests {
         fn send(&mut self, _command: EngineCommand) -> bool {
             self.0.borrow_mut().commands += 1;
             true
+        }
+
+        fn refresh(&mut self) {
+            self.0.borrow_mut().refreshes += 1;
         }
     }
 
@@ -399,6 +411,17 @@ mod tests {
         h.supervisor.on_config(Config::default());
         assert_eq!(h.log.borrow().mix_starts.len(), 0);
         assert_eq!(h.supervisor.status().mix, ServiceStatus::Off);
+    }
+
+    #[test]
+    fn ticks_refresh_the_running_mix_only() {
+        let mut h = harness(false);
+        h.supervisor.on_tick();
+        assert_eq!(h.log.borrow().refreshes, 0);
+        h.supervisor.on_config(enabled_with(&[]));
+        h.supervisor.on_tick();
+        h.supervisor.on_tick();
+        assert_eq!(h.log.borrow().refreshes, 2);
     }
 
     #[test]

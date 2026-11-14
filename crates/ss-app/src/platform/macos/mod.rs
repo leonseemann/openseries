@@ -17,6 +17,8 @@ pub fn audio_backend() -> AudioBackend {
     crate::audio::macos::MacAudioBackend
 }
 
+/// Channel DSP runs in `ss-engine` on the tapped audio.
+pub const CHANNEL_DSP_SUPPORTED: bool = true;
 /// Whether [`reset_base_usb`] can work on this OS.
 pub const USB_RESET_SUPPORTED: bool = true;
 /// Whether [`watch_usb_underflows`] can work on this OS.

@@ -1,20 +1,30 @@
-//! Windows implementations of the platform surface. AudioMix, the virtual mic, the USB reset and
-//! the underflow watch arrive with milestone M4; headset control, UI, tray and hotkeys already
-//! work cross-platform.
+//! Windows implementations of the platform surface. AudioMix is the M4a session mixer (volumes and
+//! ChatMix only, ADR 0004); the virtual mic, channel DSP, the USB reset and the underflow watch are
+//! not available yet. Headset control, UI, tray and hotkeys work cross-platform.
 
 use std::num::NonZeroIsize;
 use std::process::Command;
 
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 
-/// Placeholder backend until `ss-audio-windows` exists.
-pub type AudioBackend = crate::audio::unsupported::UnsupportedBackend;
+/// The M4a session mixer (`ss-audio-windows`).
+pub type AudioBackend = crate::audio::windows::WinAudioBackend;
 
-/// Creates the audio backend.
+/// File next to `config.json` that keeps original app volumes until they are restored.
+const RESTORE_FILE: &str = "session-volumes.txt";
+
+/// Creates the audio backend (called on the audio-control thread).
 #[must_use]
 pub fn audio_backend() -> AudioBackend {
-    crate::audio::unsupported::UnsupportedBackend
+    let path = ss_store::Store::per_user().map_or_else(
+        |_| std::env::temp_dir().join("StealSeries").join(RESTORE_FILE),
+        |store| store.path().with_file_name(RESTORE_FILE),
+    );
+    crate::audio::windows::WinAudioBackend::new(path)
 }
+
+/// Per-channel EQ, boosts and Smart Volume need the M4b driver (ADR 0004).
+pub const CHANNEL_DSP_SUPPORTED: bool = false;
 
 /// Whether [`reset_base_usb`] can work on this OS.
 pub const USB_RESET_SUPPORTED: bool = false;

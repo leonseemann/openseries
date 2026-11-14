@@ -26,6 +26,7 @@ ss-dsp = { path = "crates/ss-dsp" }
 ss-hal-driver-macos = { path = "crates/ss-hal-driver-macos" }
 ss-store = { path = "crates/ss-store" }
 ss-usb-macos = { path = "crates/ss-usb-macos" }
+ss-audio-windows = { path = "crates/ss-audio-windows" }
 ss-window-windows = { path = "crates/ss-window-windows" }
 
 [workspace.lints.rust]

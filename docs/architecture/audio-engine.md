@@ -65,3 +65,34 @@ sequenceDiagram
 5. `AudioDeviceCreateIOProcIDWithBlock` → map input buffer list (one stream per tap) to engine channels,
    run `MixEngine::process`, write the output buffer.
 6. Re-create taps/aggregate when assignments or devices change (outside the callback).
+
+## 5. Windows backend, M4a: session mixer ([ADR 0004](../adr/0004-windows-audio-strategy.md))
+
+No audio passes through our process on Windows yet. Instead, `ss-audio-windows` sets each app's
+**session volume** (`ISimpleAudioVolume`, the per-app slider in the Windows volume mixer) to
+
+```text
+session volume = original volume × channel fader × ChatMix gain (Game/Chat only) × master
+```
+
+with the same fader and ChatMix law (`ss_dsp::chatmix_gains`) as `MixEngine`. Per-channel EQ,
+boosts, Smart Volume and volume boost above 0 dB need the M4b driver; the UI says so on Windows.
+
+1. **Apps:** the audio sessions of all active render endpoints. The app identity used for
+   channel assignments is the lower-case executable name (`chrome.exe`, `discord.exe`), stored in
+   the same `assignments` map that holds bundle ids on macOS. Sessions of pid 0 (system sounds) are
+   left alone.
+2. **Start:** the `MixHandle` remembers every session's original volume, then writes the target.
+   New sessions found on the 2 s rescan (`MixHandle::refresh`) are adopted the same way.
+3. **User changes while running:** if a session's volume differs from what we last wrote, the user
+   moved it in the Windows mixer; we take `current / gain` as the new original instead of fighting
+   it.
+4. **Stop:** dropping the handle writes every original back.
+5. **Crash safety:** Windows persists per-app session volumes across restarts, so a crash would
+   leave apps quieter. Originals are written to `%APPDATA%\StealSeries\session-volumes.txt`
+   (keyed by the session identifier, which is stable per app) before we change anything and removed
+   once restored. While no mix runs, the backend restores any listed session it finds, including
+   apps that were closed while the mix was running.
+
+Session volume is assumed to be a linear amplitude factor (**Inferred**; to verify in the
+hardware test with `winspike`, whose loopback is post-volume: 0.5 should read ≈ −6 dB).

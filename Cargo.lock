@@ -3558,6 +3558,7 @@ dependencies = [
  "global-hotkey",
  "raw-window-handle",
  "ss-audio-macos",
+ "ss-audio-windows",
  "ss-core",
  "ss-dsp",
  "ss-engine",
@@ -3589,6 +3590,18 @@ dependencies = [
  "ss-engine",
  "ss-hal-driver-macos",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "ss-audio-windows"
+version = "0.1.0"
+dependencies = [
+ "ss-core",
+ "ss-dsp",
+ "ss-engine",
+ "thiserror 2.0.21",
+ "wasapi",
+ "windows 0.62.2",
 ]
 
 [[package]]

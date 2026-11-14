@@ -107,7 +107,7 @@ The app crate is shared by macOS and Windows (ADR 0005). Everything OS-specific 
 | UI, tray, hotkeys (egui, `tray-icon`, `global-hotkey`) | ✅ | ✅ (same crates) |
 | Headset control (`ss-nova-pro` over hidapi) | ✅ | ✅ (verified with `ssctl` in M1) |
 | Config (`ss-store`), supervisor logic, DSP, mic chain | ✅ | ✅ (portable) |
-| AudioMix + virtual mic | process taps + HAL driver | M4 (`ss-audio-windows`); until then the backend reports "not available" |
+| AudioMix + virtual mic | process taps + HAL driver | M4a session mixer (`ss-audio-windows`: per-app volumes, ChatMix; no channel DSP, no virtual mic until M4b) |
 | Autostart | LaunchAgent | `HKCU\…\Run` via `reg.exe` (verified 2026-11-14) |
 | Reconnect USB | IOUSBHost re-enumeration | not yet (button hidden) |
 | Fix crackling automatically | `usbaudiod` underflow log stream | not yet (option disabled) |
