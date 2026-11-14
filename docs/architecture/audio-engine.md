@@ -94,5 +94,6 @@ boosts, Smart Volume and volume boost above 0 dB need the M4b driver; the UI say
    once restored. While no mix runs, the backend restores any listed session it finds, including
    apps that were closed while the mix was running.
 
-Session volume is assumed to be a linear amplitude factor (**Inferred**; to verify in the
-hardware test with `winspike`, whose loopback is post-volume: 0.5 should read ≈ −6 dB).
+Session volume is a linear amplitude factor (**Observed** 2026-11-14 with `winspike --silence half`:
+volume 0.5 → loopback 6.0–6.3 dB lower, [windows-audiomix.md](../hardware/windows-audiomix.md) check 2),
+so the gains match `MixEngine`.

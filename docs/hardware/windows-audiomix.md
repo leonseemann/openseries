@@ -19,7 +19,7 @@ the per-app sliders move.
 | # | Check | Expected | Result |
 |---|-------|----------|--------|
 | 1 | fmt, clippy, tests | green | ✅ Observed 2026-11-14 |
-| 2 | Session volume is linear (**Inferred**): `winspike capture --name chrome.exe --silence half` | loopback ≈ 6 dB lower in phase 2 | ⏳ |
+| 2 | Session volume is linear (**Inferred**): `winspike capture --name chrome.exe --silence half` | loopback ≈ 6 dB lower in phase 2 | ✅ Observed 2026-11-14: with volume 0.5 the loopback peak was 6.0–6.3 dB below the session meter in 8 of 9 seconds (once 7.3 dB, a quiet passage during the ramp); linear |
 | 3 | AudioMix page | apps listed by exe name (`chrome.exe`, `spotify.exe`), ▶ for playing ones; channel DSP replaced by the Windows note | ⏳ |
 | 4 | AudioMix on, assign e.g. Chrome → Game, Spotify/Discord → Chat | nothing audible changes at 100 %; app sliders in the Windows mixer unchanged | ⏳ |
 | 5 | Channel volume / mute (Game 50 %, then Mute) | only the Game app gets quieter / silent; its mixer slider follows | ⏳ |
