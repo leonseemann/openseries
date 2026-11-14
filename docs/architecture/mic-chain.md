@@ -112,19 +112,27 @@ impl Processor for MicChain { /* in place, mono */ }
 
 ## 6. Spike: Apple Voice Processing I/O as optional "macOS native" denoise
 
-Questions to answer with measurements before deciding (owner asked for this, see `CLAUDE.md`):
+Run 2026-11-14 with `crates/ss-audio-macos/examples/vpio_spike.rs` on the Nova Pro mic: the same
+take recorded raw (direct IOProc) and through `kAudioUnitSubType_VoiceProcessingIO`, music
+playing from Spotify, keyboard typing as noise. RNNoise = `ssdsp --mic --denoise` on the raw file.
 
 | Question | Result |
 |---|---|
-| Can `kAudioUnitSubType_VoiceProcessingIO` capture the Nova Pro mic next to (or instead of) our aggregate IOProc, and hand its output to the feed? | ⏳ |
-| Does it duck other playback, and does `kAUVoiceIOProperty_OtherAudioDuckingConfiguration` turn that off? | ⏳ |
-| Which device does it capture from when the system default input differs? | ⏳ |
-| Blind A/B vs. RNNoise (same recording, owner rates) | ⏳ |
-| Added latency | ⏳ |
+| Can VPIO capture the Nova Pro mic next to our own capture? | **Yes** (Observed). `kAudioOutputUnitProperty_CurrentDevice` on the input bus selects the Nova Pro (read back: device 120); our raw IOProc on the same mic keeps working in parallel. |
+| Does it duck other playback? | **Yes, severely** (Observed by the owner): Spotify became barely audible while VPIO ran. `kAUVoiceIOProperty_OtherAudioDuckingConfiguration` = advanced + `Min` was accepted (status 0) but made **no audible difference**. |
+| Which device does it capture from? | The one set via `CurrentDevice` (Observed), not necessarily the system default. |
+| Noise in pauses (typing + room) | raw −58.3, VPIO −75.4, RNNoise (mix 0.9) −78.1 dBFS RMS (Observed). |
+| Speech level | VPIO applies strong AGC: +15 dB, peaks up to −0.4 dBFS (Observed). |
+| Blind A/B (level-matched by speech RMS) | Owner slightly preferred **VPIO**, reason: "a bit louder" — the AGC's denser dynamics, not the denoise; typing equally audible in both. |
+| Added latency | VPIO reports 0 ms (`kAudioUnitProperty_Latency`); from first-buffer host times and cross-correlation ≈ **220 ms** (**Inferred**: assumes both timestamps mean capture time). RNNoise: 20 ms (Observed). |
 
-Known limitation: third-party apps cannot set the system microphone mode (Voice Isolation)
-programmatically; they can only open the picker. VPIO becomes a selectable denoise engine only if
-it wins the A/B and fits the architecture.
+**Decision: VPIO is not offered.** Ducking makes game/music audio nearly inaudible while the mic
+is processed, and the documented setting does not prevent it; the estimated latency is far too
+high for voice chat; its parameters cannot be controlled. Its only advantage in the A/B was
+loudness, which our volume stabilizer provides. RNNoise stays the denoiser.
+
+Follow-ups from the spike: keyboard clicks survive both denoisers → impact noise reduction
+(SON-22) or DeepFilterNet; tune the stabilizer so the chain sounds as present as VPIO's AGC.
 
 ## 7. Testing
 
