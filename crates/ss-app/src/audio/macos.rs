@@ -9,8 +9,17 @@ use ss_audio_macos::{
 use ss_dsp::MicChain;
 use ss_engine::{Command as EngineCommand, EngineController};
 
-use super::plan::{DeviceInfo, MicPlan, MixPlan, ProcessInfo};
+use super::plan::{DeviceInfo, DeviceSet, MicPlan, MixPlan, ProcessInfo};
 use super::supervisor::{AudioBackend, MicHandle, MixHandle};
+
+/// UID prefix of every device this app creates: private aggregate devices
+/// (`ss-audio-macos`) and the virtual-mic driver's devices (`ss-hal-driver-macos`). They appear in
+/// this process's device list but must never be offered or watched.
+const OWN_DEVICE_PREFIX: &str = "dev.stealseries.";
+
+fn is_own_device(uid: &str) -> bool {
+    uid.starts_with(OWN_DEVICE_PREFIX)
+}
 
 /// Sample rate of the mic chain and the virtual microphone (`virtual-mic-driver.md` §3).
 const MIC_SAMPLE_RATE: f32 = 48_000.0;
@@ -47,10 +56,11 @@ impl AudioBackend for MacAudioBackend {
             .collect())
     }
 
-    fn devices(&mut self) -> (Vec<DeviceInfo>, Vec<DeviceInfo>) {
+    fn devices(&mut self) -> DeviceSet {
         let outputs = list_output_devices()
             .unwrap_or_default()
             .into_iter()
+            .filter(|d| !is_own_device(&d.uid))
             .map(|d| DeviceInfo {
                 uid: d.uid,
                 name: d.name,
@@ -60,14 +70,19 @@ impl AudioBackend for MacAudioBackend {
         let inputs = list_input_devices()
             .unwrap_or_default()
             .into_iter()
-            .filter(|d| d.uid != VIRTUAL_MIC_UID)
+            .filter(|d| !is_own_device(&d.uid))
             .map(|d| DeviceInfo {
                 uid: d.uid,
                 name: d.name,
                 id: d.id,
             })
             .collect();
-        (outputs, inputs)
+        DeviceSet {
+            outputs,
+            inputs,
+            default_output: default_output_device().ok().map(|d| d.uid),
+            default_input: default_input_device().ok().map(|d| d.uid),
+        }
     }
 
     fn start_mix(&mut self, plan: &MixPlan) -> Result<Box<dyn MixHandle>, String> {

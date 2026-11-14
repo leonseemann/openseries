@@ -40,6 +40,13 @@ pub fn show(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, show_idle: &
     if !config.enabled {
         return;
     }
+    ui.label(
+        egui::RichText::new(format!(
+            "Started {} time(s) since launch ({} app(s) routed)",
+            snapshot.audio.mix_starts, snapshot.audio.routed_apps
+        ))
+        .weak(),
+    );
 
     ui.add_space(8.0);
     ui.horizontal(|ui| {

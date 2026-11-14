@@ -30,6 +30,35 @@ pub struct DeviceInfo {
     pub id: u32,
 }
 
+/// The audio devices relevant to the app (own aggregate and virtual devices filtered out).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct DeviceSet {
+    /// Output devices.
+    pub outputs: Vec<DeviceInfo>,
+    /// Input devices.
+    pub inputs: Vec<DeviceInfo>,
+    /// UID of the system default output.
+    pub default_output: Option<String>,
+    /// UID of the system default input.
+    pub default_input: Option<String>,
+}
+
+impl DeviceSet {
+    /// The output a session with `uid` (`None` = system default) uses right now.
+    #[must_use]
+    pub fn output(&self, uid: Option<&str>) -> Option<&DeviceInfo> {
+        let uid = uid.or(self.default_output.as_deref())?;
+        self.outputs.iter().find(|d| d.uid == uid)
+    }
+
+    /// The input a session with `uid` (`None` = system default) uses right now.
+    #[must_use]
+    pub fn input(&self, uid: Option<&str>) -> Option<&DeviceInfo> {
+        let uid = uid.or(self.default_input.as_deref())?;
+        self.inputs.iter().find(|d| d.uid == uid)
+    }
+}
+
 /// The AudioMix session that should run. Any difference requires rebuilding the taps.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MixPlan {

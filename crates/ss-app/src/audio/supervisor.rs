@@ -8,7 +8,9 @@ use ss_engine::Command as EngineCommand;
 use ss_store::Config;
 use ss_store::config::Channel;
 
-use super::plan::{DeviceInfo, MicPlan, MixDecision, MixPlan, ProcessInfo, mic_plan, mix_decision};
+use super::plan::{
+    DeviceInfo, DeviceSet, MicPlan, MixDecision, MixPlan, ProcessInfo, mic_plan, mix_decision,
+};
 
 /// A running AudioMix session; dropping it stops the mix.
 pub trait MixHandle {
@@ -26,8 +28,8 @@ pub trait AudioBackend {
     /// # Errors
     /// A message if the process list cannot be read.
     fn processes(&mut self) -> Result<Vec<ProcessInfo>, String>;
-    /// Output and input devices for the UI.
-    fn devices(&mut self) -> (Vec<DeviceInfo>, Vec<DeviceInfo>);
+    /// Audio devices, without the app's own aggregate and virtual devices.
+    fn devices(&mut self) -> DeviceSet;
     /// Starts AudioMix.
     ///
     /// # Errors
@@ -61,6 +63,9 @@ pub struct AudioStatus {
     pub mix: ServiceStatus,
     /// Number of apps routed away from Media.
     pub routed_apps: usize,
+    /// How often AudioMix was (re)started since the app launched (diagnostics: each start is a
+    /// short audio gap, so this should only grow on real changes).
+    pub mix_starts: u32,
     /// Mic feed into the virtual microphone.
     pub mic: ServiceStatus,
     /// Running audio processes (for the assignment list).
@@ -77,9 +82,14 @@ pub struct AudioSupervisor<B: AudioBackend> {
     config: Config,
     processes: Vec<ProcessInfo>,
     mix: Option<(MixPlan, Box<dyn MixHandle>)>,
+    /// The output device the running mix was started on (to notice replugs and default changes).
+    mix_device: Option<DeviceInfo>,
     /// Plan that failed to start; not retried until the plan changes.
     failed_mix: Option<MixPlan>,
     mic: Option<(MicPlan, Box<dyn MicHandle>)>,
+    /// The input device the running mic feed was started on.
+    mic_device: Option<DeviceInfo>,
+    devices: DeviceSet,
     failed_mic: Option<MicPlan>,
     chatmix: Option<ChatMixBalance>,
     status: AudioStatus,
@@ -93,8 +103,11 @@ impl<B: AudioBackend> AudioSupervisor<B> {
             config,
             processes: Vec::new(),
             mix: None,
+            mix_device: None,
             failed_mix: None,
             mic: None,
+            mic_device: None,
+            devices: DeviceSet::default(),
             failed_mic: None,
             chatmix: None,
             status: AudioStatus::default(),
@@ -120,14 +133,25 @@ impl<B: AudioBackend> AudioSupervisor<B> {
             Ok(processes) => self.processes = processes,
             Err(error) => self.status.mix = ServiceStatus::Failed(error),
         }
-        let (outputs, inputs) = self.backend.devices();
-        if outputs != self.status.outputs || inputs != self.status.inputs {
-            // A device appeared, vanished or re-enumerated (new object id after a replug or a
-            // USB reset): running sessions may point at a dead device, so rebuild both.
-            self.restart_sessions();
+        self.devices = self.backend.devices();
+        // Rebuild only when the device a session actually uses vanished, re-enumerated (new
+        // object id after a replug or USB reset) or — for "system default" — was switched.
+        // Other devices coming and going (iPhone mics, our own aggregates) must not interrupt
+        // the audio.
+        if let Some((plan, _)) = &self.mix {
+            if self.devices.output(plan.output_uid.as_deref()) != self.mix_device.as_ref() {
+                self.mix = None;
+                self.failed_mix = None;
+            }
         }
-        self.status.outputs = outputs;
-        self.status.inputs = inputs;
+        if let Some((plan, _)) = &self.mic {
+            if self.devices.input(plan.input_uid.as_deref()) != self.mic_device.as_ref() {
+                self.mic = None;
+                self.failed_mic = None;
+            }
+        }
+        self.status.outputs.clone_from(&self.devices.outputs);
+        self.status.inputs.clone_from(&self.devices.inputs);
         self.status.processes.clone_from(&self.processes);
         self.reconcile();
     }
@@ -146,14 +170,6 @@ impl<B: AudioBackend> AudioSupervisor<B> {
         self.mic = None;
         self.status.mix = ServiceStatus::Off;
         self.status.mic = ServiceStatus::Off;
-    }
-
-    /// Drops running sessions and forgets failed attempts, so the next reconcile starts fresh.
-    fn restart_sessions(&mut self) {
-        self.mix = None;
-        self.failed_mix = None;
-        self.mic = None;
-        self.failed_mic = None;
     }
 
     fn reconcile(&mut self) {
@@ -191,6 +207,8 @@ impl<B: AudioBackend> AudioSupervisor<B> {
         self.status.routed_apps = plan.routes.len();
         match self.backend.start_mix(&plan) {
             Ok(handle) => {
+                self.mix_device = self.devices.output(plan.output_uid.as_deref()).cloned();
+                self.status.mix_starts = self.status.mix_starts.saturating_add(1);
                 self.mix = Some((plan, handle));
                 self.failed_mix = None;
                 self.status.mix = ServiceStatus::Running;
@@ -228,6 +246,7 @@ impl<B: AudioBackend> AudioSupervisor<B> {
         self.mic = None;
         match self.backend.start_mic(&plan) {
             Ok(handle) => {
+                self.mic_device = self.devices.input(plan.input_uid.as_deref()).cloned();
                 self.mic = Some((plan, handle));
                 self.failed_mic = None;
                 self.status.mic = ServiceStatus::Running;
@@ -298,7 +317,7 @@ mod tests {
     struct FakeBackend {
         log: Rc<RefCell<Log>>,
         processes: Rc<RefCell<Vec<ProcessInfo>>>,
-        outputs: Rc<RefCell<Vec<DeviceInfo>>>,
+        devices: Rc<RefCell<DeviceSet>>,
         fail_mix: bool,
     }
 
@@ -307,8 +326,8 @@ mod tests {
             Ok(self.processes.borrow().clone())
         }
 
-        fn devices(&mut self) -> (Vec<DeviceInfo>, Vec<DeviceInfo>) {
-            (self.outputs.borrow().clone(), Vec::new())
+        fn devices(&mut self) -> DeviceSet {
+            self.devices.borrow().clone()
         }
 
         fn start_mix(&mut self, plan: &MixPlan) -> Result<Box<dyn MixHandle>, String> {
@@ -332,24 +351,24 @@ mod tests {
         supervisor: AudioSupervisor<FakeBackend>,
         log: Rc<RefCell<Log>>,
         processes: Rc<RefCell<Vec<ProcessInfo>>>,
-        outputs: Rc<RefCell<Vec<DeviceInfo>>>,
+        devices: Rc<RefCell<DeviceSet>>,
     }
 
     fn harness(fail_mix: bool) -> Harness {
         let log = Rc::new(RefCell::new(Log::default()));
         let processes = Rc::new(RefCell::new(Vec::new()));
-        let outputs = Rc::new(RefCell::new(Vec::new()));
+        let devices = Rc::new(RefCell::new(DeviceSet::default()));
         let backend = FakeBackend {
             log: Rc::clone(&log),
             processes: Rc::clone(&processes),
-            outputs: Rc::clone(&outputs),
+            devices: Rc::clone(&devices),
             fail_mix,
         };
         Harness {
             supervisor: AudioSupervisor::new(backend, Config::default()),
             log,
             processes,
-            outputs,
+            devices,
         }
     }
 
@@ -487,26 +506,64 @@ mod tests {
         assert_eq!(h.supervisor.status().mic, ServiceStatus::Running);
     }
 
-    #[test]
-    fn a_re_enumerated_output_device_triggers_a_rebuild() {
-        let headset = |id| DeviceInfo {
-            uid: "AppleUSBAudioEngine:SteelSeries:Arctis".to_owned(),
-            name: "Arctis Nova Pro Wireless".to_owned(),
+    fn device(uid: &str, id: u32) -> DeviceInfo {
+        DeviceInfo {
+            uid: uid.to_owned(),
+            name: uid.to_owned(),
             id,
-        };
-        let mut h = harness(false);
-        h.outputs.borrow_mut().push(headset(119));
+        }
+    }
+
+    /// Mix running on the default output "arctis" (id 119).
+    fn running_on_default_output() -> Harness {
+        let h = harness(false);
+        {
+            let mut devices = h.devices.borrow_mut();
+            devices.outputs = vec![device("arctis", 119), device("speakers", 85)];
+            devices.default_output = Some("arctis".to_owned());
+        }
+        let mut h = h;
         h.supervisor.on_tick();
         h.supervisor.on_config(enabled_with(&[]));
         h.supervisor.on_tick();
         assert_eq!(h.log.borrow().mix_starts.len(), 1);
+        h
+    }
 
+    #[test]
+    fn a_re_enumerated_output_device_triggers_a_rebuild() {
+        let mut h = running_on_default_output();
         // USB reset: same UID, new object id.
-        h.outputs.borrow_mut()[0] = headset(143);
+        h.devices.borrow_mut().outputs[0] = device("arctis", 143);
+        h.supervisor.on_tick();
         h.supervisor.on_tick();
         let log = h.log.borrow();
-        assert_eq!(log.mix_starts.len(), 2);
+        assert_eq!(log.mix_starts.len(), 2, "exactly one rebuild");
         assert_eq!(log.live_mixes, 1);
+    }
+
+    #[test]
+    fn unrelated_devices_coming_and_going_do_not_interrupt_the_mix() {
+        // Regression: our own aggregate device and iPhone mics appearing in the list caused a
+        // rebuild every tick (audible stutter).
+        let mut h = running_on_default_output();
+        h.devices.borrow_mut().outputs.push(device("iphone", 200));
+        h.devices
+            .borrow_mut()
+            .inputs
+            .push(device("iphone-mic", 201));
+        h.supervisor.on_tick();
+        h.devices.borrow_mut().outputs.pop();
+        h.supervisor.on_tick();
+        assert_eq!(h.log.borrow().mix_starts.len(), 1);
+    }
+
+    #[test]
+    fn switching_the_system_default_moves_a_default_mix() {
+        let mut h = running_on_default_output();
+        h.devices.borrow_mut().default_output = Some("speakers".to_owned());
+        h.supervisor.on_tick();
+        assert_eq!(h.log.borrow().mix_starts.len(), 2);
     }
 
     #[test]
