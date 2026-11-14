@@ -31,6 +31,7 @@ in parallel (it shares the device; replies were not disturbed).
 | Save to flash `06 09` | `--save` | not tested yet (all test values were restored instead) | ⏳ pending |
 | ANC button event | `ssctl watch`, press ANC button | `07 BD <mode>` with the same 0/1/2 encoding as the write command; observed sequence 2→0→2 (button cycle is ANC ↔ off on this unit; whether transparency is in the cycle depends on a setting — Unknown) | ✅ Observed (new, not in prior art) |
 | Mic mute switch event | `ssctl watch`, toggle mute | `07 BB 01` = muted, `07 BB 00` = unmuted | ✅ Observed (new, not in prior art) |
+| Custom EQ is audible | Windows, 2026-11-14, music with vocals/cymbals: `set eq-preset flat` → `set eq -- 0 0 0 0 0 -10 -10 -10 -10 -10` (writes `06 33`, then selects Custom) → flat → `set eq-preset custom` only | Owner heard "muffled" exactly in both Custom phases: the curve is applied, bands run low → high, and re-selecting Custom applies the stored curve. +10 dB on bands 1–2 alone was hard to notice (very low bands, Inferred). Whether `06 33` alone applies live while Custom is active: Unknown (the app re-selects Custom after every write) | ✅ Observed |
 | Hardware EQ band centre frequencies (Unknown) | sweep / listening test | | ⏳ pending |
 
 All values changed during testing were restored to their previous state.

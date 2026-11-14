@@ -173,7 +173,7 @@ fn custom_eq(ui: &mut egui::Ui, core: &AppCore, curve: Option<HardwareEq>) {
             .add_enabled(!curve.is_flat(), egui::Button::new("Flat"))
             .clicked()
         {
-            core.headset(Command::SetCustomEq(HardwareEq::FLAT));
+            write_custom_eq(core, HardwareEq::FLAT);
         }
         ui.label(egui::RichText::new("bands from low to high · −10…+10 dB in 0.5 dB steps").weak());
     });
@@ -184,13 +184,21 @@ fn custom_eq(ui: &mut egui::Ui, core: &AppCore, curve: Option<HardwareEq>) {
                     if let Ok(gain) = EqGain::from_db(db) {
                         let mut edited = curve;
                         edited.bands[index] = gain;
-                        core.headset(Command::SetCustomEq(edited));
+                        write_custom_eq(core, edited);
                     }
                 }
                 ui.label(format!("{}", index + 1));
             });
         }
     });
+}
+
+/// Writes the curve and re-selects "Custom", like `ssctl set eq`. Whether the curve applies live
+/// without the re-select is Unknown; with it, the change is audible (Observed, see
+/// `nova-pro-wireless.md`).
+fn write_custom_eq(core: &AppCore, curve: HardwareEq) {
+    core.headset(Command::SetCustomEq(curve));
+    core.headset(Command::SetEqPreset(EqPreset::Custom));
 }
 
 /// One vertical band slider; returns the new gain once the user lets go.
