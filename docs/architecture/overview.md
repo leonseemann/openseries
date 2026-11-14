@@ -157,7 +157,7 @@ changes travel as small messages over an `rtrb` SPSC queue; meters travel back t
 
 1. ✅ **M1 – Headset CLI:** `ss-core`, `ss-nova-pro`, `ss-hid`, `ssctl` (status, battery, ANC, sidetone, mic, EQ, ChatMix events). Hardware verification on the owner's Nova Pro Wireless.
 2. ✅ **M2 – DSP:** `ss-dsp` with tests; offline WAV processing tool for listening tests.
-3. **M3 – macOS audio** ([ADR 0002](../adr/0002-macos-audio-strategy.md)): M3a `ss-engine` + `ss-audio-macos` with Process Taps (per-app routing, ChatMix dial); M3b virtual-mic HAL driver.
+3. **M3 – macOS audio** ([ADR 0002](../adr/0002-macos-audio-strategy.md)): M3a `ss-engine` + `ss-audio-macos` with Process Taps (per-app routing, ChatMix dial) — verified on hardware ([macos-audiomix.md](../hardware/macos-audiomix.md)); M3b virtual-mic HAL driver.
 4. **M4 – Windows audio:** spike + ADR 0003, `ss-audio-windows`.
 5. **M5 – Daemon + UI:** local API, tray, hotkeys, presets, onboarding.
 6. **M6 – Mic chain:** denoise (nnnoiseless → DeepFilterNet), gate, compressor, mic EQ.

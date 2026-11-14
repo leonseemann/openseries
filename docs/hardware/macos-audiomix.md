@@ -34,6 +34,8 @@ Ctrl-C stops the mix and all apps play normally again.
 
 ## Checklist
 
+Run on 2026-11-14: macOS 27.2.1 (arm64), Ghostty, Nova Pro base station on USB-1. **All checks passed.**
+
 | # | Check | Expected | Result |
 |---|-------|----------|--------|
 | 1 | `cargo build` on macOS incl. hidapi and `dial.rs` (never compiled on macOS yet) | builds | ✅ Observed: builds, fmt/clippy/tests green without changes (macOS 27.2.1, Apple silicon, Rust 1.99) |
@@ -45,8 +47,8 @@ Ctrl-C stops the mix and all apps play normally again.
 | 7 | Output buffer is interleaved `f32` with the device's channel count | sound, not silence | ✅ Observed: 1 output buffer × 2 ch (interleaved), 512 frames per callback, ≈ 95 callbacks/s at 48 kHz |
 | 8 | `--game` / `--chat` assignment | each app ends up on its channel | ✅ Observed with `--probe` (`--game com.google.Chrome --chat com.spotify.client`, Zoom meeting unassigned): input buffers `[1, 2, 2, 2]` = mic, Game, Chat, Media. Chrome only on #1 (−16…−18 dBFS), Spotify only on #2 (−26 dBFS), Zoom only on #3; the Media catch-all tap correctly excludes assigned apps. Taps keep tap-list order. Sounded normal (crackles: see check 11) |
 | 9 | `--dial` | turning the dial lowers game or chat; base station returns to normal after Ctrl-C | ✅ Observed: ChatMix is only reachable on the base station while a host enables it (`SetChatMixDial`); then **pressing the base-station knob** opens it. Events arrive without extra macOS permission (no Input Monitoring prompt): centre = game 100 % / chat 100 %, 12 steps of ≈ 8.3 % per side down to 0 %. Attenuation audible on the expected side; restore on Ctrl-C without errors |
-| 10 | `--game-bass 6`, `--media-smart-volume` | audible effect | ⏳ |
-| 11 | Latency / glitches under load | no crackles | ⚠️ Crackles during the check-9 run; the owner attributes them to a known 2.4 GHz wireless issue of the headset (also seen on Windows, fixed by restarting the base station). Retest after restart pending |
+| 10 | `--game-bass 6`, `--media-smart-volume` | audible effect | ✅ Observed (A/B: 10 s without ssmix, then 30 s with): bass boost clearly audible on Chrome (Game); Smart Volume raised the quiet Spotify stream (Media) to roughly the level of the other sources |
+| 11 | Latency / glitches under load | no crackles | ✅ Observed after restarting the base station: no crackles in 30 s with 2 taps + DSP; IOProc steady at 95–96 callbacks/s (no gaps). Earlier crackles during check 9 attributed by the owner to a known 2.4 GHz issue of the headset (also on Windows, cured by a base-station restart) |
 | 12 | Does the Nova Pro expose a separate "chat" output device on macOS? (ADR 0002, Unknown) | note device list | ✅ Observed: no — one output device (2 ch) and one input (1 ch mic) only; ChatMix must stay software-side |
 
 ## Findings and follow-ups
