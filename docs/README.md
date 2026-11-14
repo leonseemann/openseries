@@ -10,7 +10,7 @@
 | RE: Sonar / AudioMix | [`re/sonar.md`](re/sonar.md) | ✅ |
 | RE: Feature inventory (scope decided) | [`re/feature-inventory.md`](re/feature-inventory.md) | ✅ |
 | Research: open-source prior art & licenses | [`research/prior-art.md`](research/prior-art.md) | ✅ |
-| Architecture of the Rust rewrite | [`architecture/overview.md`](architecture/overview.md) | ⏳ planned |
+| Architecture of the Rust rewrite | [`architecture/overview.md`](architecture/overview.md) | ✅ |
 | Decisions | [`adr/`](adr/) — [0001 v1 scope](adr/0001-v1-scope.md) | ✅ |
 
 ## Evidence convention
