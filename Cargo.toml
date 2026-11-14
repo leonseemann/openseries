@@ -24,6 +24,7 @@ ss-engine = { path = "crates/ss-engine" }
 ss-audio-macos = { path = "crates/ss-audio-macos" }
 ss-dsp = { path = "crates/ss-dsp" }
 ss-hal-driver-macos = { path = "crates/ss-hal-driver-macos" }
+ss-store = { path = "crates/ss-store" }
 
 [workspace.lints.rust]
 unsafe_code = "deny"
