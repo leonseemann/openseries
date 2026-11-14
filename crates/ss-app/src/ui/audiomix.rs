@@ -17,6 +17,8 @@ const CHANNELS: [(Channel, &str); 4] = [
 ];
 /// Largest boost the UI offers (dB), matching Sonar's range.
 const MAX_BOOST_DB: f32 = 12.0;
+/// Largest per-channel volume boost (dB); our choice, Sonar's range is Unknown.
+const MAX_VOLUME_BOOST_DB: f32 = 12.0;
 
 pub fn show(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, show_idle: &mut bool) {
     let config = &snapshot.config.audiomix;
@@ -137,6 +139,17 @@ fn channels(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
                         });
                     }
                 });
+                // SON-13 volume boost: extra gain after the DSP strip; the engine's soft clipper
+                // on the summed output prevents hard clipping.
+                if let Some(db) = widgets::slider(
+                    ui,
+                    settings.gain_db,
+                    0.0..=MAX_VOLUME_BOOST_DB,
+                    "Volume boost",
+                    " dB",
+                ) {
+                    core.update_config(|c| c.audiomix.channels.get_mut(channel).gain_db = db);
+                }
                 if let Some(eq) = eq_editor(ui, ("eq", name), &settings.eq) {
                     core.update_config(|c| c.audiomix.channels.get_mut(channel).eq = eq);
                 }
