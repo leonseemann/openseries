@@ -58,6 +58,8 @@ jobs:
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - name: Tests
         run: cargo test --workspace --locked
+      - name: Third-party licence list up to date
+        run: python scripts/third_party_licenses.py --check
 
   macos:
     name: clippy + test (macOS)

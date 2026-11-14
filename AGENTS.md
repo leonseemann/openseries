@@ -61,6 +61,9 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
 
+After adding, removing or updating dependencies, regenerate the licence list shown in the app
+(CI fails otherwise): `python3 scripts/third_party_licenses.py`.
+
 ## Safety boundaries for agents
 
 - Do not run, patch or install the original SteelSeries software or its drivers.
