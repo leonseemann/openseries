@@ -93,7 +93,9 @@ impl Store {
             }
             Err(error) => return self.fallback(&format!("cannot read: {error}")),
         };
-        match serde_json::from_str::<Config>(&text) {
+        // Windows editors and PowerShell often write a UTF-8 byte order mark; JSON parsers reject it.
+        let text = text.strip_prefix('\u{feff}').unwrap_or(&text);
+        match serde_json::from_str::<Config>(text) {
             Ok(config) if config.version > CONFIG_VERSION => self.fallback(&format!(
                 "written by a newer version (schema {} > {CONFIG_VERSION})",
                 config.version
@@ -228,6 +230,17 @@ mod tests {
         store.save(&config).unwrap();
         assert_eq!(store.load().config, config);
         assert!(!dir.0.join("sub").join("config.json.tmp").exists());
+    }
+
+    #[test]
+    fn a_byte_order_mark_is_accepted() {
+        let dir = TempDir::new("bom");
+        let path = dir.0.join("config.json");
+        fs::create_dir_all(&dir.0).unwrap();
+        fs::write(&path, "\u{feff}{\"version\":1,\"audiomix\":{\"enabled\":true}}").unwrap();
+        let loaded = Store::at(path).load();
+        assert!(loaded.warning.is_none(), "{:?}", loaded.warning);
+        assert!(loaded.config.audiomix.enabled);
     }
 
     #[test]
