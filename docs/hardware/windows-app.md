@@ -39,3 +39,4 @@ Run on 2026-11-14: Windows 11 Pro (build 26300), Nova Pro Wireless. **All checks
 | 7 | Settings → Start at login, then sign out/in | app starts; registry value `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\StealSeries` exists | ✅ Observed: app started after sign-out/in |
 | 8 | Settings → Third-party licences | list scrolls smoothly | ✅ Observed: scrolls smoothly |
 | 9 | Quit from the tray | process ends; settings kept after restart | ✅ Observed: process ends, settings kept |
+| 10 | Headset → EQ "Custom": custom curve editor (HS-01) | 10 sliders show the stored curve; moving one is audible and reads back after release; "Flat" resets | ⏳ |

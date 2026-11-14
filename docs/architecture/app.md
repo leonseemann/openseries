@@ -45,7 +45,7 @@ flowchart LR
 |---|---|
 | AudioMix | **master switch** (off = no taps, no aggregate devices); output device; per-app channel assignment (by bundle id, persisted); per channel fader, mute, PEQ, boosts, Smart Volume; ChatMix from the dial; conflict warning for known tap tools |
 | Mic | on/off; source mic; mic chain (denoise, gate, stabilizer, EQ, gain); status of the virtual-mic driver |
-| Headset | connection, battery, ANC/transparency, sidetone, mic volume, hardware EQ preset, auto-off, OLED brightness (all existing `ss-nova-pro` commands) |
+| Headset | connection, battery, ANC/transparency, sidetone, mic volume, hardware EQ preset and custom 10-band curve editor (HS-01; shown when "Custom" is selected, writes `06 33` on release, bands numbered because their centre frequencies are Unknown; kept in the base station's RAM — saving to flash `06 09` is untested), auto-off, OLED brightness (all existing `ss-nova-pro` commands) |
 | App | menu-bar icon with quick toggles, window, autostart (LaunchAgent), global hotkeys (ChatMix, mute), settings saved automatically |
 
 Notes on v1 behaviour:

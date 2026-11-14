@@ -3,8 +3,8 @@
 use eframe::egui;
 use ss_core::battery::ChargeState;
 use ss_core::headset::{
-    AutoOff, DisplayBrightness, EqPreset, MicLedBrightness, MicVolume, NoiseControl, SidetoneLevel,
-    TransparencyLevel,
+    AutoOff, DisplayBrightness, EqGain, EqPreset, HardwareEq, MicLedBrightness, MicVolume,
+    NoiseControl, SidetoneLevel, TransparencyLevel,
 };
 use ss_nova_pro::{Command, Settings, Status};
 
@@ -154,7 +154,68 @@ fn microphone_and_sound(ui: &mut egui::Ui, core: &AppCore, settings: Option<Sett
             }
         }
     });
+    if settings.and_then(|s| s.eq_preset) == Some(EqPreset::Custom) {
+        custom_eq(ui, core, settings.and_then(|s| s.custom_eq));
+    }
 }
+
+/// Editor for the on-device 10-band curve (`06 33`, Observed in `nova-pro-wireless.md`).
+///
+/// The band centre frequencies are Unknown, so the bands are numbered from low to high.
+fn custom_eq(ui: &mut egui::Ui, core: &AppCore, curve: Option<HardwareEq>) {
+    let Some(curve) = curve else {
+        ui.label(egui::RichText::new("Custom EQ: the base station did not report a curve").weak());
+        return;
+    };
+    ui.horizontal(|ui| {
+        ui.label(egui::RichText::new("Custom EQ").strong());
+        if ui
+            .add_enabled(!curve.is_flat(), egui::Button::new("Flat"))
+            .clicked()
+        {
+            core.headset(Command::SetCustomEq(HardwareEq::FLAT));
+        }
+        ui.label(egui::RichText::new("bands from low to high · −10…+10 dB in 0.5 dB steps").weak());
+    });
+    ui.horizontal(|ui| {
+        for (index, gain) in curve.bands.iter().enumerate() {
+            ui.vertical(|ui| {
+                if let Some(db) = band_slider(ui, index, gain.db()) {
+                    if let Ok(gain) = EqGain::from_db(db) {
+                        let mut edited = curve;
+                        edited.bands[index] = gain;
+                        core.headset(Command::SetCustomEq(edited));
+                    }
+                }
+                ui.label(format!("{}", index + 1));
+            });
+        }
+    });
+}
+
+/// One vertical band slider; returns the new gain once the user lets go.
+fn band_slider(ui: &mut egui::Ui, index: usize, value: f32) -> Option<f32> {
+    // While dragging, the device still reports the old value; keep the dragged one locally.
+    let id = ui.id().with(("eq-band", index));
+    let mut edited = ui.data(|d| d.get_temp::<f32>(id)).unwrap_or(value);
+    let response = ui.add(
+        egui::Slider::new(&mut edited, EqGain::MIN_DB..=EqGain::MAX_DB)
+            .vertical()
+            .step_by(f64::from(EQ_STEP_DB))
+            .suffix(" dB")
+            .fixed_decimals(1),
+    );
+    if response.dragged() {
+        ui.data_mut(|d| d.insert_temp(id, edited));
+        return None;
+    }
+    ui.data_mut(|d| d.remove::<f32>(id));
+    let finished = response.drag_stopped() || response.changed();
+    (finished && (edited - value).abs() >= EQ_STEP_DB / 2.0).then_some(edited)
+}
+
+/// Resolution of the hardware EQ (Observed: 0.5 dB steps read back exactly).
+const EQ_STEP_DB: f32 = 0.5;
 
 fn power_and_display(ui: &mut egui::Ui, core: &AppCore, status: Status, headset: &HeadsetState) {
     ui.add_space(8.0);
