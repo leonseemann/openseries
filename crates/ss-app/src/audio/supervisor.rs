@@ -45,6 +45,17 @@ pub trait AudioBackend {
     /// # Errors
     /// A user-facing message (e.g. driver not installed).
     fn start_mic(&mut self, plan: &MicPlan) -> Result<Box<dyn MicHandle>, String>;
+    /// UID of the virtual microphone, if this OS has one.
+    fn virtual_mic_uid(&self) -> Option<&'static str> {
+        None
+    }
+    /// Makes `uid` the system default input.
+    ///
+    /// # Errors
+    /// A user-facing message.
+    fn set_default_input(&mut self, _uid: &str) -> Result<(), String> {
+        Err("not supported on this operating system".to_owned())
+    }
 }
 
 /// State of one audio service as shown to the user.
@@ -75,10 +86,24 @@ pub struct AudioStatus {
     pub mic: ServiceStatus,
     /// Running audio processes (for the assignment list).
     pub processes: Vec<ProcessInfo>,
+    /// Problem with making the virtual mic the default input (SON-06).
+    pub default_input_error: Option<String>,
     /// Output devices.
     pub outputs: Vec<DeviceInfo>,
     /// Input devices.
     pub inputs: Vec<DeviceInfo>,
+}
+
+/// Whether the system default input was switched to the virtual mic.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum DefaultInput {
+    /// Left as the user set it.
+    Untouched,
+    /// Switched by us; `previous` (`None` = there was no default) is restored later.
+    Replaced {
+        /// The default input before the switch.
+        previous: Option<String>,
+    },
 }
 
 /// The reconciler.
@@ -99,6 +124,8 @@ pub struct AudioSupervisor<B: AudioBackend> {
     chatmix: Option<ChatMixBalance>,
     /// Headset link as last reported (`None` = unknown); drives the "headset off" fallback.
     headset_linked: Option<bool>,
+    /// Whether we made the virtual mic the default input (SON-06).
+    default_input: DefaultInput,
     status: AudioStatus,
 }
 
@@ -118,6 +145,7 @@ impl<B: AudioBackend> AudioSupervisor<B> {
             failed_mic: None,
             chatmix: None,
             headset_linked: None,
+            default_input: DefaultInput::Untouched,
             status: AudioStatus::default(),
         }
     }
@@ -190,6 +218,7 @@ impl<B: AudioBackend> AudioSupervisor<B> {
 
     /// Stops everything (app quit).
     pub fn shutdown(&mut self) {
+        self.restore_default_input();
         self.mix = None;
         self.mic = None;
         self.status.mix = ServiceStatus::Off;
@@ -199,6 +228,50 @@ impl<B: AudioBackend> AudioSupervisor<B> {
     fn reconcile(&mut self) {
         self.reconcile_mix();
         self.reconcile_mic();
+        self.reconcile_default_input();
+    }
+
+    /// Switches the system default input to the virtual mic when the feed starts (option on) and
+    /// back when it stops. Only acts on these transitions, so a default the user picks by hand in
+    /// between is left alone.
+    fn reconcile_default_input(&mut self) {
+        let Some(virtual_uid) = self.backend.virtual_mic_uid() else {
+            return;
+        };
+        let wanted = self.config.mic.set_as_default_input
+            && matches!(self.status.mic, ServiceStatus::Running);
+        if wanted && self.default_input == DefaultInput::Untouched {
+            let previous = self.devices.default_input.clone();
+            if previous.as_deref() == Some(virtual_uid) {
+                return; // already the default; nothing to restore later
+            }
+            match self.backend.set_default_input(virtual_uid) {
+                Ok(()) => {
+                    self.default_input = DefaultInput::Replaced { previous };
+                    self.devices.default_input = Some(virtual_uid.to_owned());
+                    self.status.default_input_error = None;
+                }
+                Err(error) => self.status.default_input_error = Some(error),
+            }
+        } else if !wanted {
+            self.restore_default_input();
+        }
+    }
+
+    fn restore_default_input(&mut self) {
+        let DefaultInput::Replaced { previous } =
+            std::mem::replace(&mut self.default_input, DefaultInput::Untouched)
+        else {
+            return;
+        };
+        let still_ours = self.devices.default_input.as_deref() == self.backend.virtual_mic_uid();
+        if let (true, Some(previous)) = (still_ours, previous) {
+            if let Err(error) = self.backend.set_default_input(&previous) {
+                self.status.default_input_error = Some(error);
+            } else {
+                self.devices.default_input = Some(previous);
+            }
+        }
     }
 
     fn reconcile_mix(&mut self) {
@@ -337,6 +410,7 @@ mod tests {
         commands: usize,
         live_mixes: usize,
         refreshes: usize,
+        default_inputs: Vec<String>,
     }
 
     struct FakeMix(Rc<RefCell<Log>>);
@@ -391,6 +465,16 @@ mod tests {
         fn start_mic(&mut self, plan: &MicPlan) -> Result<Box<dyn MicHandle>, String> {
             self.log.borrow_mut().mic_starts.push(plan.clone());
             Ok(Box::new(FakeMic))
+        }
+
+        fn virtual_mic_uid(&self) -> Option<&'static str> {
+            Some("vmic")
+        }
+
+        fn set_default_input(&mut self, uid: &str) -> Result<(), String> {
+            self.log.borrow_mut().default_inputs.push(uid.to_owned());
+            self.devices.borrow_mut().default_input = Some(uid.to_owned());
+            Ok(())
         }
     }
 
@@ -490,6 +574,39 @@ mod tests {
                 Some("hs".to_owned())
             ]
         );
+    }
+
+    #[test]
+    fn virtual_mic_becomes_default_input_while_running_and_is_restored() {
+        let mut h = harness(false);
+        h.devices.borrow_mut().default_input = Some("hs-mic".to_owned());
+        h.supervisor.on_tick();
+        let mut config = Config::default();
+        config.mic.enabled = true;
+        config.mic.set_as_default_input = true;
+        h.supervisor.on_config(config.clone());
+        h.supervisor.on_tick();
+        h.supervisor.on_tick(); // no repeated switching
+        config.mic.enabled = false;
+        h.supervisor.on_config(config);
+        assert_eq!(h.log.borrow().default_inputs, vec!["vmic", "hs-mic"]);
+    }
+
+    #[test]
+    fn a_default_chosen_by_hand_meanwhile_is_kept() {
+        let mut h = harness(false);
+        h.devices.borrow_mut().default_input = Some("hs-mic".to_owned());
+        h.supervisor.on_tick();
+        let mut config = Config::default();
+        config.mic.enabled = true;
+        config.mic.set_as_default_input = true;
+        h.supervisor.on_config(config.clone());
+        // The user picks another input in System Settings.
+        h.devices.borrow_mut().default_input = Some("usb-mic".to_owned());
+        h.supervisor.on_tick();
+        config.mic.enabled = false;
+        h.supervisor.on_config(config);
+        assert_eq!(h.log.borrow().default_inputs, vec!["vmic"]);
     }
 
     #[test]

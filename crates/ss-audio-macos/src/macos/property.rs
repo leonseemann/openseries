@@ -6,7 +6,8 @@ use std::ptr::NonNull;
 use objc2_core_audio::{
     AudioObjectGetPropertyData, AudioObjectGetPropertyDataSize, AudioObjectID,
     AudioObjectPropertyAddress, AudioObjectPropertyScope, AudioObjectPropertySelector,
-    kAudioObjectPropertyElementMain, kAudioObjectPropertyScopeGlobal, kAudioObjectSystemObject,
+    AudioObjectSetPropertyData, kAudioObjectPropertyElementMain, kAudioObjectPropertyScopeGlobal,
+    kAudioObjectSystemObject,
 };
 use objc2_core_foundation::{CFRetained, CFString};
 
@@ -82,6 +83,30 @@ pub fn get<T: Copy + Default, Q>(
     };
     AudioError::check(status, "AudioObjectGetPropertyData")?;
     Ok(value)
+}
+
+/// Writes a fixed-size property (no qualifier).
+pub fn set<T: Copy>(
+    object: AudioObjectID,
+    selector: AudioObjectPropertySelector,
+    scope: AudioObjectPropertyScope,
+    value: T,
+) -> Result<(), AudioError> {
+    let address = address(selector, scope);
+    let size = u32::try_from(size_of::<T>()).unwrap_or(u32::MAX);
+    // SAFETY: `value` provides `size` readable bytes of a `Copy` type and `address` lives for the
+    // call; no qualifier.
+    let status = unsafe {
+        AudioObjectSetPropertyData(
+            object,
+            NonNull::from(&address),
+            0,
+            std::ptr::null(),
+            size,
+            NonNull::from(&value).cast(),
+        )
+    };
+    AudioError::check(status, "AudioObjectSetPropertyData")
 }
 
 /// Reads an array property (e.g. a list of object IDs).

@@ -33,6 +33,7 @@ The app lives in the menu bar (headphone icon); "Open StealSeries…" shows the 
 | 15 | Settings → **Fix crackling automatically** on; wait for a crackling episode | episode ends after ~1 s with a USB reconnect; counter increases; off = no automatic resets | ⏳ (filter verified: `log stream` with the predicate starts and stays running) |
 | 16 | AudioMix → Backup outputs: add the Mac speakers, enable "Switch to the backups while the headset is turned off"; turn the headset off, then on (SON-27/28) | mix moves to the speakers within ~2 s and back to the headset; with the option off, unplugging the base station also moves it | ⏳ (logic unit-tested on Windows; macOS run pending) |
 | 17 | Microphone → Backup microphones: add the MacBook mic; turn the headset off | virtual mic source switches to the MacBook mic and back | ⏳ |
+| 18 | Microphone → "Make StealSeries Microphone the system default input" on, feed on, then off; also quit with it on (SON-06) | System Settings → Sound → Input shows StealSeries Microphone while the feed runs and the previous input afterwards; picking another input by hand while it runs is kept | ⏳ (supervisor logic unit-tested; CoreAudio setter compile-checked for macOS only, written on Windows) |
 
 ## Findings
 

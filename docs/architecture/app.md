@@ -53,6 +53,12 @@ Notes on v1 behaviour:
   mute needs the mic command queue (later).
 - **Reconnect USB** is on the headset page, in the menu-bar menu and on a hotkey (default Ctrl+Alt+R): the manual cure for both kinds of crackling (`docs/hardware/macos-app.md` Findings).
 - **ChatMix hotkeys** move a software balance in steps of 10 %; moving the headset dial overrides it.
+- **Virtual mic as default input** (SON-06, macOS; Microphone page option, off by default): when
+  the mic feed starts, the supervisor makes "StealSeries Microphone" the system default input
+  (`kAudioHardwarePropertyDefaultInputDevice`, `ss_audio_macos::set_default_input_device`) and
+  remembers the previous default; when the feed stops (switch off, failure, quit) it restores that
+  default — but only if ours is still the default, so a choice made by hand meanwhile is kept. It
+  acts only on these transitions, never on every rescan. Not offered on Windows until M4b.
 - **Backup devices** (SON-27/28): AudioMix output and mic source each have an ordered backup
   list ("Backup outputs" / "Backup microphones"). `plan::resolve_device` picks the selected device
   (or the system default) while it is connected, else the first connected backup; the plan then

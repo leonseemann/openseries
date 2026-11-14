@@ -23,5 +23,5 @@ pub use macos::{
     AudioMixSession, AudioProcess, FEED_DEVICE_UID, InputDevice, MAX_PROBED_BUFFERS,
     MicFeedSession, OutputDevice, ProbeSnapshot, StreamLayout, VIRTUAL_MIC_UID,
     default_input_device, default_output_device, device_id_for_uid, list_audio_processes,
-    list_input_devices, list_output_devices,
+    list_input_devices, list_output_devices, set_default_input_device,
 };

@@ -17,6 +17,8 @@ pub fn audio_backend() -> AudioBackend {
     crate::audio::macos::MacAudioBackend
 }
 
+/// The HAL driver provides "StealSeries Microphone".
+pub const VIRTUAL_MIC_SUPPORTED: bool = true;
 /// Channel DSP runs in `ss-engine` on the tapped audio.
 pub const CHANNEL_DSP_SUPPORTED: bool = true;
 /// Whether [`reset_base_usb`] can work on this OS.

@@ -23,6 +23,8 @@ pub fn audio_backend() -> AudioBackend {
     crate::audio::windows::WinAudioBackend::new(path)
 }
 
+/// The virtual microphone needs the M4b driver (ADR 0004).
+pub const VIRTUAL_MIC_SUPPORTED: bool = false;
 /// Per-channel EQ, boosts and Smart Volume need the M4b driver (ADR 0004).
 pub const CHANNEL_DSP_SUPPORTED: bool = false;
 

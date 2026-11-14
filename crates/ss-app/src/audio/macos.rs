@@ -106,6 +106,14 @@ impl AudioBackend for MacAudioBackend {
         let session = MicFeedSession::start(&input, chain).map_err(|e| e.to_string())?;
         Ok(Box::new(MicSession(session)))
     }
+
+    fn virtual_mic_uid(&self) -> Option<&'static str> {
+        Some(VIRTUAL_MIC_UID)
+    }
+
+    fn set_default_input(&mut self, uid: &str) -> Result<(), String> {
+        ss_audio_macos::set_default_input_device(uid).map_err(|e| e.to_string())
+    }
 }
 
 fn output_device(uid: Option<&str>) -> Result<OutputDevice, String> {

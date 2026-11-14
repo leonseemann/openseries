@@ -13,7 +13,7 @@ mod tap;
 
 pub use device::{
     InputDevice, OutputDevice, default_input_device, default_output_device, device_id_for_uid,
-    list_input_devices, list_output_devices,
+    list_input_devices, list_output_devices, set_default_input_device,
 };
 pub use mic_feed::{FEED_DEVICE_UID, MicFeedSession, VIRTUAL_MIC_UID};
 pub use probe::{MAX_PROBED_BUFFERS, ProbeSnapshot};

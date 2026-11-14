@@ -150,6 +150,21 @@ pub fn default_input_device() -> Result<InputDevice, AudioError> {
     InputDevice::load(id)
 }
 
+/// Makes the device with `uid` the system default input (SON-06). **Untested on hardware**
+/// (written on Windows, compile-checked for macOS only).
+///
+/// # Errors
+/// [`AudioError::NotFound`] if no device has this UID, or the CoreAudio error.
+pub fn set_default_input_device(uid: &str) -> Result<(), AudioError> {
+    let id = device_id_for_uid(uid)?;
+    property::set(
+        SYSTEM_OBJECT,
+        kAudioHardwarePropertyDefaultInputDevice,
+        GLOBAL,
+        id,
+    )
+}
+
 /// Resolves a device UID, including hidden devices that are not in the device list.
 ///
 /// # Errors

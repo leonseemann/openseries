@@ -49,6 +49,24 @@ pub fn show(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
             core.update_config(|c| c.mic.input_device_uid = uid.into_uid());
         }
     });
+    if crate::platform::VIRTUAL_MIC_SUPPORTED {
+        let mut as_default = config.set_as_default_input;
+        if ui
+            .checkbox(
+                &mut as_default,
+                "Make \"StealSeries Microphone\" the system default input while it runs",
+            )
+            .changed()
+        {
+            core.update_config(|c| c.mic.set_as_default_input = as_default);
+        }
+        if let Some(error) = &snapshot.audio.default_input_error {
+            ui.colored_label(
+                ui.visuals().warn_fg_color,
+                format!("default input: {error}"),
+            );
+        }
+    }
     egui::CollapsingHeader::new("Backup microphones")
         .id_salt("backup-inputs")
         .default_open(!config.input_fallback.is_empty())
