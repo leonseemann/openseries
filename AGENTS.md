@@ -50,7 +50,8 @@ Never place extracted vendor files inside the repo; use a scratch directory outs
 - **Small functions, descriptive names, no magic numbers** (name protocol constants and link to `docs/re/`).
 - **Tests:** unit tests for domain logic, protocol encoders/decoders tested against documented byte
   layouts, integration tests behind feature flags for hardware.
-- `unsafe` only in FFI adapter modules, each block with a `// SAFETY:` comment.
+- `unsafe` only in FFI adapter crates (`ss-audio-*`, `ss-hal-driver-*`), opted in with `#![allow(unsafe_code)]`;
+  the workspace denies it everywhere else. Every `unsafe` block has a `// SAFETY:` comment.
 
 ## Tooling & checks (run before every commit)
 

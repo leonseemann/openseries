@@ -1,0 +1,26 @@
+[package]
+name = "ssmix"
+description = "AudioMix demo: route apps to Game/Chat/Media/Aux with DSP and the Nova Pro ChatMix dial (macOS 14.4+)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[features]
+default = ["nova-pro-dial"]
+# Follow the Arctis Nova Pro ChatMix dial (needs hidapi's C library).
+nova-pro-dial = ["dep:ss-hid", "dep:ss-nova-pro"]
+
+[target.'cfg(target_os = "macos")'.dependencies]
+ss-core.workspace = true
+ss-dsp.workspace = true
+ss-engine.workspace = true
+ss-audio-macos.workspace = true
+ss-hid = { workspace = true, optional = true }
+ss-nova-pro = { workspace = true, optional = true }
+anyhow.workspace = true
+clap.workspace = true
+ctrlc.workspace = true
+
+[lints]
+workspace = true

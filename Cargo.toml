@@ -20,10 +20,11 @@ ctrlc = "3"
 hound = "3"
 rtrb = "0.3"
 ss-engine = { path = "crates/ss-engine" }
+ss-audio-macos = { path = "crates/ss-audio-macos" }
 ss-dsp = { path = "crates/ss-dsp" }
 
 [workspace.lints.rust]
-unsafe_code = "forbid"
+unsafe_code = "deny"
 missing_docs = "warn"
 
 [workspace.lints.clippy]
