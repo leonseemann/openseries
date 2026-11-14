@@ -64,3 +64,10 @@ Run on 2026-11-14: macOS 27.2.1 (arm64), Ghostty, Nova Pro base station on USB-1
   would mean removing the headset from the aggregate (separate output path with ring buffer and
   drift handling, against ADR 0002); not worth it, since the mic features (SON-19…25, M3b) need the
   permission anyway. Accepted.
+- **Other tap-based tools (e.g. FineTune)** — **Inferred**, not measured: such tools also tap apps
+  with "muted when tapped" and re-render them from their own process. Running both, an app
+  assigned to Game would be tapped by both; the tool's re-rendered copy comes from an unassigned
+  process and lands in our Media catch-all tap → doubled/echoed audio and wrong channel. Quitting
+  `ssmix` removes our taps and the other tool works normally again. Recommendation: don't run them
+  at the same time. Possible later work: detect known tap-based tools and warn, or offer per-app
+  volume ourselves.
