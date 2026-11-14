@@ -134,7 +134,7 @@ Where the channels come from:
 | Per-app routing | `IAudioPolicyConfig::SetPersistedDefaultAudioEndpoint` (sonar.md §2.3) | Audio Process Taps (14.4+) or user selects our device in the app |
 | Physical output/input | WASAPI (`wasapi` crate) | AUHAL (`objc2-core-audio`) |
 
-The exact Windows phase-1 strategy is an open decision → will become ADR 0003 after a spike.
+The exact Windows phase-1 strategy is an open decision → will become ADR 0004 after a spike.
 
 **Real-time rules** (see AGENTS.md): audio callbacks never allocate, lock, log or block. Control
 changes travel as small messages over an `rtrb` SPSC queue; meters travel back the same way.
@@ -158,6 +158,6 @@ changes travel as small messages over an `rtrb` SPSC queue; meters travel back t
 1. ✅ **M1 – Headset CLI:** `ss-core`, `ss-nova-pro`, `ss-hid`, `ssctl` (status, battery, ANC, sidetone, mic, EQ, ChatMix events). Hardware verification on the owner's Nova Pro Wireless.
 2. ✅ **M2 – DSP:** `ss-dsp` with tests; offline WAV processing tool for listening tests.
 3. ✅ **M3 – macOS audio** ([ADR 0002](../adr/0002-macos-audio-strategy.md)): M3a `ss-engine` + `ss-audio-macos` with Process Taps (per-app routing, ChatMix dial) — verified on hardware ([macos-audiomix.md](../hardware/macos-audiomix.md)); M3b virtual-mic HAL driver ([virtual-mic-driver.md](virtual-mic-driver.md)) — verified on hardware ([macos-virtual-mic.md](../hardware/macos-virtual-mic.md)).
-4. **M4 – Windows audio:** spike + ADR 0003, `ss-audio-windows`.
+4. **M4 – Windows audio:** spike + ADR 0004, `ss-audio-windows`.
 5. **M5 – Daemon + UI:** local API, tray, hotkeys, presets, onboarding.
 6. **M6 – Mic chain:** denoise (nnnoiseless → DeepFilterNet), gate, compressor, mic EQ.
