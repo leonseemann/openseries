@@ -2,7 +2,7 @@
 
 | Area | Document | Status |
 |------|----------|--------|
-| Contributor / agent rules | [`../AGENTS.md`](../AGENTS.md) | ✅ |
+| Contributor / agent rules | [`../AGENTS.md`](../AGENTS.md), [`../CLAUDE.md`](../CLAUDE.md) (current task) | ✅ |
 | RE: overview of the original GG install | [`re/overview.md`](re/overview.md) | ✅ |
 | RE: GG core host (.NET) | [`re/gg-core.md`](re/gg-core.md) | ✅ |
 | RE: Desktop UI (Electron) | [`re/frontend.md`](re/frontend.md) | ✅ |
