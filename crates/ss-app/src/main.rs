@@ -6,6 +6,10 @@
 //! * `STEALSERIES_NO_HEADSET=1` skips the headset thread (development runs that must not talk to
 //!   the base station).
 
+// Release builds on Windows are GUI programs (no console window); debug builds keep the console
+// for logs and `--headless`.
+#![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
+
 mod audio;
 mod core;
 mod crackle;
