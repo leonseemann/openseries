@@ -7,8 +7,11 @@
 //!   the base station).
 
 mod audio;
+#[cfg(target_os = "macos")]
+mod autostart;
 mod core;
 mod headset;
+mod hotkeys;
 mod notify;
 mod tray;
 mod ui;

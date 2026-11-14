@@ -24,6 +24,7 @@ ctrlc.workspace = true
 # UI (ADR 0005): all MIT OR Apache-2.0.
 eframe = "0.32"
 tray-icon = "0.24"
+global-hotkey = "0.7"
 
 [lints]
 workspace = true

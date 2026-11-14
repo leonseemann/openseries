@@ -49,6 +49,8 @@ pub struct AppCore {
     threads: Mutex<Vec<JoinHandle<()>>>,
     /// The first `service_threads` handles are the audio (and headset) threads.
     service_threads: usize,
+    /// Software ChatMix position for hotkeys, −1 (game) … +1 (chat).
+    chatmix_position: Mutex<f32>,
 }
 
 impl AppCore {
@@ -150,6 +152,7 @@ impl AppCore {
             save_tx,
             threads: Mutex::new(threads),
             service_threads,
+            chatmix_position: Mutex::new(0.0),
         }))
     }
 
@@ -167,12 +170,22 @@ impl AppCore {
 
     /// Changes the configuration, applies it to the services and schedules a save.
     pub fn update_config(&self, change: impl FnOnce(&mut Config)) {
-        let (new, audiomix_toggled) = {
+        let (new, audiomix_toggled, autostart_toggled) = {
             let mut config = lock(&self.config);
-            let before = config.audiomix.enabled;
+            let (audiomix_before, autostart_before) =
+                (config.audiomix.enabled, config.app.autostart);
             change(&mut config);
-            (config.clone(), config.audiomix.enabled != before)
+            (
+                config.clone(),
+                config.audiomix.enabled != audiomix_before,
+                config.app.autostart != autostart_before,
+            )
         };
+        if autostart_toggled {
+            *lock(&self.save_error) = crate::autostart::set(new.app.autostart)
+                .err()
+                .map(|e| format!("autostart: {e}"));
+        }
         if audiomix_toggled {
             let _ = self
                 .headset_tx
@@ -180,6 +193,17 @@ impl AppCore {
         }
         let _ = self.audio_tx.send(AudioMsg::Config(Box::new(new.clone())));
         let _ = self.save_tx.send(new);
+    }
+
+    /// Moves the software ChatMix by `step` (hotkeys). The headset dial overrides it when moved.
+    pub fn nudge_chatmix(&self, step: f32) {
+        let position = {
+            let mut position = lock(&self.chatmix_position);
+            *position = (*position + step).clamp(-1.0, 1.0);
+            *position
+        };
+        let balance = ss_dsp::balance_from_slider(position);
+        let _ = self.audio_tx.send(AudioMsg::ChatMix(balance));
     }
 
     /// Sends a setting to the headset.

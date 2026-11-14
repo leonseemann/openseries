@@ -14,6 +14,7 @@ use eframe::egui;
 
 use crate::audio::supervisor::ServiceStatus;
 use crate::core::{AppCore, Snapshot};
+use crate::hotkeys::Hotkeys;
 use crate::tray::Tray;
 
 /// Initial window size in points.
@@ -32,6 +33,8 @@ enum Tab {
 pub struct App {
     core: Arc<AppCore>,
     tray: Option<Tray>,
+    _hotkeys: Option<Hotkeys>,
+    hotkey_problems: Vec<String>,
     tab: Tab,
     /// Shows unassigned apps that are not playing in the AudioMix list.
     show_idle_apps: bool,
@@ -48,9 +51,16 @@ impl App {
                 None
             }
         };
+        let (hotkeys, hotkey_problems) =
+            match Hotkeys::register(&core.config().app.hotkeys, Arc::clone(&core)) {
+                Ok((hotkeys, problems)) => (Some(hotkeys), problems),
+                Err(error) => (None, vec![format!("hotkeys unavailable: {error}")]),
+            };
         Self {
             core,
             tray,
+            _hotkeys: hotkeys,
+            hotkey_problems,
             tab: Tab::AudioMix,
             show_idle_apps: false,
         }
@@ -83,6 +93,9 @@ impl eframe::App for App {
         egui::TopBottomPanel::top("status").show(ctx, |ui| {
             ui.add_space(4.0);
             status_bar(ui, &snapshot);
+            for problem in &self.hotkey_problems {
+                ui.colored_label(ui.visuals().warn_fg_color, problem);
+            }
             ui.add_space(2.0);
             ui.horizontal(|ui| {
                 ui.selectable_value(&mut self.tab, Tab::AudioMix, "AudioMix");

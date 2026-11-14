@@ -48,6 +48,13 @@ flowchart LR
 | Headset | connection, battery, ANC/transparency, sidetone, mic volume, hardware EQ preset, auto-off, OLED brightness (all existing `ss-nova-pro` commands) |
 | App | menu-bar icon with quick toggles, window, autostart (LaunchAgent), global hotkeys (ChatMix, mute), settings saved automatically |
 
+Notes on v1 behaviour:
+- **Mic mute hotkey** toggles the mic feed (StealSeries Microphone goes silent); a click-free live
+  mute needs the mic command queue (later).
+- **ChatMix hotkeys** move a software balance in steps of 10 %; moving the headset dial overrides it.
+- **Hotkeys** are read from the config at start (no editor yet; edit `config.json`, restart).
+- Changing mic processing restarts the mic feed briefly (no live control of the chain yet).
+
 ## 3. Configuration (`ss-store`)
 
 `~/Library/Application Support/StealSeries/config.json`, versioned (`"version": 1`), written
@@ -83,5 +90,7 @@ and unit-tested without CoreAudio; the CoreAudio calls sit behind a small trait 
 
 `StealSeries.app/Contents/{Info.plist, MacOS/stealseries, Resources/}`; `LSUIElement = true`,
 `NSAudioCaptureUsageDescription`, `NSMicrophoneUsageDescription`, `LSMinimumSystemVersion 14.4`,
-ad-hoc signed for development (Developer ID + notarisation later). Optional: install the
-virtual-mic driver from the app (asks for the admin password via the system dialog).
+ad-hoc signed for development (Developer ID + notarisation later). Built and installed to
+`~/Applications` by `scripts/macos/app.sh build|install`. Ad-hoc signatures change with each build,
+so macOS may ask for permissions again after an update (**Inferred**). Later: install the
+virtual-mic driver from the app (admin password via the system dialog).
