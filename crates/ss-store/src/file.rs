@@ -237,7 +237,11 @@ mod tests {
         let dir = TempDir::new("bom");
         let path = dir.0.join("config.json");
         fs::create_dir_all(&dir.0).unwrap();
-        fs::write(&path, "\u{feff}{\"version\":1,\"audiomix\":{\"enabled\":true}}").unwrap();
+        fs::write(
+            &path,
+            "\u{feff}{\"version\":1,\"audiomix\":{\"enabled\":true}}",
+        )
+        .unwrap();
         let loaded = Store::at(path).load();
         assert!(loaded.warning.is_none(), "{:?}", loaded.warning);
         assert!(loaded.config.audiomix.enabled);

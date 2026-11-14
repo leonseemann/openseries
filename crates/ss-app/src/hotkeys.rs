@@ -53,7 +53,11 @@ impl HotkeyAction {
     /// Whether the action can work on this OS.
     #[must_use]
     pub const fn available(self) -> bool {
-        !matches!(self, Self::ReconnectUsb) || crate::platform::USB_RESET_SUPPORTED
+        match self {
+            Self::ReconnectUsb => crate::platform::USB_RESET_SUPPORTED,
+            Self::MicMute => crate::platform::VIRTUAL_MIC_SUPPORTED,
+            Self::ChatMixGame | Self::ChatMixChat => true,
+        }
     }
 
     /// The configured binding.

@@ -1,55 +1,6 @@
-//! Small shared widgets.
+//! Device pickers shared by the AudioMix and Microphone pages.
 
 use eframe::egui;
-
-use crate::audio::supervisor::ServiceStatus;
-
-/// A rounded status label; green-ish when `ok`.
-pub fn pill(ui: &mut egui::Ui, text: &str, ok: bool) {
-    let visuals = ui.visuals();
-    let (fill, stroke) = if ok {
-        (visuals.selection.bg_fill, visuals.selection.stroke.color)
-    } else {
-        (visuals.faint_bg_color, visuals.weak_text_color())
-    };
-    egui::Frame::new()
-        .fill(fill)
-        .corner_radius(8.0)
-        .inner_margin(egui::Margin::symmetric(8, 3))
-        .show(ui, |ui| {
-            ui.colored_label(stroke, text);
-        });
-}
-
-/// Explains a service status below its switch (nothing for `Off`/`Running`).
-pub fn status_detail(ui: &mut egui::Ui, status: &ServiceStatus) {
-    match status {
-        ServiceStatus::Off | ServiceStatus::Running => {}
-        ServiceStatus::Blocked(reason) => {
-            ui.colored_label(ui.visuals().warn_fg_color, format!("Paused: {reason}"));
-        }
-        ServiceStatus::Failed(error) => {
-            ui.colored_label(ui.visuals().error_fg_color, format!("Error: {error}"));
-        }
-    }
-}
-
-/// A slider that reports a new value only when the user changed it.
-pub fn slider(
-    ui: &mut egui::Ui,
-    value: f32,
-    range: std::ops::RangeInclusive<f32>,
-    label: &str,
-    suffix: &str,
-) -> Option<f32> {
-    let mut edited = value;
-    let response = ui.add(
-        egui::Slider::new(&mut edited, range)
-            .text(label)
-            .suffix(suffix),
-    );
-    (response.changed() && (edited - value).abs() > f32::EPSILON).then_some(edited)
-}
 
 /// A device picked in [`device_combo`].
 #[derive(Debug, Clone, PartialEq, Eq)]

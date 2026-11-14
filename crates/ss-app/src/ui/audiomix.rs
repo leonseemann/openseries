@@ -1,14 +1,15 @@
-//! AudioMix page: master switch, output, channels and per-app routing.
+//! AudioMix page: switch, output, ChatMix, channels and per-app routing
+//! (`docs/architecture/ui-design.md` §4).
 
 use std::collections::BTreeMap;
 
-use eframe::egui;
+use eframe::egui::{self, RichText};
 use ss_core::eq::{BandGain, ParametricEqSettings, PeqBand};
-use ss_store::config::{BandConfig, Channel, EqConfig, Loudness};
-
+use ss_store::config::{BandConfig, Channel, ChannelConfig, EqConfig, Loudness};
 use ss_store::presets::{PresetData, apply_playback};
 
-use super::{presets, widgets};
+use super::components::{self, Tone};
+use super::{presets, theme, widgets};
 use crate::core::{AppCore, Snapshot};
 
 const CHANNELS: [(Channel, &str); 4] = [
@@ -23,102 +24,74 @@ const MAX_BOOST_DB: f32 = 12.0;
 const MAX_VOLUME_BOOST_DB: f32 = 12.0;
 /// Whether the channel DSP controls do anything on this OS.
 const DSP: bool = crate::platform::CHANNEL_DSP_SUPPORTED;
+/// Last name components of bundle ids that say nothing about the app.
+const GENERIC_NAME_PARTS: [&str; 7] = [
+    "client",
+    "app",
+    "desktop",
+    "mac",
+    "osx",
+    "xos",
+    "application",
+];
 
 pub fn show(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, show_idle: &mut bool) {
     let config = &snapshot.config.audiomix;
-
-    ui.heading("AudioMix");
-    let mut enabled = config.enabled;
-    if ui
-        .checkbox(&mut enabled, "Route app audio through StealSeries")
-        .changed()
-    {
-        core.update_config(|c| c.audiomix.enabled = enabled);
-    }
-    ui.label(
-        egui::RichText::new(
-            "Off: StealSeries does not touch system audio at all — use this when another \
-             audio tool such as FineTune should handle your apps.",
-        )
-        .weak(),
+    components::page_header(
+        ui,
+        "AudioMix",
+        "Sort your apps into Game, Chat, Media and Aux and control each group separately.",
     );
-    widgets::status_detail(ui, &snapshot.audio.mix);
+    switch_card(ui, core, snapshot);
     if !config.enabled {
         return;
     }
-    ui.label(
-        egui::RichText::new(format!(
-            "Started {} time(s) since launch ({} app(s) routed)",
-            snapshot.audio.mix_starts, snapshot.audio.routed_apps
-        ))
-        .weak(),
-    );
-
-    ui.add_space(8.0);
-    ui.horizontal(|ui| {
-        ui.label("Output");
-        if let Some(uid) = widgets::device_combo(
-            ui,
-            "audiomix-output",
-            config.output_device_uid.as_deref(),
-            &snapshot.audio.outputs,
-        ) {
-            core.update_config(|c| c.audiomix.output_device_uid = uid.into_uid());
-        }
+    components::card(ui, Some("ChatMix"), |ui| {
+        chatmix_control(ui, core, snapshot);
     });
-    backup_devices(ui, core, snapshot);
-    chatmix(ui, core, snapshot);
-
-    ui.add_space(8.0);
-    ui.separator();
+    apps_card(ui, core, snapshot, show_idle);
     channels(ui, core, snapshot);
-    ui.separator();
-    apps(ui, core, snapshot, show_idle);
+    output_card(ui, core, snapshot);
 }
 
-/// Backup outputs and the headset-off trigger (SON-27/28).
-fn backup_devices(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
+fn switch_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
     let config = &snapshot.config.audiomix;
-    egui::CollapsingHeader::new("Backup outputs")
-        .id_salt("backup-outputs")
-        .default_open(!config.output_fallback.is_empty())
-        .show(ui, |ui| {
-            ui.label(
-                egui::RichText::new(
-                    "Used in this order when the selected output is missing. Also applies to                      the microphone's backups.",
-                )
-                .weak(),
-            );
-            if let Some(list) = widgets::fallback_list(
-                ui,
-                "output",
-                &config.output_fallback,
-                &snapshot.audio.outputs,
-            ) {
-                core.update_config(|c| c.audiomix.output_fallback = list);
+    components::card(ui, None, |ui| {
+        let mut enabled = config.enabled;
+        let description = if DSP {
+            "Routes app audio through StealSeries. When off, StealSeries does not touch system \
+             audio at all — use that when another audio tool should handle your apps."
+        } else {
+            "Sets each app's volume by its channel and balances Game and Chat. When off, \
+             StealSeries does not touch app volumes."
+        };
+        components::row(ui, "AudioMix", Some(description), |ui| {
+            if components::switch(ui, &mut enabled) {
+                core.update_config(|c| c.audiomix.enabled = enabled);
             }
-            let mut trigger = config.fallback_when_headset_off;
-            if ui
-                .checkbox(&mut trigger, "Switch to the backups while the headset is turned off")
-                .changed()
-            {
-                core.update_config(|c| c.audiomix.fallback_when_headset_off = trigger);
-            }
+            let (tone, word) = components::service_tone(&snapshot.audio.mix);
+            components::status(ui, tone, word);
         });
+        components::service_problem(ui, &snapshot.audio.mix);
+    });
 }
 
-/// Software ChatMix (SON-07): Game ↔ Chat balance, following the headset dial.
-fn chatmix(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
+/// Software ChatMix (SON-07): Game ↔ Chat balance, following the headset dial. Shared with the
+/// overview.
+pub(super) fn chatmix_control(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
+    let p = theme::palette(ui);
     ui.horizontal(|ui| {
-        ui.label("ChatMix");
-        ui.label("Game");
+        ui.label(RichText::new("Game").color(p.text));
         let mut position = snapshot.chatmix_position;
-        let response = ui.add(
-            egui::Slider::new(&mut position, -1.0..=1.0)
-                .show_value(false)
-                .clamping(egui::SliderClamping::Always),
-        );
-        ui.label("Chat");
+        ui.spacing_mut().slider_width = (ui.available_width() - 60.0).max(120.0);
+        let response = ui
+            .add(
+                egui::Slider::new(&mut position, -1.0..=1.0)
+                    .show_value(false)
+                    .clamping(egui::SliderClamping::Always),
+            )
+            .on_hover_text("Also follows the dial on the base station and the ChatMix hotkeys.");
+        ui.label(RichText::new("Chat").color(p.text));
         if response.changed() {
             core.set_chatmix(position);
         }
@@ -126,127 +99,207 @@ fn chatmix(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
         if response.drag_stopped() || (response.changed() && !response.dragged()) {
             core.sync_chatmix_to_headset();
         }
-        if ui.small_button("Centre").clicked() {
-            core.set_chatmix(0.0);
-            core.sync_chatmix_to_headset();
-        }
+    });
+    ui.horizontal(|ui| {
         let balance = ss_dsp::balance_from_slider(snapshot.chatmix_position);
         ui.label(
-            egui::RichText::new(format!(
-                "Game {} % · Chat {} %",
+            RichText::new(format!(
+                "Game {} %  ·  Chat {} %",
                 balance.game.get(),
                 balance.chat.get()
             ))
-            .weak(),
+            .small()
+            .color(p.text_secondary),
         );
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            if ui.small_button("Centre").clicked() {
+                core.set_chatmix(0.0);
+                core.sync_chatmix_to_headset();
+            }
+        });
+    });
+}
+
+fn output_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
+    let config = &snapshot.config.audiomix;
+    if !DSP {
+        // On Windows apps keep playing on their own device; the output choice does not apply.
+        return;
+    }
+    components::card(ui, Some("Output"), |ui| {
+        components::row(ui, "Play through", Some("Usually your headset."), |ui| {
+            if let Some(uid) = widgets::device_combo(
+                ui,
+                "audiomix-output",
+                config.output_device_uid.as_deref(),
+                &snapshot.audio.outputs,
+            ) {
+                core.update_config(|c| c.audiomix.output_device_uid = uid.into_uid());
+            }
+        });
+        egui::CollapsingHeader::new("Backup outputs")
+            .id_salt("backup-outputs")
+            .default_open(!config.output_fallback.is_empty())
+            .show(ui, |ui| {
+                let p = theme::palette(ui);
+                ui.label(
+                    RichText::new(
+                        "Used in this order when the output above is missing (also for the \
+                         microphone's backups).",
+                    )
+                    .small()
+                    .color(p.text_secondary),
+                );
+                if let Some(list) = widgets::fallback_list(
+                    ui,
+                    "output",
+                    &config.output_fallback,
+                    &snapshot.audio.outputs,
+                ) {
+                    core.update_config(|c| c.audiomix.output_fallback = list);
+                }
+                let mut trigger = config.fallback_when_headset_off;
+                components::row(ui, "Use backups while the headset is off", None, |ui| {
+                    if components::switch(ui, &mut trigger) {
+                        core.update_config(|c| c.audiomix.fallback_when_headset_off = trigger);
+                    }
+                });
+            });
     });
 }
 
 fn channels(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
     let config = &snapshot.config.audiomix;
-    ui.heading("Channels");
-    if !DSP {
-        ui.label(
-            egui::RichText::new(
-                "On Windows, channels set the volume of their apps (volume, mute, ChatMix). \
-                 EQ, boosts and Smart Volume per channel are available on macOS only: on \
-                 Windows they would need a signed virtual audio driver.",
-            )
-            .weak(),
-        );
-    }
-    ui.horizontal(|ui| {
-        ui.label("Master");
-        let master = config.master;
-        if let Some(volume) = widgets::slider(ui, master.volume * 100.0, 0.0..=100.0, "", " %") {
-            core.update_config(|c| c.audiomix.master.volume = volume / 100.0);
+    components::card(ui, Some("Channels"), |ui| {
+        let p = theme::palette(ui);
+        if !DSP {
+            ui.label(
+                RichText::new(
+                    "On Windows, channels set the volume of their apps. Equalizer, boosts and \
+                     Smart Volume per channel are available on macOS.",
+                )
+                .small()
+                .color(p.text_secondary),
+            );
+            ui.add_space(4.0);
         }
-        let mut muted = master.muted;
-        if ui.checkbox(&mut muted, "Mute").changed() {
-            core.update_config(|c| c.audiomix.master.muted = muted);
+        let master = config.master;
+        fader_row(
+            ui,
+            "All channels",
+            master.volume,
+            master.muted,
+            |volume, muted| {
+                core.update_config(|c| {
+                    c.audiomix.master.volume = volume;
+                    c.audiomix.master.muted = muted;
+                });
+            },
+        );
+        for (channel, name) in CHANNELS {
+            components::divider(ui);
+            let settings = config.channels.get(channel);
+            fader_row(
+                ui,
+                name,
+                settings.fader.volume,
+                settings.fader.muted,
+                |volume, muted| {
+                    core.update_config(|c| {
+                        let fader = &mut c.audiomix.channels.get_mut(channel).fader;
+                        fader.volume = volume;
+                        fader.muted = muted;
+                    });
+                },
+            );
+            if DSP {
+                egui::CollapsingHeader::new(RichText::new(format!("{name} sound")).small())
+                    .id_salt(("channel-sound", name))
+                    .show(ui, |ui| {
+                        channel_sound(ui, core, snapshot, channel, name, settings);
+                    });
+            }
         }
     });
-
-    for (channel, name) in CHANNELS {
-        let settings = config.channels.get(channel);
-        egui::CollapsingHeader::new(egui::RichText::new(name).strong())
-            .id_salt(("channel", name))
-            .default_open(true)
-            .show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    let fader = settings.fader;
-                    if let Some(volume) =
-                        widgets::slider(ui, fader.volume * 100.0, 0.0..=100.0, "Volume", " %")
-                    {
-                        core.update_config(|c| {
-                            c.audiomix.channels.get_mut(channel).fader.volume = volume / 100.0;
-                        });
-                    }
-                    let mut muted = fader.muted;
-                    if ui.checkbox(&mut muted, "Mute").changed() {
-                        core.update_config(|c| {
-                            c.audiomix.channels.get_mut(channel).fader.muted = muted;
-                        });
-                    }
-                    if DSP {
-                        smart_volume(ui, core, channel, settings.smart_volume);
-                    }
-                });
-                if !DSP {
-                    return;
-                }
-                channel_preset(ui, core, snapshot, channel, name, settings);
-                ui.horizontal(|ui| {
-                    let boosts = settings.boosts;
-                    if let Some(db) =
-                        widgets::slider(ui, boosts.bass_db, 0.0..=MAX_BOOST_DB, "Bass", " dB")
-                    {
-                        core.update_config(|c| {
-                            c.audiomix.channels.get_mut(channel).boosts.bass_db = db;
-                        });
-                    }
-                    if let Some(db) =
-                        widgets::slider(ui, boosts.treble_db, 0.0..=MAX_BOOST_DB, "Treble", " dB")
-                    {
-                        core.update_config(|c| {
-                            c.audiomix.channels.get_mut(channel).boosts.treble_db = db;
-                        });
-                    }
-                    if let Some(db) =
-                        widgets::slider(ui, boosts.clarity_db, 0.0..=MAX_BOOST_DB, "Clarity", " dB")
-                    {
-                        core.update_config(|c| {
-                            c.audiomix.channels.get_mut(channel).boosts.clarity_db = db;
-                        });
-                    }
-                });
-                // SON-13 volume boost: extra gain after the DSP strip; the engine's soft clipper
-                // on the summed output prevents hard clipping.
-                if let Some(db) = widgets::slider(
-                    ui,
-                    settings.gain_db,
-                    0.0..=MAX_VOLUME_BOOST_DB,
-                    "Volume boost",
-                    " dB",
-                ) {
-                    core.update_config(|c| c.audiomix.channels.get_mut(channel).gain_db = db);
-                }
-                if let Some(eq) = eq_editor(ui, ("eq", name), &settings.eq) {
-                    core.update_config(|c| c.audiomix.channels.get_mut(channel).eq = eq);
-                }
-            });
-    }
 }
 
-/// Preset bar of one channel (playback presets keep the channel's fader).
-fn channel_preset(
+/// Volume slider plus a mute switch.
+fn fader_row(
+    ui: &mut egui::Ui,
+    label: &str,
+    volume: f32,
+    muted: bool,
+    mut apply: impl FnMut(f32, bool),
+) {
+    components::row(ui, label, None, |ui| {
+        let mut on = !muted;
+        if components::switch(ui, &mut on) {
+            apply(volume, !on);
+        }
+        ui.spacing_mut().slider_width = 200.0;
+        if let Some(new) = components::slider(ui, volume * 100.0, 0.0..=100.0, " %") {
+            apply(new / 100.0, muted);
+        }
+    });
+}
+
+/// The macOS-only DSP of one channel: Smart Volume, boosts, EQ, presets.
+fn channel_sound(
     ui: &mut egui::Ui,
     core: &AppCore,
     snapshot: &Snapshot,
     channel: Channel,
     name: &str,
-    settings: &ss_store::config::ChannelConfig,
+    settings: &ChannelConfig,
 ) {
+    components::row(
+        ui,
+        "Smart Volume",
+        Some("Evens out loud and quiet passages."),
+        |ui| {
+            if let Some(choice) = components::segmented(
+                ui,
+                Some(settings.smart_volume),
+                &[
+                    (None, "Off"),
+                    (Some(Loudness::Soft), "Soft"),
+                    (Some(Loudness::Balanced), "Balanced"),
+                    (Some(Loudness::Extreme), "Strong"),
+                ],
+            ) {
+                core.update_config(|c| c.audiomix.channels.get_mut(channel).smart_volume = choice);
+            }
+        },
+    );
+    let boosts = settings.boosts;
+    for (label, value, set) in [
+        (
+            "Bass",
+            boosts.bass_db,
+            (|c: &mut ChannelConfig, v| c.boosts.bass_db = v) as fn(&mut ChannelConfig, f32),
+        ),
+        ("Treble", boosts.treble_db, |c, v| c.boosts.treble_db = v),
+        ("Voice clarity", boosts.clarity_db, |c, v| {
+            c.boosts.clarity_db = v;
+        }),
+        // SON-13 volume boost: extra gain after the DSP strip; the engine's soft clipper
+        // on the summed output prevents hard clipping.
+        ("Volume boost", settings.gain_db, |c, v| c.gain_db = v),
+    ] {
+        let max = if label == "Volume boost" {
+            MAX_VOLUME_BOOST_DB
+        } else {
+            MAX_BOOST_DB
+        };
+        components::row(ui, label, None, |ui| {
+            if let Some(db) = components::slider(ui, value, 0.0..=max, " dB") {
+                core.update_config(|c| set(c.audiomix.channels.get_mut(channel), db));
+            }
+        });
+    }
+    if let Some(eq) = eq_editor(ui, ("eq", name), &settings.eq) {
+        core.update_config(|c| c.audiomix.channels.get_mut(channel).eq = eq);
+    }
     let preset = presets::bar(
         ui,
         core,
@@ -260,82 +313,66 @@ fn channel_preset(
     }
 }
 
-fn smart_volume(ui: &mut egui::Ui, core: &AppCore, channel: Channel, current: Option<Loudness>) {
-    let label = |value: Option<Loudness>| match value {
-        None => "Smart Volume off",
-        Some(Loudness::Soft) => "Smart Volume soft",
-        Some(Loudness::Balanced) => "Smart Volume balanced",
-        Some(Loudness::Extreme) => "Smart Volume extreme",
-    };
-    let mut selected = current;
-    egui::ComboBox::from_id_salt(("smart-volume", label(None), channel_index(channel)))
-        .selected_text(label(current))
-        .show_ui(ui, |ui| {
-            for option in [
-                None,
-                Some(Loudness::Soft),
-                Some(Loudness::Balanced),
-                Some(Loudness::Extreme),
-            ] {
-                ui.selectable_value(&mut selected, option, label(option));
-            }
-        });
-    if selected != current {
-        core.update_config(|c| c.audiomix.channels.get_mut(channel).smart_volume = selected);
-    }
-}
-
-const fn channel_index(channel: Channel) -> usize {
-    match channel {
-        Channel::Game => 0,
-        Channel::Chat => 1,
-        Channel::Media => 2,
-        Channel::Aux => 3,
-    }
-}
-
 /// 10-band gain editor on the default band frequencies. Returns the edited EQ.
 pub fn eq_editor(ui: &mut egui::Ui, id: impl std::hash::Hash, eq: &EqConfig) -> Option<EqConfig> {
     let mut edited: Option<EqConfig> = None;
     egui::CollapsingHeader::new("Equalizer")
         .id_salt(id)
         .show(ui, |ui| {
+            let p = theme::palette(ui);
             let mut enabled = eq.enabled;
-            if ui.checkbox(&mut enabled, "Enabled").changed() {
-                edited = Some(EqConfig {
-                    enabled,
-                    bands: editable_bands(eq),
-                });
-            }
-            ui.horizontal(|ui| {
-                let bands = editable_bands(eq);
-                for (index, band) in bands.iter().enumerate() {
-                    ui.vertical(|ui| {
-                        let mut gain = band.gain_db;
-                        let response = ui.add(
-                            egui::Slider::new(&mut gain, BandGain::MIN..=BandGain::MAX)
-                                .vertical()
-                                .show_value(false),
-                        );
-                        ui.label(format!("{:+.0}", band.gain_db));
-                        ui.label(frequency_label(band.frequency));
-                        if response.changed() {
-                            let mut new_bands = bands.clone();
-                            new_bands[index].gain_db = gain;
-                            edited = Some(EqConfig {
-                                enabled: true,
-                                bands: new_bands,
-                            });
-                        }
+            components::row(ui, "Equalizer", None, |ui| {
+                if ui.button("Flat").clicked() {
+                    edited = Some(EqConfig {
+                        enabled: eq.enabled,
+                        bands: Vec::new(),
+                    });
+                }
+                if components::switch(ui, &mut enabled) {
+                    edited = Some(EqConfig {
+                        enabled,
+                        bands: editable_bands(eq),
                     });
                 }
             });
-            if ui.button("Flat").clicked() {
-                edited = Some(EqConfig {
-                    enabled: eq.enabled,
-                    bands: Vec::new(),
-                });
-            }
+            ui.horizontal(|ui| {
+                let bands = editable_bands(eq);
+                let band_width = (ui.available_width() / 10.0).floor();
+                ui.spacing_mut().item_spacing.x = 0.0;
+                ui.spacing_mut().slider_width = 130.0;
+                for (index, band) in bands.iter().enumerate() {
+                    ui.allocate_ui_with_layout(
+                        egui::vec2(band_width, 190.0),
+                        egui::Layout::top_down(egui::Align::Center),
+                        |ui| {
+                            let mut gain = band.gain_db;
+                            let response = ui.add(
+                                egui::Slider::new(&mut gain, BandGain::MIN..=BandGain::MAX)
+                                    .vertical()
+                                    .show_value(false),
+                            );
+                            ui.label(
+                                RichText::new(format!("{:+.0}", band.gain_db))
+                                    .small()
+                                    .color(p.text),
+                            );
+                            ui.label(
+                                RichText::new(frequency_label(band.frequency))
+                                    .small()
+                                    .color(p.text_secondary),
+                            );
+                            if response.changed() {
+                                let mut new_bands = bands.clone();
+                                new_bands[index].gain_db = gain;
+                                edited = Some(EqConfig {
+                                    enabled: true,
+                                    bands: new_bands,
+                                });
+                            }
+                        },
+                    );
+                }
+            });
         });
     edited
 }
@@ -366,14 +403,8 @@ fn frequency_label(hz: f32) -> String {
     }
 }
 
-fn apps(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, show_idle: &mut bool) {
+fn apps_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, show_idle: &mut bool) {
     let assignments = &snapshot.config.audiomix.assignments;
-    ui.horizontal(|ui| {
-        ui.heading("Apps");
-        ui.checkbox(show_idle, "Show apps that are not playing");
-    });
-    ui.label(egui::RichText::new("Unassigned apps play on Media.").weak());
-
     // App key → playing (helper processes are folded into their app).
     let mut running: BTreeMap<String, bool> = BTreeMap::new();
     for process in &snapshot.audio.processes {
@@ -393,46 +424,67 @@ fn apps(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, show_idle: &mut 
     }
     rows.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
 
-    egui::Grid::new("apps").striped(true).show(ui, |ui| {
+    components::card(ui, Some("Apps"), |ui| {
+        let p = theme::palette(ui);
+        components::row(
+            ui,
+            "Show apps that are not playing",
+            Some("Apps you have not assigned play on Media."),
+            |ui| {
+                components::switch(ui, show_idle);
+            },
+        );
+        if rows.is_empty() {
+            components::divider(ui);
+            ui.label(
+                RichText::new(
+                    "No app is playing sound right now. Start some audio and it appears here.",
+                )
+                .color(p.text_secondary),
+            );
+        }
         for (key, playing, is_running) in rows {
-            let text = if playing {
-                format!("▶ {key}")
-            } else {
-                key.clone()
-            };
-            if is_running {
-                ui.label(text);
-            } else {
-                ui.label(egui::RichText::new(format!("{text} (not running)")).weak());
-            }
+            components::divider(ui);
             let current = assignments.get(&key).copied().unwrap_or(Channel::Media);
-            let mut selected = current;
-            egui::ComboBox::from_id_salt(("app", key.as_str()))
-                .selected_text(channel_name(current))
-                .show_ui(ui, |ui| {
-                    for (channel, name) in CHANNELS {
-                        ui.selectable_value(&mut selected, channel, name);
+            ui.horizontal(|ui| {
+                ui.vertical(|ui| {
+                    ui.set_width((ui.available_width() * 0.4).max(160.0));
+                    ui.horizontal(|ui| {
+                        let (tone, word) = if playing {
+                            (Tone::Good, "Playing")
+                        } else if is_running {
+                            (Tone::Neutral, "Idle")
+                        } else {
+                            (Tone::Neutral, "Not running")
+                        };
+                        ui.label(RichText::new(display_name(&key)).color(p.text));
+                        components::status(ui, tone, word);
+                    });
+                    ui.label(RichText::new(&key).small().color(p.text_secondary));
+                });
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if let Some(selected) = components::segmented(
+                        ui,
+                        Some(current),
+                        &[
+                            (Channel::Aux, "Aux"),
+                            (Channel::Media, "Media"),
+                            (Channel::Chat, "Chat"),
+                            (Channel::Game, "Game"),
+                        ],
+                    ) {
+                        core.update_config(|c| {
+                            if selected == Channel::Media {
+                                c.audiomix.assignments.remove(&key);
+                            } else {
+                                c.audiomix.assignments.insert(key.clone(), selected);
+                            }
+                        });
                     }
                 });
-            if selected != current {
-                core.update_config(|c| {
-                    if selected == Channel::Media {
-                        c.audiomix.assignments.remove(&key);
-                    } else {
-                        c.audiomix.assignments.insert(key.clone(), selected);
-                    }
-                });
-            }
-            ui.end_row();
+            });
         }
     });
-}
-
-fn channel_name(channel: Channel) -> &'static str {
-    CHANNELS
-        .iter()
-        .find(|(c, _)| *c == channel)
-        .map_or("Media", |(_, name)| name)
 }
 
 /// Folds helper processes into their app: `com.google.Chrome.helper` → `com.google.Chrome`,
@@ -443,6 +495,33 @@ fn app_key(bundle_id: &str) -> String {
         || bundle_id.to_owned(),
         |index| bundle_id[..index].to_owned(),
     )
+}
+
+/// A readable name for an app key: `chrome.exe` → "Chrome", `com.google.Chrome` → "Chrome",
+/// `com.spotify.client` → "Spotify".
+fn display_name(key: &str) -> String {
+    let stem = key
+        .strip_suffix(".exe")
+        .or_else(|| key.strip_suffix(".EXE"))
+        .unwrap_or(key);
+    let name = if stem.contains('.') {
+        let parts: Vec<&str> = stem.split('.').collect();
+        parts
+            .iter()
+            .rev()
+            .find(|part| {
+                !part.is_empty()
+                    && !GENERIC_NAME_PARTS.contains(&part.to_ascii_lowercase().as_str())
+            })
+            .copied()
+            .unwrap_or(stem)
+    } else {
+        stem
+    };
+    let mut chars = name.chars();
+    chars.next().map_or_else(String::new, |first| {
+        first.to_uppercase().chain(chars).collect()
+    })
 }
 
 #[cfg(test)]
@@ -457,6 +536,15 @@ mod tests {
             "com.hnc.Discord"
         );
         assert_eq!(app_key("com.spotify.client"), "com.spotify.client");
+    }
+
+    #[test]
+    fn app_names_are_readable() {
+        assert_eq!(display_name("chrome.exe"), "Chrome");
+        assert_eq!(display_name("com.google.Chrome"), "Chrome");
+        assert_eq!(display_name("com.spotify.client"), "Spotify");
+        assert_eq!(display_name("us.zoom.xos"), "Zoom");
+        assert_eq!(display_name("discord.exe"), "Discord");
     }
 
     #[test]

@@ -6,6 +6,7 @@
 
 use eframe::egui;
 
+use super::{components, theme};
 use crate::audio::supervisor::ServiceStatus;
 use crate::core::{AppCore, Snapshot};
 
@@ -105,32 +106,90 @@ pub fn show(ctx: &egui::Context, core: &AppCore, snapshot: &Snapshot) {
     let virtual_mic = crate::platform::VIRTUAL_MIC_SUPPORTED;
     let driver = crate::platform::mic_driver_installed();
     let id = egui::Id::new("onboarding-message");
-    egui::Window::new("Getting started")
-        .collapsible(false)
-        .resizable(false)
-        .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
-        .show(ctx, |ui| {
-            ui.label("A few steps to get everything working. You can reopen this from Settings.");
-            ui.add_space(6.0);
-            for (step, done) in steps(snapshot, virtual_mic, driver) {
-                ui.horizontal(|ui| {
-                    ui.label(if done { "✅" } else { "⬜" });
-                    ui.label(egui::RichText::new(step.title()).strong());
+    // A modal dims the window behind it, so the checklist has the user's full attention.
+    egui::Modal::new(egui::Id::new("onboarding")).show(ctx, |ui| {
+        let p = theme::palette(ui);
+        ui.set_width(DIALOG_WIDTH);
+        ui.label(
+            egui::RichText::new("Welcome to StealSeries")
+                .text_style(egui::TextStyle::Heading)
+                .color(p.text),
+        );
+        ui.label(
+            egui::RichText::new(
+                "A few steps to get everything working. You can open this again from Settings.",
+            )
+            .color(p.text_secondary),
+        );
+        ui.add_space(10.0);
+        for (index, (step, done)) in steps(snapshot, virtual_mic, driver).into_iter().enumerate() {
+            if index > 0 {
+                components::divider(ui);
+            }
+            ui.horizontal(|ui| {
+                step_marker(ui, index + 1, done);
+                ui.vertical(|ui| {
+                    ui.set_width(ui.available_width() - ACTION_WIDTH);
+                    ui.label(egui::RichText::new(step.title()).color(p.text));
+                    if !done {
+                        ui.label(
+                            egui::RichText::new(step.hint())
+                                .small()
+                                .color(p.text_secondary),
+                        );
+                    }
+                });
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     action(ui, core, snapshot, step, done, id);
                 });
-                if !done {
-                    ui.label(egui::RichText::new(step.hint()).weak());
-                }
-                ui.add_space(4.0);
-            }
-            if let Some(message) = ui.data(|d| d.get_temp::<String>(id)) {
-                ui.colored_label(ui.visuals().warn_fg_color, message);
-            }
-            ui.separator();
-            if ui.button("Done").clicked() {
+            });
+        }
+        if let Some(message) = ui.data(|d| d.get_temp::<String>(id)) {
+            ui.add_space(6.0);
+            components::banner(ui, components::Tone::Warning, &message);
+        }
+        ui.add_space(12.0);
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            let done = egui::Button::new(egui::RichText::new("Done").color(p.accent_text))
+                .fill(p.accent)
+                .min_size(egui::vec2(96.0, 32.0));
+            if ui.add(done).clicked() {
                 core.update_config(|c| c.app.onboarding_done = true);
             }
         });
+    });
+}
+
+/// Width of the dialog.
+const DIALOG_WIDTH: f32 = 560.0;
+/// Room reserved for a step's action button.
+const ACTION_WIDTH: f32 = 140.0;
+
+/// A numbered circle that turns into a check mark when the step is done.
+fn step_marker(ui: &mut egui::Ui, number: usize, done: bool) {
+    let p = theme::palette(ui);
+    let (rect, _) = ui.allocate_exact_size(egui::vec2(26.0, 26.0), egui::Sense::hover());
+    let centre = rect.center();
+    if done {
+        ui.painter().circle_filled(centre, 12.0, p.success);
+        ui.painter().text(
+            centre,
+            egui::Align2::CENTER_CENTER,
+            "✔",
+            egui::FontId::proportional(13.0),
+            egui::Color32::WHITE,
+        );
+    } else {
+        ui.painter()
+            .circle_stroke(centre, 11.5, egui::Stroke::new(1.5_f32, p.text_secondary));
+        ui.painter().text(
+            centre,
+            egui::Align2::CENTER_CENTER,
+            number.to_string(),
+            egui::FontId::proportional(13.0),
+            p.text_secondary,
+        );
+    }
 }
 
 /// The button next to a step.
