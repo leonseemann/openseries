@@ -11,6 +11,7 @@
 | RE: Feature inventory (scope decided) | [`re/feature-inventory.md`](re/feature-inventory.md) | ✅ |
 | Research: open-source prior art & licenses | [`research/prior-art.md`](research/prior-art.md) | ✅ |
 | Architecture of the Rust rewrite | [`architecture/overview.md`](architecture/overview.md) | ✅ |
+| Hardware verification: Nova Pro Wireless | [`hardware/nova-pro-wireless.md`](hardware/nova-pro-wireless.md) | 🔄 in progress |
 | Decisions | [`adr/`](adr/) — [0001 v1 scope](adr/0001-v1-scope.md) | ✅ |
 
 ## Evidence convention

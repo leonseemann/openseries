@@ -1,0 +1,18 @@
+[package]
+name = "ssctl"
+description = "Command-line control for the Arctis Nova Pro Wireless (StealSeries)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+ss-core.workspace = true
+ss-nova-pro.workspace = true
+ss-hid.workspace = true
+anyhow.workspace = true
+clap.workspace = true
+ctrlc.workspace = true
+
+[lints]
+workspace = true

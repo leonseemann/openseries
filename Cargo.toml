@@ -16,6 +16,7 @@ thiserror = "2"
 anyhow = "1"
 hidapi = "2"
 clap = { version = "4", features = ["derive"] }
+ctrlc = "3"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
