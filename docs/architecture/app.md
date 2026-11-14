@@ -76,9 +76,30 @@ and defaults are used (never crash on a bad file).
     "channels": { "game": { "volume": 1.0, "muted": false, "strip": { /* eq, boosts, smart volume */ } } }
   },
   "mic": { "enabled": false, "input_device_uid": null, "chain": { /* MicChainSettings */ } },
-  "app": { "autostart": false, "hotkeys": { "chatmix_game": "Ctrl+Alt+Left", "chatmix_chat": "Ctrl+Alt+Right", "mic_mute": "Ctrl+Alt+M" } }
+  "app": { "autostart": false, "hotkeys": { "chatmix_game": "Ctrl+Alt+Left", "chatmix_chat": "Ctrl+Alt+Right", "mic_mute": "Ctrl+Alt+M" } },
+  "presets": { "headset_eq": { "Footsteps": [0, 0, -2, 0, 3, 5, 4, 2, 0, 0] }, "playback": { /* name → channel */ }, "mic": { /* name → mic */ } }
 }
 ```
+
+### 3.1 Presets (SON-15, SON-17, HS-01)
+
+`ss_store::presets`: named presets of three kinds, kept in `config.json` (map name → settings, so
+names are unique per kind and sorted):
+
+| Kind | Content | Applied by | Where in the UI |
+|---|---|---|---|
+| Headset EQ | 10 band gains (dB) | `06 33` + re-select Custom | Headset page, under the custom EQ (shown when "Custom" is active) |
+| Playback | one channel's EQ, boosts, Smart Volume, volume boost — **not** the fader | replaces the channel strip, fader kept | AudioMix page, per channel (macOS; hidden on Windows until M4b) |
+| Microphone | mic chain (denoise, gate, stabilizer, EQ, gain) — **not** the switch or source device | replaces the chain, switch and source kept | Microphone page |
+
+The shared preset bar: pick a preset to apply it, "Save current" under a name (same name replaces),
+Delete, Export… / Import… through the system file dialog (`rfd`). Export writes one preset as
+`{"format": "stealseries-preset", "version": 1, "name", "kind", "settings"}`. Import reads that and,
+best effort, a **Sonar config object** (`docs/re/sonar.md` §4.2): `virtualAudioDevice`
+`game|chatRender|media|aux` → playback, `chatCapture` → microphone; PEQ filters, boosts, Smart
+Volume, general gain, noise cancelling / gate / stabilizer are mapped. Whether GG's own export file
+is exactly that object is **Inferred**; virtual surround and AEC have no counterpart yet and are
+dropped. An imported preset of another kind lands in that kind's list.
 
 ## 4. Crates
 

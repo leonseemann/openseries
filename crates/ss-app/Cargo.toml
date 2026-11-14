@@ -25,6 +25,8 @@ ctrlc.workspace = true
 eframe = "0.32"
 tray-icon = "0.24"
 global-hotkey = "0.7"
+# Open/save dialogs for preset import/export (MIT).
+rfd = "0.18"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 ss-usb-macos.workspace = true

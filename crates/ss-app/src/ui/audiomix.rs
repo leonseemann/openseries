@@ -6,7 +6,9 @@ use eframe::egui;
 use ss_core::eq::{BandGain, ParametricEqSettings, PeqBand};
 use ss_store::config::{BandConfig, Channel, EqConfig, Loudness};
 
-use super::widgets;
+use ss_store::presets::{PresetData, apply_playback};
+
+use super::{presets, widgets};
 use crate::core::{AppCore, Snapshot};
 
 const CHANNELS: [(Channel, &str); 4] = [
@@ -161,6 +163,7 @@ fn channels(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
                 if !DSP {
                     return;
                 }
+                channel_preset(ui, core, snapshot, channel, name, settings);
                 ui.horizontal(|ui| {
                     let boosts = settings.boosts;
                     if let Some(db) =
@@ -200,6 +203,28 @@ fn channels(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
                     core.update_config(|c| c.audiomix.channels.get_mut(channel).eq = eq);
                 }
             });
+    }
+}
+
+/// Preset bar of one channel (playback presets keep the channel's fader).
+fn channel_preset(
+    ui: &mut egui::Ui,
+    core: &AppCore,
+    snapshot: &Snapshot,
+    channel: Channel,
+    name: &str,
+    settings: &ss_store::config::ChannelConfig,
+) {
+    let preset = presets::bar(
+        ui,
+        core,
+        snapshot,
+        presets::Kind::Playback,
+        ("channel", name),
+        || Some(PresetData::playback_of(settings)),
+    );
+    if let Some(PresetData::Playback(preset)) = preset {
+        core.update_config(|c| apply_playback(c.audiomix.channels.get_mut(channel), &preset));
     }
 }
 

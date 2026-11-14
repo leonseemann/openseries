@@ -22,6 +22,8 @@ pub struct Config {
     pub mic: MicConfig,
     /// App-level settings.
     pub app: AppConfig,
+    /// Saved sound presets.
+    pub presets: crate::presets::PresetsConfig,
 }
 
 impl Default for Config {
@@ -31,6 +33,7 @@ impl Default for Config {
             audiomix: AudioMixConfig::default(),
             mic: MicConfig::default(),
             app: AppConfig::default(),
+            presets: crate::presets::PresetsConfig::default(),
         }
     }
 }

@@ -5,6 +5,7 @@
 mod audiomix;
 mod headset;
 mod mic;
+mod presets;
 mod settings;
 mod widgets;
 

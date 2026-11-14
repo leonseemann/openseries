@@ -4,7 +4,9 @@ use eframe::egui;
 use ss_dsp::{DEFAULT_AUTO_GATE_OFFSET_DB, DEFAULT_DENOISE_MIX, DEFAULT_GATE_THRESHOLD_DB};
 use ss_store::config::{GateConfig, MicConfig};
 
-use super::{audiomix, widgets};
+use ss_store::presets::{PresetData, apply_mic};
+
+use super::{audiomix, presets, widgets};
 use crate::audio::supervisor::ServiceStatus;
 use crate::core::{AppCore, Snapshot};
 
@@ -50,6 +52,12 @@ pub fn show(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
 
     ui.add_space(8.0);
     ui.heading("Processing");
+    let preset = presets::bar(ui, core, snapshot, presets::Kind::Mic, "mic", || {
+        Some(PresetData::mic_of(config))
+    });
+    if let Some(PresetData::Mic(preset)) = preset {
+        core.update_config(|c| apply_mic(&mut c.mic, &preset));
+    }
     processing(ui, core, config);
 }
 

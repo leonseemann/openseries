@@ -8,6 +8,9 @@ use ss_core::headset::{
 };
 use ss_nova_pro::{Command, Settings, Status};
 
+use ss_store::presets::PresetData;
+
+use super::presets;
 use crate::core::{AppCore, Snapshot};
 use crate::headset::HeadsetState;
 
@@ -48,7 +51,7 @@ pub fn show(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
 
     status_grid(ui, status);
     noise_control(ui, core, status);
-    microphone_and_sound(ui, core, headset.settings);
+    microphone_and_sound(ui, core, snapshot, headset.settings);
     power_and_display(ui, core, status, headset);
 }
 
@@ -109,7 +112,12 @@ fn noise_control(ui: &mut egui::Ui, core: &AppCore, status: Status) {
     }
 }
 
-fn microphone_and_sound(ui: &mut egui::Ui, core: &AppCore, settings: Option<Settings>) {
+fn microphone_and_sound(
+    ui: &mut egui::Ui,
+    core: &AppCore,
+    snapshot: &Snapshot,
+    settings: Option<Settings>,
+) {
     ui.add_space(8.0);
     ui.heading("Microphone and sound");
     ui.horizontal(|ui| {
@@ -155,14 +163,14 @@ fn microphone_and_sound(ui: &mut egui::Ui, core: &AppCore, settings: Option<Sett
         }
     });
     if settings.and_then(|s| s.eq_preset) == Some(EqPreset::Custom) {
-        custom_eq(ui, core, settings.and_then(|s| s.custom_eq));
+        custom_eq(ui, core, snapshot, settings.and_then(|s| s.custom_eq));
     }
 }
 
 /// Editor for the on-device 10-band curve (`06 33`, Observed in `nova-pro-wireless.md`).
 ///
 /// The band centre frequencies are Unknown, so the bands are numbered from low to high.
-fn custom_eq(ui: &mut egui::Ui, core: &AppCore, curve: Option<HardwareEq>) {
+fn custom_eq(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, curve: Option<HardwareEq>) {
     let Some(curve) = curve else {
         ui.label(egui::RichText::new("Custom EQ: the base station did not report a curve").weak());
         return;
@@ -177,6 +185,23 @@ fn custom_eq(ui: &mut egui::Ui, core: &AppCore, curve: Option<HardwareEq>) {
         }
         ui.label(egui::RichText::new("bands from low to high · −10…+10 dB in 0.5 dB steps").weak());
     });
+    let preset = presets::bar(
+        ui,
+        core,
+        snapshot,
+        presets::Kind::HeadsetEq,
+        "headset-eq",
+        || {
+            Some(PresetData::HeadsetEq(
+                curve.bands.iter().map(|g| g.db()).collect(),
+            ))
+        },
+    );
+    if let Some(PresetData::HeadsetEq(bands)) = preset {
+        if let Some(curve) = hardware_eq(&bands) {
+            write_custom_eq(core, curve);
+        }
+    }
     ui.horizontal(|ui| {
         for (index, gain) in curve.bands.iter().enumerate() {
             ui.vertical(|ui| {
@@ -199,6 +224,20 @@ fn custom_eq(ui: &mut egui::Ui, core: &AppCore, curve: Option<HardwareEq>) {
 fn write_custom_eq(core: &AppCore, curve: HardwareEq) {
     core.headset(Command::SetCustomEq(curve));
     core.headset(Command::SetEqPreset(EqPreset::Custom));
+}
+
+/// A stored curve as a device curve (snapped to the 0.5 dB grid, clamped to the device range).
+fn hardware_eq(bands: &[f32]) -> Option<HardwareEq> {
+    let mut curve = HardwareEq::FLAT;
+    if bands.len() != curve.bands.len() {
+        return None;
+    }
+    for (slot, db) in curve.bands.iter_mut().zip(bands) {
+        let snapped =
+            ((db / EQ_STEP_DB).round() * EQ_STEP_DB).clamp(EqGain::MIN_DB, EqGain::MAX_DB);
+        *slot = EqGain::from_db(snapped).ok()?;
+    }
+    Some(curve)
 }
 
 /// One vertical band slider; returns the new gain once the user lets go.
