@@ -29,3 +29,17 @@ pub const UNDERFLOW_WATCH_SUPPORTED: bool = true;
 pub fn reset_base_usb() -> Result<(), String> {
     ss_usb_macos::reenumerate(ids::VENDOR_ID, &ids::PRODUCT_IDS).map_err(|e| e.to_string())
 }
+
+/// Not needed on this OS: eframe's `ViewportCommand::Visible` works on hidden windows here.
+#[derive(Debug, Clone, Copy)]
+pub struct NativeWindow;
+
+impl NativeWindow {
+    /// Always `None`: the viewport command is enough on this OS.
+    pub fn of<T: ?Sized>(_source: &T) -> Option<Self> {
+        None
+    }
+
+    /// No-op.
+    pub fn show(self) {}
+}

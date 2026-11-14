@@ -10,6 +10,7 @@ use tray_icon::menu::{CheckMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuIt
 use tray_icon::{Icon, TrayIcon, TrayIconBuilder};
 
 use crate::core::{AppCore, Snapshot};
+use crate::platform::NativeWindow;
 
 /// Edge length of the generated template icon in pixels (menu bar icons are 22 pt @2x).
 const ICON_SIZE: u32 = 44;
@@ -23,13 +24,15 @@ pub struct Tray {
 }
 
 impl Tray {
-    /// Creates the icon and installs the menu handler.
+    /// Creates the icon and installs the menu handler. `window` is the main window's native
+    /// handle where the OS needs it to show the window again (Windows).
     ///
     /// # Errors
     /// If the menu or icon cannot be created.
     pub fn new(
         ctx: &egui::Context,
         core: Arc<AppCore>,
+        window: Option<NativeWindow>,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let config = core.config();
         let status = MenuItem::new("StealSeries", false, None);
@@ -75,6 +78,11 @@ impl Tray {
             } else if *id == reconnect_id {
                 core.reset_headset_usb();
             } else if *id == open_id {
+                // On Windows a hidden window runs no UI frames, so the viewport command alone
+                // would never be applied; show it natively first.
+                if let Some(window) = window {
+                    window.show();
+                }
                 ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
                 ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
             } else if *id == quit_id {

@@ -3556,6 +3556,7 @@ dependencies = [
  "ctrlc",
  "eframe",
  "global-hotkey",
+ "raw-window-handle",
  "ss-audio-macos",
  "ss-core",
  "ss-dsp",
@@ -3564,6 +3565,7 @@ dependencies = [
  "ss-nova-pro",
  "ss-store",
  "ss-usb-macos",
+ "ss-window-windows",
  "tray-icon",
 ]
 
@@ -3661,6 +3663,13 @@ dependencies = [
  "objc2-io-kit",
  "objc2-io-usb-host",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "ss-window-windows"
+version = "0.1.0"
+dependencies = [
+ "windows-sys 0.59.0",
 ]
 
 [[package]]

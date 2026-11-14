@@ -44,7 +44,11 @@ impl App {
     /// Creates the window state; the tray icon is created here because macOS needs the running
     /// event loop for it.
     pub fn new(cc: &eframe::CreationContext<'_>, core: Arc<AppCore>) -> Self {
-        let tray = match Tray::new(&cc.egui_ctx, Arc::clone(&core)) {
+        let tray = match Tray::new(
+            &cc.egui_ctx,
+            Arc::clone(&core),
+            crate::platform::NativeWindow::of(cc),
+        ) {
             Ok(tray) => Some(tray),
             Err(error) => {
                 eprintln!("warning: no menu-bar icon: {error}");

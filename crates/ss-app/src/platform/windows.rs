@@ -2,7 +2,10 @@
 //! the underflow watch arrive with milestone M4; headset control, UI, tray and hotkeys already
 //! work cross-platform.
 
+use std::num::NonZeroIsize;
 use std::process::Command;
+
+use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 
 /// Placeholder backend until `ss-audio-windows` exists.
 pub type AudioBackend = crate::audio::unsupported::UnsupportedBackend;
@@ -75,4 +78,25 @@ pub fn watch_usb_underflows(
     _on_underflow: impl Fn() + Send + 'static,
 ) -> Result<UnderflowWatch, String> {
     Err("the crackling watch is not available on Windows yet".to_owned())
+}
+
+/// The main window's native handle, used to show it again from the tray.
+///
+/// Needed because eframe stops running hidden windows on Windows (see `ss-window-windows`).
+#[derive(Debug, Clone, Copy)]
+pub struct NativeWindow(NonZeroIsize);
+
+impl NativeWindow {
+    /// The Win32 handle of `source`, if it is a Win32 window.
+    pub fn of(source: &impl HasWindowHandle) -> Option<Self> {
+        match source.window_handle().ok()?.as_raw() {
+            RawWindowHandle::Win32(handle) => Some(Self(handle.hwnd)),
+            _ => None,
+        }
+    }
+
+    /// Shows, restores and focuses the window.
+    pub fn show(self) {
+        ss_window_windows::show_window(self.0);
+    }
 }

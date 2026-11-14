@@ -43,3 +43,17 @@ pub fn watch_usb_underflows(
 ) -> Result<UnderflowWatch, String> {
     Err("the crackling watch is not available on this OS".to_owned())
 }
+
+/// Not needed on this OS: eframe's `ViewportCommand::Visible` works on hidden windows here.
+#[derive(Debug, Clone, Copy)]
+pub struct NativeWindow;
+
+impl NativeWindow {
+    /// Always `None`: the viewport command is enough on this OS.
+    pub fn of<T: ?Sized>(_source: &T) -> Option<Self> {
+        None
+    }
+
+    /// No-op.
+    pub fn show(self) {}
+}
