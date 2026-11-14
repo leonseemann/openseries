@@ -28,8 +28,8 @@ in parallel (it shares the device; replies were not disturbed).
 | ChatMix dial events | `ssctl watch` (dial already enabled by Sonar) | `07 45 <game> <chat>`, steps of ~8 %, centre 100/100 | ✅ Observed |
 | ChatMix dial enable `06 49` | `watch --chatmix-dial` | not tested (would interfere with running Sonar) | ⏳ pending |
 | Save to flash `06 09` | `--save` | not tested yet (all test values were restored instead) | ⏳ pending |
-| ANC button event (Unknown) | `ssctl watch`, press ANC button | not captured yet | ⏳ pending |
-| Mic mute switch event (Unknown) | `ssctl watch`, toggle mute | not captured yet | ⏳ pending |
+| ANC button event | `ssctl watch`, press ANC button | `07 BD <mode>` with the same 0/1/2 encoding as the write command; observed sequence 2→0→2 (button cycle is ANC ↔ off on this unit; whether transparency is in the cycle depends on a setting — Unknown) | ✅ Observed (new, not in prior art) |
+| Mic mute switch event | `ssctl watch`, toggle mute | `07 BB 01` = muted, `07 BB 00` = unmuted | ✅ Observed (new, not in prior art) |
 | Hardware EQ band centre frequencies (Unknown) | sweep / listening test | | ⏳ pending |
 
 All values changed during testing were restored to their previous state.

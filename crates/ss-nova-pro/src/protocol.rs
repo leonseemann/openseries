@@ -50,6 +50,8 @@ pub mod op {
     pub const CONNECTION: u8 = 0xB5;
     /// Battery levels.
     pub const BATTERY: u8 = 0xB7;
+    /// Mic mute switch toggled (event, 1 = muted). Observed 2026-11-14.
+    pub const MIC_MUTE: u8 = 0xBB;
     /// Transparency level.
     pub const TRANSPARENCY: u8 = 0xB9;
     /// Noise-control mode (off / transparency / ANC).

@@ -73,6 +73,10 @@ pub enum Event {
     Display(Display),
     /// Battery levels (reply to [`crate::Command::QueryBattery`] or periodic event).
     Battery(BatteryReport),
+    /// Noise-control mode changed with the headset button (Observed).
+    NoiseControl(NoiseControl),
+    /// Microphone mute switch toggled (Observed).
+    MicMute(bool),
     /// Headset volume dial turned.
     Volume(Percent),
     /// Sidetone changed.
@@ -157,6 +161,10 @@ impl Event {
             }
             (REPORT_ID_COMMAND, op::QUERY_DISPLAY) => Some(Self::Display(decode_display(&reader)?)),
             (REPORT_ID_COMMAND | REPORT_ID_EVENT, op::BATTERY) => decode_battery(&reader)?,
+            (REPORT_ID_EVENT, op::NOISE_CONTROL) => {
+                codec::noise_control_from_byte(reader.arg(0)?).map(Self::NoiseControl)
+            }
+            (REPORT_ID_EVENT, op::MIC_MUTE) => Some(Self::MicMute(reader.arg(0)? != 0)),
             (REPORT_ID_EVENT, op::VOLUME) => {
                 codec::volume_from_attenuation(reader.arg(0)?).map(Self::Volume)
             }
@@ -374,7 +382,19 @@ mod tests {
 
     #[test]
     fn decodes_simple_events() {
-        // Observed on hardware: volume dial sends 07 25 <attenuation>.
+        // Observed on hardware 2026-11-14: ANC button, mute switch, volume dial.
+        assert_eq!(
+            Event::decode(&report(&[0x07, 0xBD, 2])).unwrap(),
+            Event::NoiseControl(NoiseControl::NoiseCancelling)
+        );
+        assert_eq!(
+            Event::decode(&report(&[0x07, 0xBB, 1])).unwrap(),
+            Event::MicMute(true)
+        );
+        assert_eq!(
+            Event::decode(&report(&[0x07, 0xBB, 0])).unwrap(),
+            Event::MicMute(false)
+        );
         assert_eq!(
             Event::decode(&report(&[0x07, 0x25, 0x1c])).unwrap(),
             Event::Volume(Percent::new(50).unwrap())
