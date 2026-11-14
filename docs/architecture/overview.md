@@ -143,6 +143,12 @@ changes travel as small messages over an `rtrb` SPSC queue; meters travel back t
 
 - Config: versioned JSON files in the OS config dir (`%APPDATA%\StealSeries`, `~/Library/Application Support/StealSeries`).
 - Presets: import/export as JSON; a converter for Sonar's config JSON shape (sonar.md §4) is a later nicety.
+- **AudioMix master switch** (owner requirement, 2026-11-14): a persisted `audiomix.enabled` setting,
+  toggled from the tray/UI and the CLI. When off, the daemon creates **no process taps and no
+  aggregate devices** and leaves system audio untouched, so other tap-based tools (e.g. FineTune)
+  work normally; headset control and the virtual mic stay available. The installer offers to set
+  it off from the start and to skip the virtual-mic driver. Before enabling, the daemon warns if a
+  known tap-based tool is running (`ss_audio_macos::plan::KNOWN_TAP_TOOLS`).
 - Local API (daemon ↔ UI): HTTP/WS on 127.0.0.1, random port, bearer token written to a user-only file.
   A Sonar-compatible subset (`/v1/chatMix`, `/volumeSettings`) may be offered opt-in later.
 
@@ -159,5 +165,5 @@ changes travel as small messages over an `rtrb` SPSC queue; meters travel back t
 2. ✅ **M2 – DSP:** `ss-dsp` with tests; offline WAV processing tool for listening tests.
 3. ✅ **M3 – macOS audio** ([ADR 0002](../adr/0002-macos-audio-strategy.md)): M3a `ss-engine` + `ss-audio-macos` with Process Taps (per-app routing, ChatMix dial) — verified on hardware ([macos-audiomix.md](../hardware/macos-audiomix.md)); M3b virtual-mic HAL driver ([virtual-mic-driver.md](virtual-mic-driver.md)) — verified on hardware ([macos-virtual-mic.md](../hardware/macos-virtual-mic.md)).
 4. **M4 – Windows audio:** spike + ADR 0004, `ss-audio-windows`.
-5. **M5 – Daemon + UI:** local API, tray, hotkeys, presets, onboarding.
+5. **M5 – Daemon + UI:** local API, tray, hotkeys, presets, onboarding, AudioMix master switch (§7).
 6. **M6 – Mic chain:** denoise (nnnoiseless → DeepFilterNet), gate, compressor, mic EQ ([mic-chain.md](mic-chain.md)).

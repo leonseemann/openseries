@@ -57,6 +57,7 @@ pub struct MicArgs {
 
 /// Options of `ssmix run`. Apps are given as PID or bundle id (e.g. `com.hnc.Discord`).
 #[derive(Debug, clap::Args)]
+#[allow(clippy::struct_excessive_bools)] // independent CLI switches
 pub struct RunArgs {
     /// Output device (substring of its name); default: current system output.
     #[arg(long)]
@@ -82,4 +83,7 @@ pub struct RunArgs {
     /// Print the aggregate stream layout and per-buffer input peaks every second.
     #[arg(long)]
     pub probe: bool,
+    /// Start even if another tap-based audio tool (e.g. FineTune) is running.
+    #[arg(long)]
+    pub allow_conflicts: bool,
 }

@@ -62,9 +62,42 @@ pub fn plan_taps(assignments: &BTreeMap<Pid, ChannelId>, own_pid: Pid) -> Vec<Ta
     taps
 }
 
+/// Other apps that capture and re-render app audio with process taps. Running AudioMix next to
+/// them doubles audio and breaks channel routing (`docs/hardware/macos-audiomix.md`, Findings).
+/// Entries are bundle-id prefixes and display names.
+pub const KNOWN_TAP_TOOLS: &[(&str, &str)] = &[("com.finetuneapp.FineTune", "FineTune")];
+
+/// Display names of known tap-based tools among the given running bundle ids (deduplicated).
+#[must_use]
+pub fn conflicting_tools<'a>(bundle_ids: impl IntoIterator<Item = &'a str>) -> Vec<&'static str> {
+    let mut found: Vec<&'static str> = Vec::new();
+    for bundle_id in bundle_ids {
+        for &(prefix, name) in KNOWN_TAP_TOOLS {
+            if bundle_id.starts_with(prefix) && !found.contains(&name) {
+                found.push(name);
+            }
+        }
+    }
+    found
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn detects_known_tap_tools_once() {
+        let running = [
+            "com.google.Chrome.helper",
+            "com.finetuneapp.FineTune",
+            "com.finetuneapp.FineTune.helper",
+        ];
+        assert_eq!(conflicting_tools(running), vec!["FineTune"]);
+        assert_eq!(
+            conflicting_tools(["com.spotify.client"]),
+            Vec::<&str>::new()
+        );
+    }
 
     const OWN: Pid = 1;
 

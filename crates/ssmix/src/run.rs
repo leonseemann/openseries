@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
-use ss_audio_macos::plan::{Pid, plan_taps};
+use ss_audio_macos::plan::{Pid, conflicting_tools, plan_taps};
 use ss_audio_macos::{
     AudioMixSession, AudioProcess, InputDevice, MAX_PROBED_BUFFERS, MicFeedSession, OutputDevice,
     ProbeSnapshot, default_input_device, default_output_device, list_audio_processes,
@@ -199,6 +199,14 @@ fn select_input(filter: Option<&str>) -> Result<InputDevice> {
 fn run(args: &RunArgs) -> Result<()> {
     let output = select_output(args.output.as_deref())?;
     let processes = list_audio_processes()?;
+    let conflicts = conflicting_tools(processes.iter().filter_map(|p| p.bundle_id.as_deref()));
+    if !conflicts.is_empty() && !args.allow_conflicts {
+        bail!(
+            "{} is running and also captures app audio with process taps; running both doubles \
+             the sound. Quit it or pass --allow-conflicts.",
+            conflicts.join(", ")
+        );
+    }
     let assignments = assignments(args, &processes)?;
     let specs = plan_taps(&assignments, own_pid());
 
