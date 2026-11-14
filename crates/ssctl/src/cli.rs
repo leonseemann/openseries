@@ -92,6 +92,13 @@ pub enum Setting {
         /// Level.
         level: u8,
     },
+    /// ChatMix position held by the base station (0–100 each; **Inferred** opcode, test only).
+    Chatmix {
+        /// Game level.
+        game: u8,
+        /// Chat level.
+        chat: u8,
+    },
 }
 
 /// Read-only query blocks that `ssctl raw` may request.

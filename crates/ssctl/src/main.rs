@@ -10,8 +10,8 @@ use std::time::Duration;
 use anyhow::{Context, Result};
 use clap::Parser;
 use ss_core::headset::{
-    DisplayBrightness, EqGain, EqPreset, HARDWARE_EQ_BANDS, HardwareEq, MicLedBrightness,
-    MicVolume, TransparencyLevel,
+    ChatMixBalance, DisplayBrightness, EqGain, EqPreset, HARDWARE_EQ_BANDS, HardwareEq,
+    MicLedBrightness, MicVolume, Percent, TransparencyLevel,
 };
 use ss_hid::{DeviceSelector, HidapiTransport};
 use ss_nova_pro::{Command, NovaProWireless, ids};
@@ -118,6 +118,10 @@ fn commands_for(setting: Setting) -> Result<Vec<Command>> {
             Command::SetEqPreset(EqPreset::Custom),
         ],
         Setting::AutoOff { timeout } => vec![Command::SetAutoOff(timeout.into())],
+        Setting::Chatmix { game, chat } => vec![Command::SetChatMix(ChatMixBalance {
+            game: Percent::new(game)?,
+            chat: Percent::new(chat)?,
+        })],
         Setting::OledBrightness { level } => {
             vec![Command::SetDisplayBrightness(DisplayBrightness::new(
                 level,

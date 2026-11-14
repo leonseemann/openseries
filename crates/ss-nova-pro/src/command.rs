@@ -1,8 +1,8 @@
 //! Host → device commands.
 
 use ss_core::headset::{
-    AutoOff, DisplayBrightness, EqPreset, HardwareEq, MicLedBrightness, MicVolume, NoiseControl,
-    SidetoneLevel, TransparencyLevel,
+    AutoOff, ChatMixBalance, DisplayBrightness, EqPreset, HardwareEq, MicLedBrightness, MicVolume,
+    NoiseControl, SidetoneLevel, TransparencyLevel,
 };
 
 use crate::codec;
@@ -39,6 +39,12 @@ pub enum Command {
     SetChatMixDial(bool),
     /// Show/hide the "PC mixer present" indicator on the base station.
     SetMixerPresent(bool),
+    /// Set the ChatMix position shown/held by the base station: `06 45 <game> <chat>`.
+    ///
+    /// **Inferred, not verified on hardware** (`docs/hardware/nova-pro-wireless.md`): every
+    /// verified setting writes with the opcode of its event (`BD`, `39`, `37`, `2E`), and the dial
+    /// reports `07 45 <game> <chat>`. Values are 0–100 by type ([`ss_core::headset::Percent`]).
+    SetChatMix(ChatMixBalance),
     /// Set the inactivity auto-off timer.
     SetAutoOff(AutoOff),
     /// Set base-station OLED brightness.
@@ -85,6 +91,10 @@ impl Command {
             Self::SetCustomEq(eq) => (op::EQ_BANDS, Args::eq(&eq)),
             Self::SetChatMixDial(on) => (op::CHATMIX_DIAL_ENABLE, Args::one(u8::from(on))),
             Self::SetMixerPresent(on) => (op::MIXER_PRESENT, Args::one(u8::from(on))),
+            Self::SetChatMix(balance) => (
+                op::CHATMIX,
+                Args::two(balance.game.get(), balance.chat.get()),
+            ),
             Self::SetAutoOff(t) => (op::AUTO_OFF, Args::one(codec::auto_off_to_byte(t))),
             Self::SetDisplayBrightness(b) => (op::OLED_BRIGHTNESS, Args::one(b.get())),
             Self::SetMicLedBrightness(b) => (op::MIC_LED_BRIGHTNESS, Args::one(b.get())),
@@ -114,6 +124,14 @@ impl Args {
         args
     }
 
+    const fn two(first: u8, second: u8) -> Self {
+        let mut args = Self::none();
+        args.bytes[0] = first;
+        args.bytes[1] = second;
+        args.len = 2;
+        args
+    }
+
     fn eq(eq: &HardwareEq) -> Self {
         let mut args = Self::none();
         for (slot, gain) in args.bytes.iter_mut().zip(eq.bands) {
@@ -132,6 +150,7 @@ impl Args {
 mod tests {
     use super::*;
     use ss_core::headset::EqGain;
+    use ss_core::headset::Percent;
 
     fn head(cmd: Command, n: usize) -> Vec<u8> {
         cmd.encode()[..n].to_vec()
@@ -167,6 +186,11 @@ mod tests {
         );
         assert_eq!(head(Command::SetChatMixDial(true), 3), [0x06, 0x49, 1]);
         assert_eq!(head(Command::SetMixerPresent(false), 3), [0x06, 0x8D, 0]);
+        let balance = ChatMixBalance {
+            game: Percent::new(100).unwrap(),
+            chat: Percent::new(50).unwrap(),
+        };
+        assert_eq!(head(Command::SetChatMix(balance), 4), [0x06, 0x45, 100, 50]);
         assert_eq!(
             head(Command::SetAutoOff(AutoOff::After15Min), 3),
             [0x06, 0xC1, 4]
