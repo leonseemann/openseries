@@ -12,8 +12,9 @@
 | Research: open-source prior art & licenses | [`research/prior-art.md`](research/prior-art.md) | ✅ |
 | Architecture of the Rust rewrite | [`architecture/overview.md`](architecture/overview.md) | ✅ |
 | DSP design (M2) | [`architecture/dsp.md`](architecture/dsp.md) | ✅ |
+| Audio engine + platform backends (M3/M4) | [`architecture/audio-engine.md`](architecture/audio-engine.md) | ✅ |
 | Hardware verification: Nova Pro Wireless | [`hardware/nova-pro-wireless.md`](hardware/nova-pro-wireless.md) | 🔄 in progress |
-| Decisions | [`adr/`](adr/) — [0001 v1 scope](adr/0001-v1-scope.md) | ✅ |
+| Decisions | [`adr/`](adr/) — [0001 v1 scope](adr/0001-v1-scope.md), [0002 macOS audio](adr/0002-macos-audio-strategy.md) | ✅ |
 
 ## Evidence convention
 
