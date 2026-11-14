@@ -112,6 +112,8 @@ pub enum RawBlock {
     Display,
     /// Battery block (0xB7).
     Battery,
+    /// Firmware version block (0x10).
+    Firmware,
 }
 
 /// CLI spelling of [`NoiseControl`].

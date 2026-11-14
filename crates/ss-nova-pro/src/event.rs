@@ -98,6 +98,8 @@ pub enum Event {
     AutoOff(AutoOff),
     /// OLED brightness changed.
     DisplayBrightness(DisplayBrightness),
+    /// Reply to [`crate::Command::QueryFirmware`] (`None` if the layout is not the Observed one).
+    Firmware(Option<crate::FirmwareVersions>),
     /// Headset connected/disconnected; re-query status for details.
     Connection {
         /// `true` if the headset is now linked.
@@ -160,6 +162,9 @@ impl Event {
                 Some(Self::Settings(decode_settings(&reader)?))
             }
             (REPORT_ID_COMMAND, op::QUERY_DISPLAY) => Some(Self::Display(decode_display(&reader)?)),
+            (REPORT_ID_COMMAND, op::QUERY_FIRMWARE) => Some(Self::Firmware(
+                crate::FirmwareVersions::parse(report.get(ARGS_OFFSET..).unwrap_or_default()),
+            )),
             (REPORT_ID_COMMAND | REPORT_ID_EVENT, op::BATTERY) => decode_battery(&reader)?,
             (REPORT_ID_EVENT, op::NOISE_CONTROL) => {
                 codec::noise_control_from_byte(reader.arg(0)?).map(Self::NoiseControl)

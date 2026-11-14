@@ -16,10 +16,12 @@ mod codec;
 mod command;
 mod driver;
 mod event;
+mod firmware;
 pub mod ids;
 mod protocol;
 
 pub use command::Command;
 pub use driver::{DriverError, NovaProWireless};
 pub use event::{DecodeError, Display, Event, Settings, Status};
+pub use firmware::{FIRMWARE_VERSIONS, FirmwareVersions, Version};
 pub use protocol::REPORT_LEN;

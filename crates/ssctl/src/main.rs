@@ -38,6 +38,10 @@ fn main() -> Result<()> {
             output::print_status(&device.status()?);
             output::print_settings(&device.settings()?);
             output::print_display(device.display()?);
+            match device.firmware()? {
+                Some(versions) => println!("Firmware:       {versions}"),
+                None => println!("Firmware:       unknown layout (see `ssctl raw firmware`)"),
+            }
             Ok(())
         }
         Action::Battery => {
@@ -69,6 +73,12 @@ fn list() -> Result<()> {
             c.product.as_deref().unwrap_or("?"),
             c.path
         );
+        println!(
+            "      release {:#06x}  serial {}  manufacturer {}",
+            c.release_number,
+            c.serial_number.as_deref().unwrap_or("—"),
+            c.manufacturer.as_deref().unwrap_or("—")
+        );
     }
     Ok(())
 }
@@ -87,6 +97,7 @@ fn query_for(block: RawBlock) -> Command {
         RawBlock::Settings => Command::QuerySettings,
         RawBlock::Display => Command::QueryDisplay,
         RawBlock::Battery => Command::QueryBattery,
+        RawBlock::Firmware => Command::QueryFirmware,
     }
 }
 

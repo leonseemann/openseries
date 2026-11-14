@@ -43,6 +43,15 @@ pub enum HeadsetMsg {
     Shutdown,
 }
 
+/// USB descriptor data of the base station (no device command needed).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct UsbIdentity {
+    /// USB product id.
+    pub product_id: u16,
+    /// USB `bcdDevice` release number.
+    pub release: u16,
+}
+
 /// What the UI shows about the headset.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct HeadsetState {
@@ -56,6 +65,10 @@ pub struct HeadsetState {
     pub display: Option<Display>,
     /// Last ChatMix dial position.
     pub chatmix: Option<ChatMixBalance>,
+    /// Firmware versions, read once per connection.
+    pub firmware: Option<ss_nova_pro::FirmwareVersions>,
+    /// USB identity of the base station (product id, `bcdDevice`), read once per connection.
+    pub usb: Option<UsbIdentity>,
     /// Last error (cleared on success).
     pub error: Option<String>,
 }
@@ -146,7 +159,16 @@ impl Worker {
             return;
         }
         self.last_attempt = Some(Instant::now());
-        let opened = ss_hid::api().and_then(|api| HidapiTransport::open(&api, &NOVA_PRO));
+        let api = ss_hid::api();
+        let usb = api.as_ref().ok().and_then(|api| {
+            ss_hid::find_collections(api, &NOVA_PRO)
+                .first()
+                .map(|c| UsbIdentity {
+                    product_id: c.product_id,
+                    release: c.release_number,
+                })
+        });
+        let opened = api.and_then(|api| HidapiTransport::open(&api, &NOVA_PRO));
         let Ok(transport) = opened else {
             self.update(|s| {
                 s.base_station = false;
@@ -158,6 +180,7 @@ impl Worker {
         let status = device.status().ok();
         let settings = device.settings().ok();
         let display = device.display().ok();
+        let firmware = device.firmware().ok().flatten();
         self.device = Some(device);
         self.takeover_active = false;
         self.last_status = Instant::now();
@@ -170,6 +193,8 @@ impl Worker {
             s.settings = settings;
             s.display = display;
             s.chatmix = settings.and_then(|x| x.chatmix);
+            s.firmware = firmware;
+            s.usb = usb;
             s.error = None;
         });
     }
@@ -261,6 +286,8 @@ impl Worker {
         self.update(|s| {
             s.base_station = false;
             s.status = None;
+            s.firmware = None;
+            s.usb = None;
             s.error = Some(format!("headset connection lost: {reason}"));
         });
     }
@@ -329,6 +356,7 @@ fn apply_event(state: &mut HeadsetState, event: Event) {
         Event::Battery(_)
         | Event::Volume(_)
         | Event::EqBand { .. }
+        | Event::Firmware(_)
         | Event::Connection { .. }
         | Event::Reply { .. }
         | Event::Unrecognized { .. } => {}

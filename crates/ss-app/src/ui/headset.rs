@@ -53,6 +53,39 @@ pub fn show(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
     noise_control(ui, core, status);
     microphone_and_sound(ui, core, snapshot, headset.settings);
     power_and_display(ui, core, status, headset);
+    device_info(ui, headset);
+}
+
+/// Firmware and USB identity (read-only).
+fn device_info(ui: &mut egui::Ui, headset: &HeadsetState) {
+    ui.add_space(8.0);
+    ui.heading("Device");
+    egui::Grid::new("device-info").num_columns(2).show(ui, |ui| {
+        ui.label("Firmware");
+        ui.monospace(
+            headset
+                .firmware
+                .map_or_else(|| "unknown".to_owned(), |f| f.to_string()),
+        )
+        .on_hover_text(
+            "Four component versions as reported by the base station, in the order and              notation SteelSeries GG uses. Which part each number belongs to is not known yet.",
+        );
+        ui.end_row();
+        if let Some(usb) = headset.usb {
+            ui.label("USB");
+            ui.monospace(format!(
+                "VID 0x1038 · PID {:#06x} · release {}",
+                usb.product_id,
+                bcd_release(usb.release)
+            ));
+            ui.end_row();
+        }
+    });
+}
+
+/// A USB `bcdDevice` value as `major.minor` (0x0130 → "1.30").
+fn bcd_release(bcd: u16) -> String {
+    format!("{:x}.{:02x}", bcd >> 8, bcd & 0xFF)
 }
 
 fn status_grid(ui: &mut egui::Ui, status: Status) {

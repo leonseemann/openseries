@@ -20,6 +20,8 @@ pub const ARGS_OFFSET: usize = 2;
 pub mod op {
     /// Persist current settings to flash.
     pub const SAVE: u8 = 0x09;
+    /// Read the firmware version block (prior art: ggoled; layout `docs/hardware/nova-pro-wireless.md`).
+    pub const QUERY_FIRMWARE: u8 = 0x10;
     /// Read the audio settings block (EQ, mic volume, sidetone, ChatMix).
     pub const QUERY_SETTINGS: u8 = 0x20;
     /// Headset volume dial (event, attenuation 0 = loudest … 56 = silent).

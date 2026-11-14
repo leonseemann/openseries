@@ -48,6 +48,12 @@ pub struct FoundCollection {
     pub usage_page: u16,
     /// OS device path.
     pub path: String,
+    /// USB `bcdDevice` (device release number) from the descriptor.
+    pub release_number: u16,
+    /// USB serial number string, if any.
+    pub serial_number: Option<String>,
+    /// Manufacturer string, if any.
+    pub manufacturer: Option<String>,
 }
 
 /// Errors when opening a device.
@@ -71,6 +77,9 @@ pub fn find_collections(api: &HidApi, selector: &DeviceSelector<'_>) -> Vec<Foun
             product: info.product_string().map(str::to_owned),
             usage_page: info.usage_page(),
             path: info.path().to_string_lossy().into_owned(),
+            release_number: info.release_number(),
+            serial_number: info.serial_number().map(str::to_owned),
+            manufacturer: info.manufacturer_string().map(str::to_owned),
         })
         .collect()
 }

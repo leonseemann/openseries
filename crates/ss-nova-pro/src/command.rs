@@ -10,8 +10,8 @@ use crate::protocol::{ARGS_OFFSET, OPCODE_OFFSET, REPORT_ID_COMMAND, REPORT_LEN,
 
 /// A command the driver can send to the base station.
 ///
-/// Only safe, documented operations are representable; factory reset and firmware
-/// commands are deliberately absent.
+/// Only safe, documented operations are representable; factory reset and firmware update
+/// commands are deliberately absent (reading the firmware version is allowed).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Command {
     /// Request the general status block (reply: [`crate::Event::Status`]).
@@ -22,6 +22,8 @@ pub enum Command {
     QueryDisplay,
     /// Request battery levels (reply: [`crate::Event::Battery`]).
     QueryBattery,
+    /// Request the firmware version block (read-only; reply layout see `nova-pro-wireless.md`).
+    QueryFirmware,
     /// Set the noise-control mode.
     SetNoiseControl(NoiseControl),
     /// Set the transparency strength.
@@ -80,6 +82,7 @@ impl Command {
             Self::QueryBattery => (op::BATTERY, Args::none()),
             Self::QuerySettings => (op::QUERY_SETTINGS, Args::none()),
             Self::QueryDisplay => (op::QUERY_DISPLAY, Args::none()),
+            Self::QueryFirmware => (op::QUERY_FIRMWARE, Args::none()),
             Self::SetNoiseControl(m) => (
                 op::NOISE_CONTROL,
                 Args::one(codec::noise_control_to_byte(m)),

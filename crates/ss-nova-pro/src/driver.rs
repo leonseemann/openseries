@@ -93,6 +93,17 @@ impl<T: HidTransport> NovaProWireless<T> {
         })
     }
 
+    /// Reads the firmware versions (`None` if the reply has an unknown layout).
+    ///
+    /// # Errors
+    /// Fails on transport errors, malformed replies or timeout.
+    pub fn firmware(&mut self) -> Result<Option<crate::FirmwareVersions>, DriverError> {
+        self.query(Command::QueryFirmware, |event| match event {
+            Event::Firmware(versions) => Some(versions),
+            _ => None,
+        })
+    }
+
     /// Reads the battery levels.
     ///
     /// # Errors
