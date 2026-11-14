@@ -81,8 +81,7 @@ adds the loopback pair afterwards, and every install step is reversible (`pnputi
 - `ss-audio-windows::policy` — bindings for `IAudioPolicyConfig` (get/set per-app default
   endpoint) with the vtable layout read from Sonar's interop metadata (`sonar.md` §2.3). Verified
   read-only on the owner's PC: the 21H2+ interface activates and `Get…` works (`winspike
-  policy`). `Set…` is not yet exercised — a reversible round trip (set an app to the endpoint it
-  already uses, read back, clear) needs the owner's OK because it writes a persisted setting.
+  policy`). `Set…` verified with a reversible round trip (`winspike policy-roundtrip`, 2026-11-14): set, read back, cleared with an empty id.
 
 ## 5. Open questions
 

@@ -37,6 +37,12 @@ pub fn run(args: &[String]) -> Res<()> {
         Some("endpoints") => endpoints(),
         Some("sessions") => sessions(),
         Some("policy") => policy(),
+        Some("policy-roundtrip") => {
+            let exe = args
+                .get(1)
+                .ok_or("usage: winspike policy-roundtrip <exe name>")?;
+            policy_roundtrip(exe)
+        }
         Some("capture") => capture(&CaptureArgs::parse(&args[1..])?),
         _ => {
             eprintln!(
@@ -166,6 +172,40 @@ fn policy() -> Res<()> {
                 .unwrap_or("(follows the system default)")
         );
     }
+    Ok(())
+}
+
+/// Verifies `Set…` (slot 25) reversibly: routes the app to the render endpoint it already uses
+/// (the system default), reads it back, then restores the previous value and reads that back.
+fn policy_roundtrip(exe: &str) -> Res<()> {
+    let policy = ss_audio_windows::policy::AudioPolicy::open()?;
+    let pid = root_pid(exe)?;
+    let default = DeviceEnumerator::new()?
+        .get_default_device(Direction::Render)?
+        .get_id()?;
+    let before = policy.render_endpoint(pid)?;
+    println!("pid {pid} ({exe}), variant {}", policy.variant());
+    println!("before:   {before:?}");
+    println!("set to:   {default} (the current system default, so nothing audible changes)");
+    let result = policy
+        .set_render_endpoint(pid, Some(&default))
+        .and_then(|()| policy.render_endpoint(pid));
+    // Always restore, even if the read-back failed.
+    let restored = policy.set_render_endpoint(pid, before.as_deref());
+    let after = policy.render_endpoint(pid)?;
+    let read_back = result?;
+    restored?;
+    println!("read back: {read_back:?}");
+    println!("restored: {after:?}");
+    let ok = read_back.as_deref() == Some(default.as_str()) && after == before;
+    println!(
+        "{}",
+        if ok {
+            "ROUND TRIP OK"
+        } else {
+            "ROUND TRIP MISMATCH"
+        }
+    );
     Ok(())
 }
 
