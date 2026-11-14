@@ -108,14 +108,14 @@ The app crate is shared by macOS and Windows (ADR 0005). Everything OS-specific 
 | Headset control (`ss-nova-pro` over hidapi) | ✅ | ✅ (verified with `ssctl` in M1) |
 | Config (`ss-store`), supervisor logic, DSP, mic chain | ✅ | ✅ (portable) |
 | AudioMix + virtual mic | process taps + HAL driver | M4 (`ss-audio-windows`); until then the backend reports "not available" |
-| Autostart | LaunchAgent | `HKCU\…\Run` via `reg.exe` (**untested**) |
+| Autostart | LaunchAgent | `HKCU\…\Run` via `reg.exe` (verified 2026-11-14) |
 | Reconnect USB | IOUSBHost re-enumeration | not yet (button hidden) |
 | Fix crackling automatically | `usbaudiod` underflow log stream | not yet (option disabled) |
 | Show the hidden window from the tray | `ViewportCommand::Visible` | Win32 `ShowWindow` via `ss-window-windows` (see below) |
 
 **Hidden window on Windows (Observed 2026-11-14):** eframe only runs UI frames on `WM_PAINT`, which
 Windows never sends to a hidden window. After closing the window to the tray, the queued
-`Visible(true)` command was therefore never applied and "Open StealSeries�" did nothing. The tray
+`Visible(true)` command was therefore never applied and "Open StealSeries…" did nothing. The tray
 handler now shows the window natively (`platform::NativeWindow`, HWND taken from the creation
 context) before sending the viewport command.
 

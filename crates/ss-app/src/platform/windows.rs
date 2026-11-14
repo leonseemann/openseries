@@ -26,7 +26,7 @@ const RUN_KEY: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
 /// Value name under [`RUN_KEY`].
 const RUN_VALUE: &str = "StealSeries";
 
-/// Starts the app at login via the per-user `Run` registry value (**untested**, verify on Windows).
+/// Starts the app at login via the per-user `Run` registry value (verified on Windows 11, 2026-11-14).
 ///
 /// # Errors
 /// A user-facing message if `reg.exe` fails.

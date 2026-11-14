@@ -26,14 +26,16 @@ or disabled (macOS only so far).
 
 ## Checklist
 
+Run on 2026-11-14: Windows 11 Pro (build 26300), Nova Pro Wireless. **All checks passed** (check 3 after a fix).
+
 | # | Check | Expected | Result |
 |---|-------|----------|--------|
 | 1 | CI: clippy + tests on windows-latest | green | ✅ Observed 2026-11-14 |
-| 2 | Start `stealseries.exe` | window opens, tray icon in the notification area (no console) | ⏳ |
-| 3 | Close the window | app keeps running in the tray; "Open StealSeries…" brings it back | ⏳ |
-| 4 | Headset page | battery (≈ %), ANC/transparency/off, sidetone, mic volume, EQ preset, auto-off, OLED brightness shown and changeable | ⏳ |
-| 5 | AudioMix / Microphone pages | switches show "not available … (milestone M4)", nothing crashes | ⏳ |
-| 6 | Hotkeys Ctrl+Alt+←/→, Ctrl+Alt+M | registered without error message in the window header | ⏳ |
-| 7 | Settings → Start at login, then sign out/in | app starts; registry value `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\StealSeries` exists (untested code) | ⏳ |
-| 8 | Settings → Third-party licences | list scrolls smoothly | ⏳ |
-| 9 | Quit from the tray | process ends; settings kept after restart | ⏳ |
+| 2 | Start `stealseries.exe` | window opens, tray icon in the notification area (no console) | ✅ Observed 2026-11-14 (Windows 11 Pro 26300): window and tray icon, no console |
+| 3 | Close the window | app keeps running in the tray; "Open StealSeries…" brings it back | ✅ Observed after fix `0263624`: first run the tray could not reopen the hidden window (no `WM_PAINT` for hidden windows, see [app.md §6](../architecture/app.md)); now reopens and focuses |
+| 4 | Headset page | battery (≈ %), ANC/transparency/off, sidetone, mic volume, EQ preset, auto-off, OLED brightness shown and changeable | ✅ Observed: all values shown and changeable |
+| 5 | AudioMix / Microphone pages | switches show "not available … (milestone M4)", nothing crashes | ✅ Observed: "not available" shown, no crash |
+| 6 | Hotkeys Ctrl+Alt+←/→, Ctrl+Alt+M | registered without error message in the window header | ✅ Observed: registered, no error message |
+| 7 | Settings → Start at login, then sign out/in | app starts; registry value `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\StealSeries` exists | ✅ Observed: app started after sign-out/in |
+| 8 | Settings → Third-party licences | list scrolls smoothly | ✅ Observed: scrolls smoothly |
+| 9 | Quit from the tray | process ends; settings kept after restart | ✅ Observed: process ends, settings kept |
