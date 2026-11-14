@@ -40,3 +40,4 @@ Run on 2026-11-14: Windows 11 Pro (build 26300), Nova Pro Wireless. **All checks
 | 8 | Settings → Third-party licences | list scrolls smoothly | ✅ Observed: scrolls smoothly |
 | 9 | Quit from the tray | process ends; settings kept after restart | ✅ Observed: process ends, settings kept |
 | 10 | Headset → EQ "Custom": custom curve editor (HS-01) | 10 sliders show the stored curve; moving one is audible and reads back after release; "Flat" resets | ✅ Observed 2026-11-14: curve written and read back (`ssctl status`); audible in an A/B test (treble cut, see [nova-pro-wireless.md](nova-pro-wireless.md)). The app now re-selects Custom after each write; confirmed audible from the app sliders after that change |
+| 11 | Settings → Hotkeys: "Change" ChatMix → Game to e.g. Ctrl+Shift+G | new combination works at once (no restart), old one no longer does; Esc cancels; Ctrl+Alt+M on another action is refused; "Reset to defaults" restores | ⏳ |

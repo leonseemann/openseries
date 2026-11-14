@@ -14,6 +14,8 @@ use eframe::egui;
 
 use crate::audio::supervisor::ServiceStatus;
 use crate::core::{AppCore, Snapshot};
+use ss_store::config::HotkeysConfig;
+
 use crate::hotkeys::Hotkeys;
 use crate::tray::Tray;
 
@@ -33,8 +35,11 @@ enum Tab {
 pub struct App {
     core: Arc<AppCore>,
     tray: Option<Tray>,
-    _hotkeys: Option<Hotkeys>,
+    hotkeys: Option<Hotkeys>,
     hotkey_problems: Vec<String>,
+    /// The hotkey config currently registered; `None` while suspended for recording.
+    applied_hotkeys: Option<HotkeysConfig>,
+    hotkey_capture: settings::HotkeyCapture,
     tab: Tab,
     /// Shows unassigned apps that are not playing in the AudioMix list.
     show_idle_apps: bool,
@@ -55,18 +60,37 @@ impl App {
                 None
             }
         };
-        let (hotkeys, hotkey_problems) =
-            match Hotkeys::register(&core.config().app.hotkeys, Arc::clone(&core)) {
-                Ok((hotkeys, problems)) => (Some(hotkeys), problems),
-                Err(error) => (None, vec![format!("hotkeys unavailable: {error}")]),
-            };
+        let hotkey_config = core.config().app.hotkeys;
+        let (hotkeys, hotkey_problems) = match Hotkeys::register(&hotkey_config, Arc::clone(&core))
+        {
+            Ok((hotkeys, problems)) => (Some(hotkeys), problems),
+            Err(error) => (None, vec![format!("hotkeys unavailable: {error}")]),
+        };
         Self {
             core,
             tray,
-            _hotkeys: hotkeys,
+            hotkeys,
             hotkey_problems,
+            applied_hotkeys: Some(hotkey_config),
+            hotkey_capture: settings::HotkeyCapture::default(),
             tab: Tab::AudioMix,
             show_idle_apps: false,
+        }
+    }
+
+    /// Keeps the registered hotkeys in line with the config; suspends them while the editor
+    /// records a combination (the OS would otherwise swallow it).
+    fn sync_hotkeys(&mut self, wanted: &HotkeysConfig) {
+        let Some(hotkeys) = self.hotkeys.as_mut() else {
+            return;
+        };
+        if self.hotkey_capture.recording.is_some() {
+            if self.applied_hotkeys.take().is_some() {
+                hotkeys.suspend();
+            }
+        } else if self.applied_hotkeys.as_ref() != Some(wanted) {
+            self.hotkey_problems = hotkeys.apply(wanted);
+            self.applied_hotkeys = Some(wanted.clone());
         }
     }
 
@@ -93,6 +117,7 @@ impl eframe::App for App {
         if let Some(tray) = self.tray.as_mut() {
             tray.sync(&snapshot);
         }
+        self.sync_hotkeys(&snapshot.config.app.hotkeys);
 
         egui::TopBottomPanel::top("status").show(ctx, |ui| {
             ui.add_space(4.0);
@@ -117,7 +142,9 @@ impl eframe::App for App {
                 }
                 Tab::Mic => mic::show(ui, &self.core, &snapshot),
                 Tab::Headset => headset::show(ui, &self.core, &snapshot),
-                Tab::Settings => settings::show(ui, &self.core, &snapshot),
+                Tab::Settings => {
+                    settings::show(ui, &self.core, &snapshot, &mut self.hotkey_capture);
+                }
             });
         });
     }

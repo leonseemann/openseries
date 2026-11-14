@@ -4,10 +4,13 @@ use std::sync::OnceLock;
 
 use eframe::egui;
 
+use ss_store::config::HotkeysConfig;
+
 use crate::core::{AppCore, Snapshot};
+use crate::hotkeys::{HotkeyAction, binding_from_key, same_binding};
 use crate::platform;
 
-pub fn show(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
+pub fn show(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, capture: &mut HotkeyCapture) {
     ui.heading("General");
     let mut autostart = snapshot.config.app.autostart;
     if ui
@@ -20,20 +23,7 @@ pub fn show(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
     crackling(ui, core, snapshot);
 
     ui.add_space(8.0);
-    ui.heading("Hotkeys");
-    let hotkeys = &snapshot.config.app.hotkeys;
-    egui::Grid::new("hotkeys").num_columns(2).show(ui, |ui| {
-        for (label, value) in [
-            ("ChatMix towards Game", &hotkeys.chatmix_game),
-            ("ChatMix towards Chat", &hotkeys.chatmix_chat),
-            ("Mute virtual microphone", &hotkeys.mic_mute),
-            ("Reconnect USB (fixes crackling)", &hotkeys.reconnect_usb),
-        ] {
-            ui.label(label);
-            ui.monospace(value.as_deref().unwrap_or("—"));
-            ui.end_row();
-        }
-    });
+    hotkeys(ui, core, snapshot, capture);
 
     ui.add_space(8.0);
     ui.heading("About");
@@ -49,6 +39,100 @@ pub fn show(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
     ui.add_space(8.0);
     if ui.button("Quit StealSeries").clicked() {
         crate::quit(core);
+    }
+}
+
+/// State of the hotkey editor: which action is recording, and the last rejection.
+#[derive(Debug, Default)]
+pub struct HotkeyCapture {
+    /// The action waiting for a key combination; global hotkeys are suspended meanwhile.
+    pub recording: Option<HotkeyAction>,
+    /// Why the last recorded combination was refused.
+    pub message: Option<String>,
+}
+
+fn hotkeys(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, capture: &mut HotkeyCapture) {
+    ui.heading("Hotkeys");
+    let config = &snapshot.config.app.hotkeys;
+    if let Some(action) = capture.recording {
+        record(ui, core, config, action, capture);
+    }
+    egui::Grid::new("hotkeys").num_columns(4).show(ui, |ui| {
+        for action in HotkeyAction::ALL.into_iter().filter(|a| a.available()) {
+            ui.label(action.label());
+            if capture.recording == Some(action) {
+                ui.colored_label(ui.visuals().warn_fg_color, "press keys… (Esc cancels)");
+            } else {
+                ui.monospace(action.binding(config).unwrap_or("—"));
+            }
+            if ui.button("Change").clicked() {
+                capture.recording = Some(action);
+                capture.message = None;
+            }
+            if ui
+                .add_enabled(action.binding(config).is_some(), egui::Button::new("Clear"))
+                .clicked()
+            {
+                core.update_config(|c| *action.binding_mut(&mut c.app.hotkeys) = None);
+            }
+            ui.end_row();
+        }
+    });
+    if let Some(message) = &capture.message {
+        ui.colored_label(ui.visuals().warn_fg_color, message);
+    }
+    if *config != HotkeysConfig::default() && ui.button("Reset to defaults").clicked() {
+        core.update_config(|c| c.app.hotkeys = HotkeysConfig::default());
+    }
+}
+
+/// Takes the next key press as the binding for `action`.
+fn record(
+    ui: &egui::Ui,
+    core: &AppCore,
+    config: &HotkeysConfig,
+    action: HotkeyAction,
+    capture: &mut HotkeyCapture,
+) {
+    let pressed = ui.input(|i| {
+        i.events.iter().find_map(|event| match event {
+            egui::Event::Key {
+                key,
+                pressed: true,
+                modifiers,
+                ..
+            } => Some((*key, *modifiers)),
+            _ => None,
+        })
+    });
+    let Some((key, modifiers)) = pressed else {
+        return;
+    };
+    if key == egui::Key::Escape {
+        capture.recording = None;
+        return;
+    }
+    match binding_from_key(key, modifiers) {
+        Ok(binding) => {
+            let taken = HotkeyAction::ALL.into_iter().find(|other| {
+                *other != action
+                    && other
+                        .binding(config)
+                        .is_some_and(|b| same_binding(b, &binding))
+            });
+            if let Some(other) = taken {
+                capture.message = Some(format!(
+                    "{binding} is already used by \"{}\"",
+                    other.label()
+                ));
+            } else {
+                core.update_config(|c| *action.binding_mut(&mut c.app.hotkeys) = Some(binding));
+                capture.message = None;
+            }
+            capture.recording = None;
+        }
+        // Keep recording: e.g. a lone modifier or a key without Ctrl/Alt.
+        Err(message) => capture.message = Some(message),
     }
 }
 

@@ -1,11 +1,13 @@
-//! Global hotkeys (SON-30 subset): ChatMix steps and virtual-mic mute.
+//! Global hotkeys (SON-30 subset): ChatMix steps, virtual-mic mute and USB reconnect.
 //!
-//! Registered once at start from the config; the handler acts on [`AppCore`] directly so it
+//! Registered from the config and re-registered whenever the hotkey editor on the Settings page
+//! changes it (`docs/architecture/app.md` §2). The handler acts on [`AppCore`] directly so it
 //! works while the window is hidden.
 
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, PoisonError};
 
+use eframe::egui;
 use global_hotkey::hotkey::HotKey;
 use global_hotkey::{GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState};
 use ss_store::config::HotkeysConfig;
@@ -15,16 +17,83 @@ use crate::core::AppCore;
 /// One ChatMix step of a hotkey press (the slider runs from −1 = game to +1 = chat).
 const CHATMIX_STEP: f32 = 0.1;
 
-#[derive(Debug, Clone, Copy)]
-enum Action {
-    ChatMix(f32),
-    ToggleMic,
+/// What a hotkey does.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HotkeyAction {
+    /// One ChatMix step towards Game.
+    ChatMixGame,
+    /// One ChatMix step towards Chat.
+    ChatMixChat,
+    /// Toggle the virtual microphone.
+    MicMute,
+    /// Reconnect the base station's USB connection.
     ReconnectUsb,
 }
 
+impl HotkeyAction {
+    /// Every action, in display order.
+    pub const ALL: [Self; 4] = [
+        Self::ChatMixGame,
+        Self::ChatMixChat,
+        Self::MicMute,
+        Self::ReconnectUsb,
+    ];
+
+    /// Label in the editor.
+    #[must_use]
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::ChatMixGame => "ChatMix towards Game",
+            Self::ChatMixChat => "ChatMix towards Chat",
+            Self::MicMute => "Mute virtual microphone",
+            Self::ReconnectUsb => "Reconnect USB (fixes crackling)",
+        }
+    }
+
+    /// Whether the action can work on this OS.
+    #[must_use]
+    pub const fn available(self) -> bool {
+        !matches!(self, Self::ReconnectUsb) || crate::platform::USB_RESET_SUPPORTED
+    }
+
+    /// The configured binding.
+    #[must_use]
+    pub fn binding(self, config: &HotkeysConfig) -> Option<&str> {
+        match self {
+            Self::ChatMixGame => config.chatmix_game.as_deref(),
+            Self::ChatMixChat => config.chatmix_chat.as_deref(),
+            Self::MicMute => config.mic_mute.as_deref(),
+            Self::ReconnectUsb => config.reconnect_usb.as_deref(),
+        }
+    }
+
+    /// The configured binding, for editing.
+    pub fn binding_mut(self, config: &mut HotkeysConfig) -> &mut Option<String> {
+        match self {
+            Self::ChatMixGame => &mut config.chatmix_game,
+            Self::ChatMixChat => &mut config.chatmix_chat,
+            Self::MicMute => &mut config.mic_mute,
+            Self::ReconnectUsb => &mut config.reconnect_usb,
+        }
+    }
+
+    fn run(self, core: &AppCore) {
+        match self {
+            Self::ChatMixGame => core.nudge_chatmix(-CHATMIX_STEP),
+            Self::ChatMixChat => core.nudge_chatmix(CHATMIX_STEP),
+            Self::MicMute => core.update_config(|c| c.mic.enabled = !c.mic.enabled),
+            Self::ReconnectUsb => core.reset_headset_usb(),
+        }
+    }
+}
+
+type ActionMap = Arc<Mutex<HashMap<u32, HotkeyAction>>>;
+
 /// Keeps the hotkeys registered while alive.
 pub struct Hotkeys {
-    _manager: GlobalHotKeyManager,
+    manager: GlobalHotKeyManager,
+    registered: Vec<HotKey>,
+    actions: ActionMap,
 }
 
 impl Hotkeys {
@@ -37,45 +106,117 @@ impl Hotkeys {
         config: &HotkeysConfig,
         core: Arc<AppCore>,
     ) -> Result<(Self, Vec<String>), global_hotkey::Error> {
-        let manager = GlobalHotKeyManager::new()?;
-        let mut actions = HashMap::new();
-        let mut problems = Vec::new();
-        for (binding, action) in [
-            (&config.chatmix_game, Action::ChatMix(-CHATMIX_STEP)),
-            (&config.chatmix_chat, Action::ChatMix(CHATMIX_STEP)),
-            (&config.mic_mute, Action::ToggleMic),
-            (&config.reconnect_usb, Action::ReconnectUsb),
-        ] {
-            if matches!(action, Action::ReconnectUsb) && !crate::platform::USB_RESET_SUPPORTED {
-                continue;
-            }
-            let Some(text) = binding else {
-                continue;
-            };
-            match text.parse::<HotKey>() {
-                Ok(hotkey) => match manager.register(hotkey) {
-                    Ok(()) => {
-                        actions.insert(hotkey.id(), action);
-                    }
-                    Err(error) => problems.push(format!("hotkey {text}: {error}")),
-                },
-                Err(error) => problems.push(format!("hotkey {text}: {error}")),
-            }
-        }
+        let actions: ActionMap = Arc::default();
+        let handler_actions = Arc::clone(&actions);
         GlobalHotKeyEvent::set_event_handler(Some(move |event: GlobalHotKeyEvent| {
             if event.state != HotKeyState::Pressed {
                 return;
             }
-            match actions.get(&event.id) {
-                Some(Action::ChatMix(step)) => core.nudge_chatmix(*step),
-                Some(Action::ToggleMic) => {
-                    core.update_config(|c| c.mic.enabled = !c.mic.enabled);
-                }
-                Some(Action::ReconnectUsb) => core.reset_headset_usb(),
-                None => {}
+            let action = handler_actions
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .get(&event.id)
+                .copied();
+            if let Some(action) = action {
+                action.run(&core);
             }
         }));
-        Ok((Self { _manager: manager }, problems))
+        let mut hotkeys = Self {
+            manager: GlobalHotKeyManager::new()?,
+            registered: Vec::new(),
+            actions,
+        };
+        let problems = hotkeys.apply(config);
+        Ok((hotkeys, problems))
+    }
+
+    /// Replaces all registrations with `config`; returns a message per failed binding.
+    pub fn apply(&mut self, config: &HotkeysConfig) -> Vec<String> {
+        self.suspend();
+        let mut problems = Vec::new();
+        let mut actions = HashMap::new();
+        for action in HotkeyAction::ALL {
+            let Some(text) = action.binding(config).filter(|_| action.available()) else {
+                continue;
+            };
+            let registered = text
+                .parse::<HotKey>()
+                .map_err(|e| e.to_string())
+                .and_then(|hotkey| {
+                    self.manager
+                        .register(hotkey)
+                        .map(|()| hotkey)
+                        .map_err(|e| e.to_string())
+                });
+            match registered {
+                Ok(hotkey) => {
+                    actions.insert(hotkey.id(), action);
+                    self.registered.push(hotkey);
+                }
+                Err(error) => problems.push(format!("hotkey {text}: {error}")),
+            }
+        }
+        *self.actions.lock().unwrap_or_else(PoisonError::into_inner) = actions;
+        problems
+    }
+
+    /// Unregisters everything (while the editor records a new combination, so the OS does not
+    /// swallow it).
+    pub fn suspend(&mut self) {
+        for hotkey in self.registered.drain(..) {
+            let _ = self.manager.unregister(hotkey);
+        }
+        self.actions
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clear();
+    }
+}
+
+/// Turns a key press recorded in the editor into a binding string such as `"Ctrl+Alt+M"`.
+///
+/// # Errors
+/// A user-facing message if the combination has no Ctrl/Alt/Cmd modifier (it would steal normal
+/// typing) or the key cannot be used as a global hotkey.
+pub fn binding_from_key(key: egui::Key, modifiers: egui::Modifiers) -> Result<String, String> {
+    if !(modifiers.ctrl || modifiers.alt || modifiers.mac_cmd) {
+        return Err("use at least Ctrl or Alt (Cmd on macOS) with the key".to_owned());
+    }
+    let mut parts = Vec::new();
+    if modifiers.ctrl {
+        parts.push("Ctrl");
+    }
+    if modifiers.alt {
+        parts.push("Alt");
+    }
+    if modifiers.shift {
+        parts.push("Shift");
+    }
+    if modifiers.mac_cmd {
+        parts.push("Cmd");
+    }
+    // egui names that `global-hotkey` spells differently.
+    let name = match key {
+        egui::Key::Equals => "=",
+        egui::Key::OpenBracket => "[",
+        egui::Key::CloseBracket => "]",
+        egui::Key::Backtick => "`",
+        other => other.name(),
+    };
+    parts.push(name);
+    let binding = parts.join("+");
+    binding
+        .parse::<HotKey>()
+        .map(|_| binding.clone())
+        .map_err(|_| format!("{name} cannot be used as a hotkey"))
+}
+
+/// Whether two binding strings mean the same key combination.
+#[must_use]
+pub fn same_binding(a: &str, b: &str) -> bool {
+    match (a.parse::<HotKey>(), b.parse::<HotKey>()) {
+        (Ok(a), Ok(b)) => a.id() == b.id(),
+        _ => a.eq_ignore_ascii_case(b),
     }
 }
 
@@ -83,19 +224,49 @@ impl Hotkeys {
 mod tests {
     use super::*;
 
+    const CTRL_ALT: egui::Modifiers = egui::Modifiers {
+        alt: true,
+        ctrl: true,
+        shift: false,
+        mac_cmd: false,
+        command: true,
+    };
+
     #[test]
     fn default_bindings_parse() {
         let config = HotkeysConfig::default();
-        for binding in [
-            config.chatmix_game,
-            config.chatmix_chat,
-            config.mic_mute,
-            config.reconnect_usb,
-        ]
-        .into_iter()
-        .flatten()
-        {
+        for action in HotkeyAction::ALL {
+            let binding = action.binding(&config).unwrap();
             assert!(binding.parse::<HotKey>().is_ok(), "{binding}");
         }
+    }
+
+    #[test]
+    fn recorded_keys_become_parseable_bindings() {
+        assert_eq!(
+            binding_from_key(egui::Key::M, CTRL_ALT).as_deref(),
+            Ok("Ctrl+Alt+M")
+        );
+        assert_eq!(
+            binding_from_key(egui::Key::ArrowLeft, CTRL_ALT).as_deref(),
+            Ok("Ctrl+Alt+Left")
+        );
+        assert_eq!(
+            binding_from_key(egui::Key::Equals, CTRL_ALT).as_deref(),
+            Ok("Ctrl+Alt+=")
+        );
+        assert!(binding_from_key(egui::Key::F5, CTRL_ALT).is_ok());
+    }
+
+    #[test]
+    fn plain_keys_are_rejected() {
+        assert!(binding_from_key(egui::Key::M, egui::Modifiers::SHIFT).is_err());
+        assert!(binding_from_key(egui::Key::M, egui::Modifiers::NONE).is_err());
+    }
+
+    #[test]
+    fn bindings_compare_by_combination() {
+        assert!(same_binding("Ctrl+Alt+M", "alt+ctrl+m"));
+        assert!(!same_binding("Ctrl+Alt+M", "Ctrl+Alt+N"));
     }
 }

@@ -53,7 +53,10 @@ Notes on v1 behaviour:
   mute needs the mic command queue (later).
 - **Reconnect USB** is on the headset page, in the menu-bar menu and on a hotkey (default Ctrl+Alt+R): the manual cure for both kinds of crackling (`docs/hardware/macos-app.md` Findings).
 - **ChatMix hotkeys** move a software balance in steps of 10 %; moving the headset dial overrides it.
-- **Hotkeys** are read from the config at start (no editor yet; edit `config.json`, restart).
+- **Hotkey editor** (Settings → Hotkeys): "Change" records the next key combination (needs Ctrl,
+  Alt or Cmd; Esc cancels; a combination used by another action is refused), "Clear" unbinds,
+  "Reset to defaults". All global hotkeys are unregistered while recording so the OS does not
+  swallow the combination, and re-registered live when the config changes (no restart).
 - Changing mic processing restarts the mic feed briefly (no live control of the chain yet).
 
 ## 3. Configuration (`ss-store`)
