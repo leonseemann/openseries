@@ -41,6 +41,6 @@ Input, QuickTime, Discord …) and speak into the headset.
 | 5 | `ssmix mic --probe`: aggregate layout (**Inferred**: mic device outputs first, then feed) | feed index matches; feed peak follows the mic peak (+ gain) | ✅ Observed: inputs `[1]`, outputs `[2, 1]` (headset 2 ch, then feed 1 ch), feed = #1; feed peak identical to mic peak at 0 dB (−17…−28 dBFS while speaking); 95 callbacks/s, 512 frames |
 | 6 | IO on the **hidden** feed device (**Inferred**) | works (input level meter of StealSeries Microphone moves while speaking) | ✅ Observed: the input level meter of StealSeries Microphone in System Settings follows the voice |
 | 7 | Stop `ssmix mic` | StealSeries Microphone goes silent, no replay of old audio | ✅ Observed: meter flat for 10 s after stopping while still speaking |
-| 8 | Real app (Discord / Zoom / QuickTime recording) | voice clear, no crackles, no noticeable delay | ⏳ |
-| 9 | `--gain-db 6` | louder in the app | ⏳ |
+| 8 | Real app (Discord / Zoom / QuickTime recording) | voice clear, no crackles, no noticeable delay | ✅ Observed (QuickTime audio recording from StealSeries Microphone, 60 s): voice clear, no crackles or dropouts; restarting `ssmix mic` mid-recording left no audible gap. Latency not assessable from a recording; to judge in a live call later |
+| 9 | `--gain-db 6` | louder in the app | ✅ Observed: second half (+6 dB) clearly louder in the same recording |
 | 10 | `hal-driver.sh uninstall` | device gone, other audio unaffected | ⏳ |
