@@ -21,5 +21,5 @@ mod protocol;
 
 pub use command::Command;
 pub use driver::{DriverError, NovaProWireless};
-pub use event::{DecodeError, Event, Status};
+pub use event::{DecodeError, Display, Event, Settings, Status};
 pub use protocol::REPORT_LEN;

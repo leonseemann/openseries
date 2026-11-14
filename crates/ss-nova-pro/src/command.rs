@@ -16,6 +16,10 @@ use crate::protocol::{ARGS_OFFSET, OPCODE_OFFSET, REPORT_ID_COMMAND, REPORT_LEN,
 pub enum Command {
     /// Request the general status block (reply: [`crate::Event::Status`]).
     QueryStatus,
+    /// Request the audio settings block (reply: [`crate::Event::Settings`]).
+    QuerySettings,
+    /// Request the display settings block (reply: [`crate::Event::Display`]).
+    QueryDisplay,
     /// Request battery levels (reply: [`crate::Event::Battery`]).
     QueryBattery,
     /// Set the noise-control mode.
@@ -68,6 +72,8 @@ impl Command {
         match *self {
             Self::QueryStatus => (op::QUERY_STATUS, Args::none()),
             Self::QueryBattery => (op::BATTERY, Args::none()),
+            Self::QuerySettings => (op::QUERY_SETTINGS, Args::none()),
+            Self::QueryDisplay => (op::QUERY_DISPLAY, Args::none()),
             Self::SetNoiseControl(m) => (
                 op::NOISE_CONTROL,
                 Args::one(codec::noise_control_to_byte(m)),

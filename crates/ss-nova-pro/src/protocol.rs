@@ -20,6 +20,8 @@ pub const ARGS_OFFSET: usize = 2;
 pub mod op {
     /// Persist current settings to flash.
     pub const SAVE: u8 = 0x09;
+    /// Read the audio settings block (EQ, mic volume, sidetone, ChatMix).
+    pub const QUERY_SETTINGS: u8 = 0x20;
     /// Equalizer preset.
     pub const EQ_PRESET: u8 = 0x2E;
     /// Single EQ band changed on the base station (event).
@@ -34,6 +36,8 @@ pub mod op {
     pub const CHATMIX: u8 = 0x45;
     /// Let the dial report ChatMix instead of mixing internally.
     pub const CHATMIX_DIAL_ENABLE: u8 = 0x49;
+    /// Read the display settings block (OLED brightness …).
+    pub const QUERY_DISPLAY: u8 = 0x80;
     /// OLED brightness.
     pub const OLED_BRIGHTNESS: u8 = 0x85;
     /// Show the "PC mixer present" icon on the base station.
@@ -66,12 +70,38 @@ pub mod status_offset {
     pub const MIC_MUTED: usize = 9;
     /// Noise-control mode.
     pub const NOISE_CONTROL: usize = 10;
+    /// Mic-mute LED brightness, 1-10.
+    pub const MIC_LED_BRIGHTNESS: usize = 11;
     /// Auto-off enum.
     pub const AUTO_OFF: usize = 12;
     /// Radio state ([`super::RADIO_CONNECTED`] when the headset is linked).
     pub const RADIO_STATE: usize = 14;
     /// Headset power state.
     pub const POWER_STATE: usize = 15;
+}
+
+/// Field offsets inside the `QUERY_SETTINGS` (0x20) reply.
+pub mod settings_offset {
+    /// EQ preset.
+    pub const EQ_PRESET: usize = 6;
+    /// First of ten custom EQ band bytes.
+    pub const EQ_BANDS: usize = 7;
+    /// Microphone volume, 1-10.
+    pub const MIC_VOLUME: usize = 17;
+    /// Sidetone level, 0-3.
+    pub const SIDETONE: usize = 18;
+    /// ChatMix game level, 0-100.
+    pub const CHATMIX_GAME: usize = 20;
+    /// ChatMix chat level, 0-100.
+    pub const CHATMIX_CHAT: usize = 21;
+}
+
+/// Field offsets inside the `QUERY_DISPLAY` (0x80) reply.
+pub mod display_offset {
+    /// OLED brightness, 1-10.
+    pub const BRIGHTNESS: usize = 3;
+    /// "PC mixer present" indicator, 0/1.
+    pub const MIXER_PRESENT: usize = 7;
 }
 
 /// Field offsets inside a `BATTERY` (0xB7) reply/event.

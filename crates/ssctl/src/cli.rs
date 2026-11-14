@@ -30,6 +30,11 @@ pub enum Action {
         #[arg(long)]
         save: bool,
     },
+    /// Hex-dump the raw reply of a read-only query (protocol exploration).
+    Raw {
+        /// Which block to query.
+        block: RawBlock,
+    },
     /// Print device events (dial, buttons, battery) until Ctrl-C.
     Watch {
         /// Let the dial report ChatMix positions (restored to normal on exit).
@@ -87,6 +92,19 @@ pub enum Setting {
         /// Level.
         level: u8,
     },
+}
+
+/// Read-only query blocks that `ssctl raw` may request.
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum RawBlock {
+    /// General status block (0xB0).
+    Status,
+    /// Audio settings block (0x20).
+    Settings,
+    /// Display settings block (0x80).
+    Display,
+    /// Battery block (0xB7).
+    Battery,
 }
 
 /// CLI spelling of [`NoiseControl`].

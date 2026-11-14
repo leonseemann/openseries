@@ -7,8 +7,8 @@ use ss_core::battery::BatteryReport;
 use ss_core::transport::{HidTransport, TransportError};
 use thiserror::Error;
 
-use crate::protocol::REPORT_LEN;
-use crate::{Command, DecodeError, Event, Status};
+use crate::protocol::{OPCODE_OFFSET, REPORT_ID_COMMAND, REPORT_LEN};
+use crate::{Command, DecodeError, Display, Event, Settings, Status};
 
 /// How long a query waits for its reply.
 const QUERY_TIMEOUT: Duration = Duration::from_millis(500);
@@ -71,6 +71,28 @@ impl<T: HidTransport> NovaProWireless<T> {
         })
     }
 
+    /// Reads the audio settings block.
+    ///
+    /// # Errors
+    /// Fails on transport errors, malformed replies or timeout.
+    pub fn settings(&mut self) -> Result<Settings, DriverError> {
+        self.query(Command::QuerySettings, |event| match event {
+            Event::Settings(settings) => Some(settings),
+            _ => None,
+        })
+    }
+
+    /// Reads the display settings block.
+    ///
+    /// # Errors
+    /// Fails on transport errors, malformed replies or timeout.
+    pub fn display(&mut self) -> Result<Display, DriverError> {
+        self.query(Command::QueryDisplay, |event| match event {
+            Event::Display(display) => Some(display),
+            _ => None,
+        })
+    }
+
     /// Reads the battery levels.
     ///
     /// # Errors
@@ -80,6 +102,35 @@ impl<T: HidTransport> NovaProWireless<T> {
             Event::Battery(report) => Some(report),
             _ => None,
         })
+    }
+
+    /// Sends a query and returns its undecoded reply (for protocol exploration).
+    ///
+    /// Unrelated reports received meanwhile are decoded and buffered as events.
+    ///
+    /// # Errors
+    /// Fails on transport errors, malformed reports or timeout.
+    pub fn query_raw(&mut self, command: Command) -> Result<[u8; REPORT_LEN], DriverError> {
+        self.send(command)?;
+        let deadline = Instant::now() + QUERY_TIMEOUT;
+        loop {
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            if remaining.is_zero() {
+                return Err(DriverError::Timeout {
+                    opcode: command.opcode(),
+                    timeout: QUERY_TIMEOUT,
+                });
+            }
+            let mut buf = [0u8; REPORT_LEN];
+            let len = self.transport.read_timeout(&mut buf, remaining)?;
+            if len == 0 {
+                continue;
+            }
+            if buf[0] == REPORT_ID_COMMAND && buf[OPCODE_OFFSET] == command.opcode() {
+                return Ok(buf);
+            }
+            self.pending.push_back(Event::decode(&buf[..len])?);
+        }
     }
 
     /// Returns the next event, waiting at most `timeout`. `Ok(None)` on timeout.

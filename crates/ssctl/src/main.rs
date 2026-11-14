@@ -16,7 +16,7 @@ use ss_core::headset::{
 use ss_hid::{DeviceSelector, HidapiTransport};
 use ss_nova_pro::{Command, NovaProWireless, ids};
 
-use crate::cli::{Action, Cli, Setting};
+use crate::cli::{Action, Cli, RawBlock, Setting};
 
 /// How long `watch` blocks per read before checking for Ctrl-C.
 const WATCH_POLL: Duration = Duration::from_millis(200);
@@ -34,8 +34,10 @@ fn main() -> Result<()> {
     match cli.action {
         Action::List => list(),
         Action::Status => {
-            let status = open()?.status()?;
-            output::print_status(&status);
+            let mut device = open()?;
+            output::print_status(&device.status()?);
+            output::print_settings(&device.settings()?);
+            output::print_display(device.display()?);
             Ok(())
         }
         Action::Battery => {
@@ -44,6 +46,11 @@ fn main() -> Result<()> {
             Ok(())
         }
         Action::Set { setting, save } => set(setting, save),
+        Action::Raw { block } => {
+            let reply = open()?.query_raw(query_for(block))?;
+            output::print_hex(&reply);
+            Ok(())
+        }
         Action::Watch { chatmix_dial } => watch(chatmix_dial),
     }
 }
@@ -71,6 +78,16 @@ fn open() -> Result<NovaProWireless<HidapiTransport>> {
     let transport = HidapiTransport::open(&api, &NOVA_PRO)
         .context("could not open the Arctis Nova Pro Wireless base station")?;
     Ok(NovaProWireless::new(transport))
+}
+
+/// Maps a raw block to its (read-only) query command.
+fn query_for(block: RawBlock) -> Command {
+    match block {
+        RawBlock::Status => Command::QueryStatus,
+        RawBlock::Settings => Command::QuerySettings,
+        RawBlock::Display => Command::QueryDisplay,
+        RawBlock::Battery => Command::QueryBattery,
+    }
 }
 
 fn set(setting: Setting, save: bool) -> Result<()> {
