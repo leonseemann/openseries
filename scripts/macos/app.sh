@@ -30,7 +30,11 @@ case "${1:-}" in
         ;;
     install)
         build
-        pkill -x stealseries 2>/dev/null || true
+        if pkill -x stealseries 2>/dev/null; then
+            # Wait until the old instance is gone; opening too early fails with error -600.
+            while pgrep -x stealseries >/dev/null; do sleep 0.2; done
+            sleep 1
+        fi
         mkdir -p "$TARGET_DIR"
         rm -rf "$TARGET_DIR/StealSeries.app"
         cp -R "$BUNDLE" "$TARGET_DIR/"
