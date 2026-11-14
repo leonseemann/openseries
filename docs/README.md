@@ -13,6 +13,7 @@
 | Architecture of the Rust rewrite | [`architecture/overview.md`](architecture/overview.md) | ✅ |
 | DSP design (M2) | [`architecture/dsp.md`](architecture/dsp.md) | ✅ |
 | Audio engine + platform backends (M3/M4) | [`architecture/audio-engine.md`](architecture/audio-engine.md) | ✅ |
+| Mic chain: denoise, gate, stabilizer, mic EQ (M6) | [`architecture/mic-chain.md`](architecture/mic-chain.md) | 🔄 in progress |
 | Virtual microphone driver (M3b) | [`architecture/virtual-mic-driver.md`](architecture/virtual-mic-driver.md) | ✅ |
 | Hardware test: macOS virtual microphone (M3b) | [`hardware/macos-virtual-mic.md`](hardware/macos-virtual-mic.md) | ✅ verified 2026-11-14 |
 | Hardware test: macOS AudioMix (M3a) | [`hardware/macos-audiomix.md`](hardware/macos-audiomix.md) | ✅ verified 2026-11-14 |
