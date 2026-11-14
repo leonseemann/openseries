@@ -65,6 +65,19 @@ default-device fallback (SON-06) matters.
 3. **Distribution signing** (EV certificate + attestation) is decided later, before any release
    that includes the driver.
 
+## Update 2026-11-14: own driver parked, VB-Cable as the stand-in
+
+The first driver build (`drivers/windows/StealSeriesAudio`, test-signed) cannot be loaded on the
+owner's PC: `bcdedit /set testsigning on` is blocked by Secure Boot, and Secure Boot must stay on
+because kernel anti-cheats (Easy Anti-Cheat, Vanguard, FACEIT …) require it and refuse
+test-signing mode. Testing in a Hyper-V VM was offered and declined by the owner.
+
+Decision (owner): **develop M4b with a third-party virtual cable (VB-Audio "VB-Cable", installed
+by the user, signed, loads with Secure Boot) as the channel endpoint.** The app is built so that
+each channel can use *any* virtual render endpoint — VB-Cable now, our own driver later — and
+channels without one keep using the M4a session mixer. Our driver stays in the repository and
+resumes once it can be attestation-signed (EV certificate; cost decision before a release).
+
 ## Consequences
 
 - Windows gets a useful AudioMix (ChatMix and per-app volumes) quickly, but without per-channel
