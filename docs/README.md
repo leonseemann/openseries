@@ -15,6 +15,7 @@
 | Audio engine + platform backends (M3/M4) | [`architecture/audio-engine.md`](architecture/audio-engine.md) | ✅ |
 | Mic chain: denoise, gate, stabilizer, mic EQ (M6) | [`architecture/mic-chain.md`](architecture/mic-chain.md) | 🔄 in progress |
 | Virtual microphone driver (M3b) | [`architecture/virtual-mic-driver.md`](architecture/virtual-mic-driver.md) | ✅ |
+| Hardware test: macOS mic chain (M6) | [`hardware/macos-mic-chain.md`](hardware/macos-mic-chain.md) | 🔄 |
 | Hardware test: macOS virtual microphone (M3b) | [`hardware/macos-virtual-mic.md`](hardware/macos-virtual-mic.md) | ✅ verified 2026-11-14 |
 | Hardware test: macOS AudioMix (M3a) | [`hardware/macos-audiomix.md`](hardware/macos-audiomix.md) | ✅ verified 2026-11-14 |
 | Hardware verification: Nova Pro Wireless | [`hardware/nova-pro-wireless.md`](hardware/nova-pro-wireless.md) | 🔄 in progress |
