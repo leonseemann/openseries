@@ -367,6 +367,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ss-hal-driver-macos"
+version = "0.1.0"
+dependencies = [
+ "objc2-core-audio",
+ "objc2-core-audio-types",
+ "objc2-core-foundation",
+]
+
+[[package]]
 name = "ss-hid"
 version = "0.1.0"
 dependencies = [
