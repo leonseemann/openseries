@@ -44,8 +44,10 @@ Settings and well-made audio apps, with our own look (no SteelSeries assets or b
 └──────────────┴───────────────────────────────────────────────┘
 ```
 
-- Sidebar 216 px, content max width 760 px (centred when the window is wider), page padding 28 px.
-- Cards: radius 12 px, inner padding 18 px, 14 px gap between cards, 1 px border.
+- Sidebar 196 px, content max width 720 px (centred when the window is wider), page padding 20 px.
+  Compact by default (owner feedback 2026-11-14): window 920 × 660.
+- Cards: radius 10 px, inner padding 14 px, 10 px gap between cards, 1 px border; controls 26 px
+  high, switches 36 × 20 px.
 - Spacing scale: 4 · 8 · 12 · 16 · 24 · 32 px.
 
 ## 3. Theme
@@ -63,8 +65,10 @@ Follows the OS light/dark setting (egui `ThemePreference::System`). Accent: indi
 | secondary text | `#A0A6B2` | `#5D6370` |
 | success / warning / error | `#3FB97F` / `#E3A43B` / `#E5606B` | `#1E8E5A` / `#B26F00` / `#C93D48` |
 
-Type scale (system UI font: Segoe UI on Windows, the egui default elsewhere): page title 24,
-card title 16 (strong), body 14, secondary 12.5. The window icon is the same headphone glyph as
+Type scale (system UI font: Segoe UI on Windows, the egui default elsewhere): page title 20,
+card title 14.5 (strong), body 13.5, secondary 12. Sidebar icons come from the emoji font, whose
+metrics differ from the text font; they are centred on their glyph shape at the optical middle of
+the label (measured on "H"), not on the line height. The window icon is the same headphone glyph as
 the tray icon.
 
 ## 4. Pages

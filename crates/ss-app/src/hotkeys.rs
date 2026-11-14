@@ -145,19 +145,19 @@ impl Hotkeys {
             };
             let registered = text
                 .parse::<HotKey>()
-                .map_err(|e| e.to_string())
+                .map_err(|_| format!("\"{text}\" is not a valid key combination"))
                 .and_then(|hotkey| {
                     self.manager
                         .register(hotkey)
                         .map(|()| hotkey)
-                        .map_err(|e| e.to_string())
+                        .map_err(|error| registration_problem(text, &error))
                 });
             match registered {
                 Ok(hotkey) => {
                     actions.insert(hotkey.id(), action);
                     self.registered.push(hotkey);
                 }
-                Err(error) => problems.push(format!("hotkey {text}: {error}")),
+                Err(problem) => problems.push(format!("{}: {problem}", action.label())),
             }
         }
         *self.actions.lock().unwrap_or_else(PoisonError::into_inner) = actions;
@@ -174,6 +174,17 @@ impl Hotkeys {
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .clear();
+    }
+}
+
+/// A plain-language reason why a hotkey could not be registered.
+fn registration_problem(text: &str, error: &global_hotkey::Error) -> String {
+    match error {
+        global_hotkey::Error::AlreadyRegistered(_) => format!(
+            "{text} is already used by another app (or a second StealSeries). Choose another \
+             combination in Settings → Hotkeys."
+        ),
+        other => format!("{text} could not be registered ({other})."),
     }
 }
 

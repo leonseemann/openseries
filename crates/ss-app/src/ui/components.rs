@@ -6,25 +6,28 @@ use super::theme::{self, CARD_RADIUS, CARD_TITLE, Palette};
 use crate::audio::supervisor::ServiceStatus;
 
 /// Inner padding of cards.
-const CARD_PADDING: i8 = 18;
+const CARD_PADDING: i8 = 14;
 /// Vertical gap after a card.
-const CARD_GAP: f32 = 14.0;
+const CARD_GAP: f32 = 10.0;
 /// Width reserved for the description column of a settings row before the control.
-const ROW_MIN_LABEL_WIDTH: f32 = 220.0;
+const ROW_MIN_LABEL_WIDTH: f32 = 200.0;
+/// Sidebar entry: icon size, horizontal centre of the icon, start of the label.
+const NAV_ICON_SIZE: f32 = 15.0;
+const NAV_ICON_CENTRE_X: f32 = 22.0;
+const NAV_TEXT_X: f32 = 40.0;
 /// Top offset that centres a one-line row label against a 30 px control.
-const ROW_SINGLE_LINE_OFFSET: f32 = 5.0;
+const ROW_SINGLE_LINE_OFFSET: f32 = 3.0;
 
 /// Page title and a one-line explanation.
 pub fn page_header(ui: &mut egui::Ui, title: &str, subtitle: &str) {
     let p = theme::palette(ui);
-    ui.add_space(4.0);
     ui.label(
         RichText::new(title)
             .text_style(TextStyle::Heading)
             .color(p.text),
     );
     ui.label(RichText::new(subtitle).color(p.text_secondary));
-    ui.add_space(12.0);
+    ui.add_space(8.0);
 }
 
 /// A card with an optional title; the body fills the available width.
@@ -47,7 +50,7 @@ pub fn card<R>(
                         .text_style(TextStyle::Name(CARD_TITLE.into()))
                         .color(p.text),
                 );
-                ui.add_space(4.0);
+                ui.add_space(2.0);
             }
             add_contents(ui)
         })
@@ -98,7 +101,7 @@ pub fn divider(ui: &mut egui::Ui) {
 /// An iOS-style on/off switch. Returns `true` when it was toggled.
 pub fn switch(ui: &mut egui::Ui, on: &mut bool) -> bool {
     let p = theme::palette(ui);
-    let size = egui::vec2(44.0, 24.0);
+    let size = egui::vec2(36.0, 20.0);
     let (rect, mut response) = ui.allocate_exact_size(size, Sense::click());
     if response.clicked() {
         *on = !*on;
@@ -138,7 +141,7 @@ pub fn segmented<T: Copy + PartialEq>(
     egui::Frame::new()
         .fill(p.control)
         .corner_radius(CornerRadius::same(theme::CONTROL_RADIUS))
-        .inner_margin(Margin::same(3))
+        .inner_margin(Margin::same(2))
         .show(ui, |ui| {
             ui.spacing_mut().item_spacing.x = 2.0;
             ui.horizontal(|ui| {
@@ -160,7 +163,7 @@ pub fn segmented<T: Copy + PartialEq>(
                         })
                         .stroke(Stroke::NONE)
                         .corner_radius(CornerRadius::same(theme::CONTROL_RADIUS - 2))
-                        .min_size(egui::vec2(0.0, 26.0));
+                        .min_size(egui::vec2(0.0, 22.0));
                     if ui.add(button).clicked() && !selected {
                         picked = Some(value);
                     }
@@ -239,7 +242,7 @@ pub fn banner(ui: &mut egui::Ui, tone: Tone, text: &str) {
         .fill(color.gamma_multiply(0.14))
         .stroke(Stroke::new(1.0_f32, color.gamma_multiply(0.5)))
         .corner_radius(CornerRadius::same(theme::CONTROL_RADIUS))
-        .inner_margin(Margin::symmetric(12, 8))
+        .inner_margin(Margin::symmetric(10, 6))
         .show(ui, |ui| {
             ui.set_width(ui.available_width());
             ui.label(RichText::new(text).color(p.text));
@@ -259,8 +262,8 @@ pub fn service_problem(ui: &mut egui::Ui, status: &ServiceStatus) {
 pub fn battery(ui: &mut egui::Ui, percent: Option<u8>, width: f32) {
     let p = theme::palette(ui);
     ui.horizontal(|ui| {
-        let (rect, _) = ui.allocate_exact_size(egui::vec2(width, 8.0), Sense::hover());
-        ui.painter().rect_filled(rect, 4.0, p.control_hover);
+        let (rect, _) = ui.allocate_exact_size(egui::vec2(width, 6.0), Sense::hover());
+        ui.painter().rect_filled(rect, 3.0, p.control_hover);
         if let Some(percent) = percent {
             let fraction = f32::from(percent.min(100)) / 100.0;
             let color = match percent {
@@ -270,7 +273,7 @@ pub fn battery(ui: &mut egui::Ui, percent: Option<u8>, width: f32) {
             };
             let mut fill = rect;
             fill.set_width(rect.width() * fraction);
-            ui.painter().rect_filled(fill, 4.0, color);
+            ui.painter().rect_filled(fill, 3.0, color);
         }
         ui.label(
             RichText::new(percent.map_or_else(|| "–".to_owned(), |v| format!("{v} %")))
@@ -282,7 +285,7 @@ pub fn battery(ui: &mut egui::Ui, percent: Option<u8>, width: f32) {
 /// A sidebar navigation entry. Returns its response (clicked = navigate).
 pub fn nav_item(ui: &mut egui::Ui, icon: &str, label: &str, selected: bool) -> egui::Response {
     let p = theme::palette(ui);
-    let height = 36.0;
+    let height = 32.0;
     let (rect, response) =
         ui.allocate_exact_size(egui::vec2(ui.available_width(), height), Sense::click());
     let fill = if selected {
@@ -302,21 +305,29 @@ pub fn nav_item(ui: &mut egui::Ui, icon: &str, label: &str, selected: bool) -> e
         ui.painter().rect_filled(bar, 2.0, p.accent);
     }
     let text_color = if selected { p.text } else { p.text_secondary };
-    let font = egui::FontId::proportional(14.0);
-    ui.painter().text(
-        rect.left_center() + egui::vec2(14.0, 0.0),
-        egui::Align2::LEFT_CENTER,
-        icon,
-        egui::FontId::proportional(16.0),
-        if selected { p.accent } else { p.text_secondary },
-    );
-    ui.painter().text(
-        rect.left_center() + egui::vec2(42.0, 0.0),
+    let font = egui::FontId::proportional(13.5);
+    let painter = ui.painter();
+    painter.text(
+        rect.left_center() + egui::vec2(NAV_TEXT_X, 0.0),
         egui::Align2::LEFT_CENTER,
         label,
-        font,
+        font.clone(),
         text_color,
     );
+    // Icons come from a different font (emoji) with other metrics, so centring both on the line
+    // height looks off. Centre the icon's actual glyph shape on the optical middle of the text
+    // (halfway between baseline and cap height, measured on "H").
+    let reference = painter.layout_no_wrap("H".to_owned(), font, text_color);
+    let optical_middle =
+        rect.center().y + (reference.mesh_bounds.center().y - reference.rect.center().y);
+    let icon_galley = painter.layout_no_wrap(
+        icon.to_owned(),
+        egui::FontId::proportional(NAV_ICON_SIZE),
+        if selected { p.accent } else { p.text_secondary },
+    );
+    let target = egui::pos2(rect.left() + NAV_ICON_CENTRE_X, optical_middle);
+    let origin = target - icon_galley.mesh_bounds.center().to_vec2();
+    painter.galley(origin, icon_galley, text_color);
     response.widget_info(|| {
         egui::WidgetInfo::selected(egui::WidgetType::SelectableLabel, true, selected, label)
     });

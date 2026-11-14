@@ -24,15 +24,15 @@ use crate::tray::Tray;
 use ss_store::config::HotkeysConfig;
 
 /// Initial window size in points.
-const WINDOW_SIZE: [f32; 2] = [1000.0, 720.0];
+const WINDOW_SIZE: [f32; 2] = [920.0, 660.0];
 /// Smallest usable window.
-const MIN_WINDOW_SIZE: [f32; 2] = [760.0, 520.0];
+const MIN_WINDOW_SIZE: [f32; 2] = [720.0, 480.0];
 /// Width of the navigation sidebar.
-const SIDEBAR_WIDTH: f32 = 216.0;
+const SIDEBAR_WIDTH: f32 = 196.0;
 /// Widest the page content grows; wider windows centre it.
-const CONTENT_MAX_WIDTH: f32 = 760.0;
+const CONTENT_MAX_WIDTH: f32 = 720.0;
 /// Padding around the page content.
-const PAGE_PADDING: f32 = 28.0;
+const PAGE_PADDING: f32 = 20.0;
 /// Size of the window icon in pixels.
 const WINDOW_ICON_SIZE: u32 = 64;
 
@@ -181,20 +181,20 @@ impl App {
             .frame(
                 egui::Frame::new()
                     .fill(p.sidebar)
-                    .inner_margin(egui::Margin::symmetric(12, 18)),
+                    .inner_margin(egui::Margin::symmetric(10, 14)),
             )
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
                     ui.add_space(8.0);
-                    ui.label(RichText::new("🎧").size(20.0).color(p.accent));
+                    ui.label(RichText::new("🎧").size(18.0).color(p.accent));
                     ui.label(
                         RichText::new("StealSeries")
                             .text_style(egui::TextStyle::Name(theme::CARD_TITLE.into()))
                             .color(p.text),
                     );
                 });
-                ui.add_space(18.0);
-                ui.spacing_mut().item_spacing.y = 4.0;
+                ui.add_space(12.0);
+                ui.spacing_mut().item_spacing.y = 2.0;
                 for page in Page::ALL.into_iter().filter(|p| p.available()) {
                     if components::nav_item(ui, page.icon(), page.label(), self.page == page)
                         .clicked()

@@ -12,9 +12,9 @@ pub const STRONG_FAMILY: &str = "ui-strong";
 /// Text style of card titles.
 pub const CARD_TITLE: &str = "card-title";
 /// Corner radius of cards.
-pub const CARD_RADIUS: u8 = 12;
+pub const CARD_RADIUS: u8 = 10;
 /// Corner radius of buttons, inputs and other controls.
-pub const CONTROL_RADIUS: u8 = 8;
+pub const CONTROL_RADIUS: u8 = 7;
 
 /// Colour tokens of one theme.
 #[derive(Debug, Clone, Copy)]
@@ -92,23 +92,23 @@ pub fn install(ctx: &egui::Context) {
     ctx.set_visuals_of(Theme::Light, visuals(&LIGHT, false));
     ctx.all_styles_mut(|style| {
         style.text_styles = [
-            (TextStyle::Heading, FontId::new(24.0, strong())),
+            (TextStyle::Heading, FontId::new(20.0, strong())),
             (
                 TextStyle::Name(CARD_TITLE.into()),
-                FontId::new(16.0, strong()),
+                FontId::new(14.5, strong()),
             ),
-            (TextStyle::Body, FontId::proportional(14.0)),
-            (TextStyle::Button, FontId::proportional(14.0)),
-            (TextStyle::Small, FontId::proportional(12.5)),
+            (TextStyle::Body, FontId::proportional(13.5)),
+            (TextStyle::Button, FontId::proportional(13.5)),
+            (TextStyle::Small, FontId::proportional(12.0)),
             (TextStyle::Monospace, FontId::monospace(13.0)),
         ]
         .into();
         let spacing = &mut style.spacing;
-        spacing.item_spacing = egui::vec2(10.0, 10.0);
-        spacing.button_padding = egui::vec2(14.0, 6.0);
-        spacing.interact_size = egui::vec2(36.0, 30.0);
-        spacing.slider_width = 240.0;
-        spacing.combo_width = 240.0;
+        spacing.item_spacing = egui::vec2(8.0, 6.0);
+        spacing.button_padding = egui::vec2(10.0, 4.0);
+        spacing.interact_size = egui::vec2(32.0, 26.0);
+        spacing.slider_width = 200.0;
+        spacing.combo_width = 200.0;
         spacing.icon_width = 18.0;
         spacing.menu_margin = Margin::same(8);
         style.interaction.tooltip_delay = 0.4;
