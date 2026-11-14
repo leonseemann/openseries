@@ -19,6 +19,9 @@ Build time is kept low by:
 - `CARGO_INCREMENTAL=0` and no debug info in dev/test profiles (smaller cache, faster links).
 - `paths-ignore` for docs-only commits; `concurrency` cancels superseded runs.
 
+First results (2026-11-14): Windows clippy + tests pass; with a warm cache the Windows job takes
+about 2 minutes, rustfmt about 20 s.
+
 Run macOS on demand: GitHub → Actions → CI → "Run workflow", or `gh workflow run CI`.
 Linux is not built (the app's tray/HID dependencies need system packages and Linux is not a
 target platform).
