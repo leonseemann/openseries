@@ -24,8 +24,8 @@ const IDLE_POLL: Duration = Duration::from_millis(200);
 const POLLS_PER_PROBE_REPORT: u32 = 5;
 /// Peaks below this are printed as silence.
 const SILENCE_DBFS: f32 = -120.0;
-/// Seconds of exact digital silence on every tap before warning about the permission.
-const SILENT_TAP_WARNING_SECONDS: u32 = 3;
+/// Seconds of exact digital silence before warning about a missing permission.
+const SILENCE_WARNING_SECONDS: u32 = 3;
 
 /// Runs the selected action.
 ///
@@ -89,10 +89,20 @@ fn mic(args: &MicArgs) -> Result<()> {
         );
     }
     let mut polls = 0_u32;
+    let mut silence = SilenceWatch::new(SILENT_MIC_HINT);
     wait_for_ctrl_c(|| {
         polls += 1;
-        if args.probe && polls % POLLS_PER_PROBE_REPORT == 0 {
-            print_mic_probe(&session.probe());
+        if polls % POLLS_PER_PROBE_REPORT == 0 {
+            let snapshot = session.probe();
+            // The last probed slot is the feed; the ones before it are the mic buffers.
+            let mics = snapshot
+                .input_buffers
+                .min(MAX_PROBED_BUFFERS)
+                .saturating_sub(1);
+            silence.observe(snapshot.peaks.get(..mics).unwrap_or_default());
+            if args.probe {
+                print_mic_probe(&snapshot);
+            }
         }
     })?;
     drop(session);
@@ -149,12 +159,14 @@ fn run(args: &RunArgs) -> Result<()> {
         print_stream_layout(&session)?;
     }
     let mut polls = 0_u32;
-    let mut silence = SilentTapWatch::default();
+    let mut silence = SilenceWatch::new(SILENT_TAPS_HINT);
+    let skipped = session.stream_layout()?.device_inputs;
     wait_for_ctrl_c(|| {
         polls += 1;
         if polls % POLLS_PER_PROBE_REPORT == 0 {
             let snapshot = session.probe();
-            silence.observe(&session, &snapshot);
+            let shown = snapshot.input_buffers.min(MAX_PROBED_BUFFERS);
+            silence.observe(snapshot.peaks.get(skipped..shown).unwrap_or_default());
             if args.probe {
                 print_probe(&snapshot);
             }
@@ -284,33 +296,45 @@ fn print_stream_layout(session: &AudioMixSession) -> Result<()> {
     Ok(())
 }
 
-/// Warns once when all taps deliver exact zeros: macOS does that (and still mutes the tapped
+/// Hint printed when all taps deliver exact zeros: macOS does that (and still mutes the tapped
 /// apps) when the terminal lacks "System Audio Recording" permission
 /// (`docs/hardware/macos-audiomix.md`, Prerequisites).
-#[derive(Debug, Default)]
-struct SilentTapWatch {
+const SILENT_TAPS_HINT: &str = "all taps deliver digital silence. If apps are playing, allow \
+    this terminal under System Settings → Privacy & Security → Screen & System Audio Recording \
+    → System Audio Recording Only, then restart the terminal.";
+/// Hint printed when the source mic delivers exact zeros: macOS does that when the terminal's
+/// microphone access is denied (`docs/hardware/macos-virtual-mic.md`).
+const SILENT_MIC_HINT: &str = "the microphone delivers digital silence. Allow this terminal \
+    under System Settings → Privacy & Security → Microphone, then restart the terminal.";
+
+/// Warns once when the watched buffers stay at exact digital zero, which real microphones and
+/// playing apps never produce, but a denied permission does.
+#[derive(Debug)]
+struct SilenceWatch {
+    hint: &'static str,
     silent_seconds: u32,
     warned: bool,
 }
 
-impl SilentTapWatch {
-    fn observe(&mut self, session: &AudioMixSession, snapshot: &ProbeSnapshot) {
-        let Ok(layout) = session.stream_layout() else {
-            return;
-        };
-        let taps = layout.device_inputs..snapshot.input_buffers.min(MAX_PROBED_BUFFERS);
-        if taps.is_empty() || snapshot.peaks[taps].iter().any(|p| p.to_bits() != 0) {
+impl SilenceWatch {
+    const fn new(hint: &'static str) -> Self {
+        Self {
+            hint,
+            silent_seconds: 0,
+            warned: false,
+        }
+    }
+
+    /// Call once per second with the peaks of the watched buffers.
+    fn observe(&mut self, peaks: &[f32]) {
+        if peaks.is_empty() || peaks.iter().any(|p| p.to_bits() != 0) {
             self.silent_seconds = 0;
             return;
         }
         self.silent_seconds += 1;
-        if !self.warned && self.silent_seconds >= SILENT_TAP_WARNING_SECONDS {
+        if !self.warned && self.silent_seconds >= SILENCE_WARNING_SECONDS {
             self.warned = true;
-            eprintln!(
-                "warning: all taps deliver digital silence. If apps are playing, allow this \
-                 terminal under System Settings → Privacy & Security → Screen & System Audio \
-                 Recording → System Audio Recording Only, then restart the terminal."
-            );
+            eprintln!("warning: {}", self.hint);
         }
     }
 }

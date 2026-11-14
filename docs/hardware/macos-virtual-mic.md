@@ -11,7 +11,13 @@ scripts/macos/hal-driver.sh install    # builds, ad-hoc signs, copies to /Librar
 scripts/macos/hal-driver.sh uninstall  # removes it again (sudo)
 ```
 
-Restarting `coreaudiod` interrupts all audio for about a second.
+Restarting `coreaudiod` interrupts all audio for about a second. `sudo` needs a real terminal:
+run the script in a normal terminal tab, not via Claude Code's `!` prefix (**Observed**).
+
+Permission: the terminal running `ssmix mic` needs **Microphone** access. If it was denied once,
+macOS does not ask again and the mic delivers exact digital silence (**Observed**); enable it
+under *Privacy & Security → Microphone* and restart the terminal. `ssmix mic` warns after 3 s of
+exact silence.
 
 ## Steps
 
@@ -29,9 +35,9 @@ Input, QuickTime, Discord …) and speak into the headset.
 | # | Check | Expected | Result |
 |---|-------|----------|--------|
 | 1 | Build, fmt, clippy, tests incl. the HAL-style vtable smoke test | green | ✅ Observed 2026-11-14 |
-| 2 | `hal-driver.sh install`; `coreaudiod` loads the plug-in | "StealSeries Microphone" listed under Sound → Input; no "Feed" device anywhere | ⏳ |
-| 3 | `ssmix inputs` | StealSeries Microphone listed (1 ch); feed device hidden | ⏳ |
-| 4 | `coreaudiod` stability | no crash / restart loop after install (`log show --predicate 'process == "coreaudiod"' --last 5m`) | ⏳ |
+| 2 | `hal-driver.sh install`; `coreaudiod` loads the plug-in | "StealSeries Microphone" listed under Sound → Input; no "Feed" device anywhere | ✅ Observed: listed under Sound → Input; feed device appears in neither input nor output lists |
+| 3 | `ssmix inputs` | StealSeries Microphone listed (1 ch); feed device hidden | ✅ Observed: `StealSeries Microphone 1 ch dev.stealseries.mic`; feed absent from `inputs` and `devices` |
+| 4 | `coreaudiod` stability | no crash / restart loop after install (`log show --predicate 'process == "coreaudiod"' --last 5m`) | ✅ Observed: one `coreaudiod` process since the install restart, no driver errors in the log |
 | 5 | `ssmix mic --probe`: aggregate layout (**Inferred**: mic device outputs first, then feed) | feed index matches; feed peak follows the mic peak (+ gain) | ⏳ |
 | 6 | IO on the **hidden** feed device (**Inferred**) | works (input level meter of StealSeries Microphone moves while speaking) | ⏳ |
 | 7 | Stop `ssmix mic` | StealSeries Microphone goes silent, no replay of old audio | ⏳ |
