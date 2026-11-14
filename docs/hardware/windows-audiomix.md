@@ -32,3 +32,10 @@ Run on 2026-11-14: Windows 11 Pro (build 26300), Nova Pro Wireless, GG not runni
 | 10 | AudioMix off, and Quit | every app slider back to where it was before | ✅ Observed 2026-11-14 |
 | 11 | Crash safety: Game at 20 %, kill `stealseries.exe` in Task Manager, restart the app | app volumes restored on start; `%APPDATA%\StealSeries\session-volumes.txt` gone | ✅ Observed 2026-11-14 |
 | 12 | Virtual microphone switch | "needs the StealSeries audio driver (milestone M4b)", nothing crashes | ✅ Observed 2026-11-14 |
+
+## Smoke test without the owner (2026-11-14, agent)
+
+Isolated config (`APPDATA` pointed to a scratch folder, `STEALSERIES_NO_HEADSET=1`), AudioMix on
+with all faders at 100 % (so no audible change): the session mixer started, wrote the restore file
+(here the Spotify session) and kept it after a hard kill; the next start with AudioMix off restored
+it and deleted the file. Session volumes before and after (`winspike sessions`) were identical.
