@@ -32,6 +32,8 @@ Input, QuickTime, Discord …) and speak into the headset.
 
 ## Checklist
 
+Run on 2026-11-14: macOS 27.2.1 (arm64), Ghostty, Nova Pro base station on USB-1. **All checks passed.**
+
 | # | Check | Expected | Result |
 |---|-------|----------|--------|
 | 1 | Build, fmt, clippy, tests incl. the HAL-style vtable smoke test | green | ✅ Observed 2026-11-14 |
@@ -43,4 +45,4 @@ Input, QuickTime, Discord …) and speak into the headset.
 | 7 | Stop `ssmix mic` | StealSeries Microphone goes silent, no replay of old audio | ✅ Observed: meter flat for 10 s after stopping while still speaking |
 | 8 | Real app (Discord / Zoom / QuickTime recording) | voice clear, no crackles, no noticeable delay | ✅ Observed (QuickTime audio recording from StealSeries Microphone, 60 s): voice clear, no crackles or dropouts; restarting `ssmix mic` mid-recording left no audible gap. Latency not assessable from a recording; to judge in a live call later |
 | 9 | `--gain-db 6` | louder in the app | ✅ Observed: second half (+6 dB) clearly louder in the same recording |
-| 10 | `hal-driver.sh uninstall` | device gone, other audio unaffected | ⏳ |
+| 10 | `hal-driver.sh uninstall` | device gone, other audio unaffected | ✅ Observed: bundle removed from `/Library/Audio/Plug-Ins/HAL`, StealSeries Microphone gone from `ssmix inputs`, Nova Pro and other devices unaffected, `coreaudiod` running |
