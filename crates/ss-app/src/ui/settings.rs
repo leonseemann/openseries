@@ -63,6 +63,8 @@ pub fn show(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, capture: &mu
     );
     third_party_licenses(ui);
     ui.add_space(8.0);
+    reset_settings(ui, core);
+    ui.add_space(8.0);
     if ui.button("Quit StealSeries").clicked() {
         crate::quit(core);
     }
@@ -160,6 +162,35 @@ fn record(
         // Keep recording: e.g. a lone modifier or a key without Ctrl/Alt.
         Err(message) => capture.message = Some(message),
     }
+}
+
+/// "Reset StealSeries settings…" with a confirmation step (DEV-12, app part). The headset's own
+/// factory reset is not offered: its command is unverified (`nova-pro-wireless.md`).
+fn reset_settings(ui: &mut egui::Ui, core: &AppCore) {
+    let id = ui.id().with("confirm-reset");
+    let confirming = ui.data(|d| d.get_temp::<bool>(id)).unwrap_or(false);
+    if !confirming {
+        if ui.button("Reset StealSeries settings…").clicked() {
+            ui.data_mut(|d| d.insert_temp(id, true));
+        }
+        return;
+    }
+    ui.group(|ui| {
+        ui.label(
+            "Reset AudioMix, microphone, hotkeys, notifications and all other StealSeries \
+             settings to their defaults? AudioMix and the virtual microphone switch off, start at \
+             login is turned off. Your saved presets are kept. The headset itself is not changed.",
+        );
+        ui.horizontal(|ui| {
+            if ui.button("Reset").clicked() {
+                core.update_config(|c| *c = c.reset_keeping_presets());
+                ui.data_mut(|d| d.insert_temp(id, false));
+            }
+            if ui.button("Cancel").clicked() {
+                ui.data_mut(|d| d.insert_temp(id, false));
+            }
+        });
+    });
 }
 
 fn crackling(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {

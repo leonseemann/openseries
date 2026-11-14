@@ -26,6 +26,18 @@ pub struct Config {
     pub presets: crate::presets::PresetsConfig,
 }
 
+impl Config {
+    /// Factory settings of the app (DEV-12, app part): everything back to defaults except the
+    /// saved presets, which are the user's own data.
+    #[must_use]
+    pub fn reset_keeping_presets(&self) -> Self {
+        Self {
+            presets: self.presets.clone(),
+            ..Self::default()
+        }
+    }
+}
+
 impl Default for Config {
     fn default() -> Self {
         Self {
@@ -293,5 +305,32 @@ impl Default for HotkeysConfig {
             mic_mute: Some("Ctrl+Alt+M".to_owned()),
             reconnect_usb: Some("Ctrl+Alt+R".to_owned()),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reset_restores_defaults_but_keeps_presets() {
+        let mut config = Config::default();
+        config.audiomix.enabled = true;
+        config.app.autostart = true;
+        config.app.onboarding_done = true;
+        config.mic.gain_db = 6.0;
+        config
+            .presets
+            .headset_eq
+            .insert("Mine".to_owned(), vec![1.0; 10]);
+        let reset = config.reset_keeping_presets();
+        assert_eq!(reset.presets, config.presets);
+        assert_eq!(
+            Config {
+                presets: crate::presets::PresetsConfig::default(),
+                ..reset
+            },
+            Config::default()
+        );
     }
 }

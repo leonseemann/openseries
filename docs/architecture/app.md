@@ -53,6 +53,12 @@ Notes on v1 behaviour:
   mute needs the mic command queue (later).
 - **Reconnect USB** is on the headset page, in the menu-bar menu and on a hotkey (default Ctrl+Alt+R): the manual cure for both kinds of crackling (`docs/hardware/macos-app.md` Findings).
 - **ChatMix hotkeys** move a software balance in steps of 10 %; moving the headset dial overrides it.
+- **Reset StealSeries settings…** (DEV-12, app part; Settings, with a confirmation step):
+  `Config::reset_keeping_presets` — every setting back to its default (AudioMix and virtual mic
+  off, autostart off and its registration removed, hotkeys default, onboarding shown again),
+  saved presets kept. The headset's own factory reset (`06 FD`) is **not** offered: the command
+  is unverified and possibly irreversible (`nova-pro-wireless.md`), so it waits for an owner
+  decision and a supervised test.
 - **Getting started** (onboarding): a window on first start (until "Done", `app.onboarding_done`;
   Settings → "Show getting started" reopens it) with a live checklist — base station connected,
   headset on, AudioMix running, on macOS the mic driver installed and the virtual mic running,
