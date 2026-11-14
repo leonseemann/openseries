@@ -30,3 +30,13 @@ The app lives in the menu bar (headphone icon); "Open StealSeries…" shows the 
 | 12 | Autostart on, log out/in | app starts in the menu bar | ⏳ |
 | 13 | Quit from the menu | base station ChatMix returns to normal, apps play normally | ⏳ |
 | 14 | Headset page → **Reconnect USB** (IOUSBHost re-enumeration, `ss-usb-macos`) | base station re-plugs in software; app reconnects; running AudioMix/mic recover | ✅ Observed 2026-11-14 in the app with AudioMix on and music playing: short audio dropout, then music continued through the mix; headset page repopulated; no error. Works **without admin rights**. Power stays on (display did not restart in the spike), so it is a USB reset, not a power cycle; whether it cures the 2.4 GHz crackles (owner's fix: unplug the cable) is Unknown until they recur. The CoreAudio device id changed in the spike (119 → 143) but **not** in this run (stayed 143) — ids can be reused, so the supervisor's device-list check is a safety net, not a guarantee; here the aggregate device recovered on its own |
+
+## Findings
+
+- **Stutter with AudioMix on** (2026-11-14, owner: "komischer Sound, hackt"): caused by the
+  device-change rule added for Reconnect USB — our own private aggregate device is visible in the
+  app's device list, so every rebuild changed the list and triggered the next rebuild (every 2 s);
+  iPhone mics coming and going did the same. Fixed in `b663c53` (own devices filtered, rebuild only
+  when the device in use changes). **Observed** after the fix: "Started 1 time(s)" stays at 1,
+  stutter gone (owner: "ist glaube ich weg"). Regression test
+  `unrelated_devices_coming_and_going_do_not_interrupt_the_mix`.
