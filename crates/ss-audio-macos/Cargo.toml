@@ -24,6 +24,11 @@ dispatch2 = "0.3"
 
 [target.'cfg(target_os = "macos")'.dev-dependencies]
 ss-hal-driver-macos.workspace = true
+# vpio_spike example only (M6 spike, mic-chain.md §6).
+objc2-audio-toolbox = "0.3"
+rtrb.workspace = true
+hound.workspace = true
+anyhow.workspace = true
 
 [lints]
 workspace = true
