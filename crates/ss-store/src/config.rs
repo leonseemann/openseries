@@ -250,6 +250,8 @@ pub struct HotkeysConfig {
     pub chatmix_chat: Option<String>,
     /// Mute/unmute the virtual microphone.
     pub mic_mute: Option<String>,
+    /// Reconnect the base station's USB connection (cures crackling).
+    pub reconnect_usb: Option<String>,
 }
 
 impl Default for HotkeysConfig {
@@ -258,6 +260,7 @@ impl Default for HotkeysConfig {
             chatmix_game: Some("Ctrl+Alt+Left".to_owned()),
             chatmix_chat: Some("Ctrl+Alt+Right".to_owned()),
             mic_mute: Some("Ctrl+Alt+M".to_owned()),
+            reconnect_usb: Some("Ctrl+Alt+R".to_owned()),
         }
     }
 }

@@ -19,6 +19,7 @@ const CHATMIX_STEP: f32 = 0.1;
 enum Action {
     ChatMix(f32),
     ToggleMic,
+    ReconnectUsb,
 }
 
 /// Keeps the hotkeys registered while alive.
@@ -43,7 +44,11 @@ impl Hotkeys {
             (&config.chatmix_game, Action::ChatMix(-CHATMIX_STEP)),
             (&config.chatmix_chat, Action::ChatMix(CHATMIX_STEP)),
             (&config.mic_mute, Action::ToggleMic),
+            (&config.reconnect_usb, Action::ReconnectUsb),
         ] {
+            if matches!(action, Action::ReconnectUsb) && !crate::platform::USB_RESET_SUPPORTED {
+                continue;
+            }
             let Some(text) = binding else {
                 continue;
             };
@@ -66,6 +71,7 @@ impl Hotkeys {
                 Some(Action::ToggleMic) => {
                     core.update_config(|c| c.mic.enabled = !c.mic.enabled);
                 }
+                Some(Action::ReconnectUsb) => core.reset_headset_usb(),
                 None => {}
             }
         }));
@@ -80,9 +86,14 @@ mod tests {
     #[test]
     fn default_bindings_parse() {
         let config = HotkeysConfig::default();
-        for binding in [config.chatmix_game, config.chatmix_chat, config.mic_mute]
-            .into_iter()
-            .flatten()
+        for binding in [
+            config.chatmix_game,
+            config.chatmix_chat,
+            config.mic_mute,
+            config.reconnect_usb,
+        ]
+        .into_iter()
+        .flatten()
         {
             assert!(binding.parse::<HotKey>().is_ok(), "{binding}");
         }

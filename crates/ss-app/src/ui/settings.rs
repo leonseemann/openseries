@@ -25,6 +25,7 @@ pub fn show(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
             ("ChatMix towards Game", &hotkeys.chatmix_game),
             ("ChatMix towards Chat", &hotkeys.chatmix_chat),
             ("Mute virtual microphone", &hotkeys.mic_mute),
+            ("Reconnect USB (fixes crackling)", &hotkeys.reconnect_usb),
         ] {
             ui.label(label);
             ui.monospace(value.as_deref().unwrap_or("—"));

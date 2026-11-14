@@ -52,3 +52,14 @@ The app lives in the menu bar (headphone icon); "Open StealSeries…" shows the 
   audio stream intermittently delivers too little data, the HAL keeps re-timing the device clock,
   which is audible as clicks; a USB reset re-synchronises it — a device firmware/USB issue, not
   StealSeries. Live watch: `/usr/bin/log stream --predicate 'process == "usbaudiod" AND eventMessage CONTAINS "underflow"'`.
+- **A second kind of crackling leaves no trace on the Mac** (2026-11-14 ~13:56–13:58). With the
+  automatic fix enabled and its `log stream` running, the owner heard crackling, but `usbaudiod`
+  logged nothing after 13:55:51 (no underflows) and `coreaudiod` reported no overloads. Clicking
+  Reconnect USB still cured it. **Inferred:** this kind originates between headset and base
+  station (radio) or inside the base station, invisible to the USB host; a USB reset re-initialises
+  the base station's audio path anyway. Consequence: the automatic fix covers only the underflow
+  kind; Reconnect USB is now also in the menu bar and on a hotkey (Ctrl+Alt+R).
+- **Zero-length transfers + `ioDriftNS` growth are not a crackling signal on their own:** after a
+  stream (re)start the input endpoint reports a few zero-length transfers and the cumulative drift
+  grows in 1 ms steps (e.g. 2 → 16 ms within a minute after the 13:45:19 reset) while the owner
+  heard no crackling. Not used for detection.

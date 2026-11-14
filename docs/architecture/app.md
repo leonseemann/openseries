@@ -51,6 +51,7 @@ flowchart LR
 Notes on v1 behaviour:
 - **Mic mute hotkey** toggles the mic feed (StealSeries Microphone goes silent); a click-free live
   mute needs the mic command queue (later).
+- **Reconnect USB** is on the headset page, in the menu-bar menu and on a hotkey (default Ctrl+Alt+R): the manual cure for both kinds of crackling (`docs/hardware/macos-app.md` Findings).
 - **ChatMix hotkeys** move a software balance in steps of 10 %; moving the headset dial overrides it.
 - **Hotkeys** are read from the config at start (no editor yet; edit `config.json`, restart).
 - Changing mic processing restarts the mic feed briefly (no live control of the chain yet).

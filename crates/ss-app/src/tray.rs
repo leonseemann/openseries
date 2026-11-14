@@ -35,6 +35,7 @@ impl Tray {
         let status = MenuItem::new("StealSeries", false, None);
         let audiomix = CheckMenuItem::new("AudioMix", true, config.audiomix.enabled, None);
         let mic = CheckMenuItem::new("Virtual microphone", true, config.mic.enabled, None);
+        let reconnect = MenuItem::new("Reconnect USB (fixes crackling)", true, None);
         let open = MenuItem::new("Open StealSeries…", true, None);
         let quit = MenuItem::new("Quit StealSeries", true, None);
 
@@ -45,9 +46,11 @@ impl Tray {
             &audiomix,
             &mic,
             &PredefinedMenuItem::separator(),
-            &open,
-            &quit,
         ])?;
+        if crate::platform::USB_RESET_SUPPORTED {
+            menu.append_items(&[&reconnect, &PredefinedMenuItem::separator()])?;
+        }
+        menu.append_items(&[&open, &quit])?;
         let icon = TrayIconBuilder::new()
             .with_menu(Box::new(menu))
             .with_tooltip("StealSeries")
@@ -55,9 +58,10 @@ impl Tray {
             .with_icon_as_template(true)
             .build()?;
 
-        let (audiomix_id, mic_id, open_id, quit_id) = (
+        let (audiomix_id, mic_id, reconnect_id, open_id, quit_id) = (
             audiomix.id().clone(),
             mic.id().clone(),
+            reconnect.id().clone(),
             open.id().clone(),
             quit.id().clone(),
         );
@@ -68,6 +72,8 @@ impl Tray {
                 core.update_config(|c| c.audiomix.enabled = !c.audiomix.enabled);
             } else if *id == mic_id {
                 core.update_config(|c| c.mic.enabled = !c.mic.enabled);
+            } else if *id == reconnect_id {
+                core.reset_headset_usb();
             } else if *id == open_id {
                 ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
                 ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
