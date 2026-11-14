@@ -8,10 +8,12 @@ mod biquad;
 mod boost;
 mod chain;
 mod chatmix;
+mod denoise;
 mod dynamics;
 mod error;
 mod gain;
 pub mod level;
+mod mic_chain;
 mod peq;
 
 #[cfg(test)]
@@ -21,9 +23,14 @@ pub use biquad::{Biquad, Coefficients};
 pub use boost::{BoostSettings, Boosts};
 pub use chain::{ChannelStrip, ChannelStripSettings};
 pub use chatmix::{ChatMixGains, balance_from_slider, chatmix_gains};
+pub use denoise::{DENOISE_FRAME, DENOISE_LATENCY, DENOISE_SAMPLE_RATE, Denoiser};
 pub use dynamics::{Compressor, CompressorSettings, NoiseGate, NoiseGateSettings, SmartVolume};
 pub use error::DspError;
 pub use gain::Gain;
+pub use mic_chain::{
+    DEFAULT_AUTO_GATE_OFFSET_DB, DEFAULT_DENOISE_MIX, DEFAULT_GATE_THRESHOLD_DB, GateMode,
+    MicChain, MicChainSettings, voice_stabilizer,
+};
 pub use peq::ParametricEq;
 
 /// Largest supported channel count (7.1 surround).

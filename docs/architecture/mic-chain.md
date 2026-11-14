@@ -31,7 +31,7 @@ Order rationale:
 3. **Compressor after the gate**: its makeup gain must not lift the floor in pauses.
 4. **EQ last**: tonal shaping of the final voice; boosts are not undone by the compressor.
 
-Every block can be bypassed; a bypassed chain is bit-exact passthrough (after the fixed latency).
+Every block can be bypassed. Only the denoiser adds latency; with denoise off the chain has none.
 
 ## 3. Denoise block (`ss-dsp::Denoiser`)
 
@@ -42,14 +42,16 @@ Every block can be bypassed; a bypassed chain is bit-exact passthrough (after th
   (±32768). The block converts scale on the way in and out.
 - **Frame adaptation**: the IOProc delivers 512-frame blocks. A fixed input FIFO collects samples,
   each full 480-frame is denoised into an output FIFO, and output starts after priming with one
-  frame of silence. Result: a **constant extra latency of 480 samples (10 ms)** on top of the
-  model's own overlap-add delay, independent of the callback size. Both FIFOs are allocated in
+  frame of silence. Result: a **constant latency of 960 samples (20 ms)** = 480 (FIFO) + 480
+  (RNNoise overlap-add), independent of the callback size (**Observed** in the unit tests
+  `latency_matches_an_impulse` and `wet_path_is_aligned_with_the_dry_path`). Both FIFOs are allocated in
   `new()` for the largest supported callback (4096 frames).
 - **Mix**: `out = mix · denoised + (1 − mix) · dry`, where `dry` is delayed by the same total
   latency so both are time-aligned (the alignment is measured in a unit test with an impulse).
 - Real-time safety: `DenoiseState` allocates only in `new()`; `process_frame` uses stack arrays
-  and pre-planned FFT buffers (**Inferred** from the source; a unit test with a counting global
-  allocator asserts zero allocations in `process` after warm-up).
+  and pre-planned FFT buffers. **Observed**: `crates/ss-dsp/tests/no_allocation.rs` counts zero
+  allocations over 200 blocks of the full chain (with a control test proving the counter works).
+  RNNoise has no reset; `reset()` only clears the FIFOs instead of re-creating it (would allocate).
 - Total added mic latency target: **≤ 25 ms** (measured end to end in the hardware test).
 
 ## 4. Automatic gate threshold

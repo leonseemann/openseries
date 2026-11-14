@@ -27,6 +27,8 @@ ss-dsp
 ├── dynamics.rs    Compressor (smart volume, mic stabilizer), NoiseGate
 ├── chatmix.rs     ChatMix law: dial / slider → (game gain, chat gain)
 ├── chain.rs       ChannelStrip = PEQ → boosts → smart volume → gain
+├── denoise.rs     Denoiser: RNNoise (nnnoiseless) with frame FIFO + dry/wet mix (M6)
+├── mic_chain.rs   MicChain = denoise → gate (manual/auto) → stabilizer → mic PEQ → gain (M6)
 └── level.rs       dB ↔ linear helpers
 ssdsp (bin)        offline WAV processing for listening tests
 ```

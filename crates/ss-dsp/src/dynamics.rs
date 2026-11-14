@@ -203,6 +203,12 @@ impl NoiseGate {
         gate
     }
 
+    /// Current parameters.
+    #[must_use]
+    pub const fn settings(&self) -> NoiseGateSettings {
+        self.settings
+    }
+
     /// Applies new parameters.
     pub fn set(&mut self, settings: NoiseGateSettings) {
         self.settings = settings;

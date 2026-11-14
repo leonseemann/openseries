@@ -9,6 +9,12 @@ license.workspace = true
 
 [dependencies]
 ss-core.workspace = true
+# RNNoise port (BSD-3-Clause), model compiled in; CLI features off.
+nnnoiseless = { version = "0.5", default-features = false }
+
+[dev-dependencies]
+# Counts allocations in the real-time safety test (MIT OR Apache-2.0).
+allocation-counter = "0.8"
 
 [lints]
 workspace = true
