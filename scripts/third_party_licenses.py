@@ -54,7 +54,9 @@ def app_dependencies(meta):
 
 def license_files(package_dir, depth=0):
     found = []
-    for entry in sorted(package_dir.iterdir()):
+    # Sort by name explicitly: Path ordering is case-insensitive on Windows but not on macOS, and
+    # the output must be identical on every OS (CI checks it on Windows).
+    for entry in sorted(package_dir.iterdir(), key=lambda e: e.name):
         if entry.is_file() and LICENSE_FILE.match(entry.name):
             found.append(entry)
         elif entry.is_dir() and depth < MAX_DEPTH and entry.name not in SKIP_DIRS:
@@ -84,7 +86,7 @@ def render(deps):
             if text:
                 texts.setdefault(text, []).append(f"{p['name']} {p['version']}")
     lines += ["", "## Licence texts", ""]
-    for text, users in sorted(texts.items(), key=lambda item: item[1][0].lower()):
+    for text, users in sorted(texts.items(), key=lambda item: (item[1][0].lower(), item[0])):
         unique = sorted(set(users), key=str.lower)
         lines += [f"### Used by: {', '.join(unique)}", "", "```text", text, "```", ""]
     return "\n".join(lines).rstrip() + "\n"
@@ -96,6 +98,12 @@ def main():
         current = OUTPUT.read_text(encoding="utf-8") if OUTPUT.exists() else ""
         if current != content:
             print(f"{OUTPUT.relative_to(ROOT)} is out of date; run scripts/third_party_licenses.py")
+            for number, (old, new) in enumerate(zip(current.splitlines(), content.splitlines()), 1):
+                if old != new:
+                    print(f"first difference at line {number}:\n  file:      {old!r}\n  generated: {new!r}")
+                    break
+            else:
+                print(f"length differs: file {len(current)} chars, generated {len(content)}")
             return 1
         return 0
     OUTPUT.write_text(content, encoding="utf-8")
