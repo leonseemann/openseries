@@ -7,13 +7,14 @@
 use std::sync::mpsc::{self, RecvTimeoutError, Sender};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::thread::JoinHandle;
-use std::time::Duration;
+use std::time::{Duration, Instant, SystemTime};
 
 use ss_nova_pro::Command;
 use ss_store::{Config, Store};
 
 use crate::audio::service::{self, AudioMsg};
 use crate::audio::supervisor::{AudioBackend, AudioStatus};
+use crate::crackle::{BurstDetector, CrackleStatus};
 use crate::headset::{self, HeadsetMsg, HeadsetState};
 use crate::notify::Notifier;
 
@@ -33,6 +34,8 @@ pub struct Snapshot {
     pub config_warning: Option<String>,
     /// Problem while saving the config.
     pub save_error: Option<String>,
+    /// Automatic crackling fix.
+    pub crackle: CrackleStatus,
 }
 
 /// Shared application core.
@@ -51,6 +54,9 @@ pub struct AppCore {
     service_threads: usize,
     /// Software ChatMix position for hotkeys, −1 (game) … +1 (chat).
     chatmix_position: Mutex<f32>,
+    crackle_status: Arc<Mutex<CrackleStatus>>,
+    crackle_watch: Mutex<Option<crate::platform::UnderflowWatch>>,
+    notify: Notifier,
 }
 
 impl AppCore {
@@ -140,7 +146,7 @@ impl AppCore {
                 })?,
         );
 
-        Ok(Arc::new(Self {
+        let core = Arc::new(Self {
             config: Mutex::new(config),
             store,
             config_warning: loaded.warning,
@@ -153,7 +159,14 @@ impl AppCore {
             threads: Mutex::new(threads),
             service_threads,
             chatmix_position: Mutex::new(0.0),
-        }))
+            crackle_status: Arc::new(Mutex::new(CrackleStatus::default())),
+            crackle_watch: Mutex::new(None),
+            notify: Arc::clone(notify),
+        });
+        if core.config().app.auto_fix_crackling {
+            core.apply_crackle_watch(true);
+        }
+        Ok(core)
     }
 
     /// Location of the configuration file.
@@ -170,19 +183,19 @@ impl AppCore {
 
     /// Changes the configuration, applies it to the services and schedules a save.
     pub fn update_config(&self, change: impl FnOnce(&mut Config)) {
-        let (new, audiomix_toggled, autostart_toggled) = {
+        let (new, before) = {
             let mut config = lock(&self.config);
-            let (audiomix_before, autostart_before) =
-                (config.audiomix.enabled, config.app.autostart);
+            let before = config.clone();
             change(&mut config);
-            (
-                config.clone(),
-                config.audiomix.enabled != audiomix_before,
-                config.app.autostart != autostart_before,
-            )
+            (config.clone(), before)
         };
+        let audiomix_toggled = new.audiomix.enabled != before.audiomix.enabled;
+        let autostart_toggled = new.app.autostart != before.app.autostart;
+        if new.app.auto_fix_crackling != before.app.auto_fix_crackling {
+            self.apply_crackle_watch(new.app.auto_fix_crackling);
+        }
         if autostart_toggled {
-            *lock(&self.save_error) = crate::autostart::set(new.app.autostart)
+            *lock(&self.save_error) = crate::platform::set_autostart(new.app.autostart)
                 .err()
                 .map(|e| format!("autostart: {e}"));
         }
@@ -193,6 +206,39 @@ impl AppCore {
         }
         let _ = self.audio_tx.send(AudioMsg::Config(Box::new(new.clone())));
         let _ = self.save_tx.send(new);
+    }
+
+    /// Starts or stops the automatic crackling fix.
+    fn apply_crackle_watch(&self, enabled: bool) {
+        let mut watch = lock(&self.crackle_watch);
+        *watch = None; // stop a running watch first
+        let mut status = lock(&self.crackle_status);
+        status.active = false;
+        status.error = None;
+        if !enabled {
+            return;
+        }
+        let headset_tx = self.headset_tx.clone();
+        let crackle_status = Arc::clone(&self.crackle_status);
+        let detector = Mutex::new(BurstDetector::default());
+        let notify = Arc::clone(&self.notify);
+        let started = crate::platform::watch_usb_underflows(move || {
+            if lock(&detector).record(Instant::now()) {
+                let _ = headset_tx.send(HeadsetMsg::ResetUsb);
+                let mut status = lock(&crackle_status);
+                status.fixes = status.fixes.saturating_add(1);
+                status.last_fix = Some(SystemTime::now());
+                drop(status);
+                notify();
+            }
+        });
+        match started {
+            Ok(handle) => {
+                *watch = Some(handle);
+                status.active = true;
+            }
+            Err(error) => status.error = Some(error),
+        }
     }
 
     /// Moves the software ChatMix by `step` (hotkeys). The headset dial overrides it when moved.
@@ -225,11 +271,13 @@ impl AppCore {
             headset: lock(&self.headset_state).clone(),
             config_warning: self.config_warning.clone(),
             save_error: lock(&self.save_error).clone(),
+            crackle: lock(&self.crackle_status).clone(),
         }
     }
 
     /// Stops the services (restoring the base station) and writes pending config changes.
     pub fn shutdown(&self) {
+        *lock(&self.crackle_watch) = None;
         let _ = self.headset_tx.send(HeadsetMsg::Shutdown);
         let _ = self.audio_tx.send(AudioMsg::Shutdown);
         let threads = std::mem::take(&mut *lock(&self.threads));

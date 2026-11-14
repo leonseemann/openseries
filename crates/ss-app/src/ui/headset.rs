@@ -18,13 +18,14 @@ pub fn show(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
         ui.colored_label(ui.visuals().warn_fg_color, error);
     }
     ui.horizontal(|ui| {
-        if ui
-            .button("Reconnect USB")
-            .on_hover_text(
-                "Resets the base station's USB connection, like unplugging and replugging the \
+        if crate::platform::USB_RESET_SUPPORTED
+            && ui
+                .button("Reconnect USB")
+                .on_hover_text(
+                    "Resets the base station's USB connection, like unplugging and replugging the \
                  cable (keeps power). Audio drops for about a second.",
-            )
-            .clicked()
+                )
+                .clicked()
         {
             core.reset_headset_usb();
         }

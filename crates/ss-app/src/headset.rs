@@ -228,13 +228,13 @@ impl Worker {
     fn reset_usb(&mut self) {
         self.release_takeover();
         self.device = None; // close our HID handles before the device disappears
-        let result = ss_usb_macos::reenumerate(ids::VENDOR_ID, &ids::PRODUCT_IDS);
+        let result = crate::platform::reset_base_usb();
         // Give the base station time to re-enumerate before the next connection attempt.
         self.last_attempt = Some(Instant::now());
         self.update(|s| {
             s.base_station = false;
             s.status = None;
-            s.error = result.err().map(|e| e.to_string());
+            s.error = result.err();
         });
     }
 

@@ -7,12 +7,12 @@
 //!   the base station).
 
 mod audio;
-#[cfg(target_os = "macos")]
-mod autostart;
 mod core;
+mod crackle;
 mod headset;
 mod hotkeys;
 mod notify;
+mod platform;
 mod tray;
 mod ui;
 
@@ -44,8 +44,8 @@ fn main() -> Result<()> {
             ctx.request_repaint();
         }
     });
-    let core =
-        AppCore::start(store, &notify, with_headset, backend).context("starting services")?;
+    let core = AppCore::start(store, &notify, with_headset, platform::audio_backend)
+        .context("starting services")?;
     if let Some(warning) = core.snapshot().config_warning {
         eprintln!("warning: {warning}");
     }
@@ -74,11 +74,6 @@ fn main() -> Result<()> {
 pub fn quit(core: &AppCore) -> ! {
     core.shutdown();
     std::process::exit(0);
-}
-
-#[cfg(target_os = "macos")]
-fn backend() -> audio::macos::MacAudioBackend {
-    audio::macos::MacAudioBackend
 }
 
 /// Prints the state until Ctrl-C.

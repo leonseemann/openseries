@@ -6,3 +6,5 @@ pub mod macos;
 pub mod plan;
 pub mod service;
 pub mod supervisor;
+#[cfg(not(target_os = "macos"))]
+pub mod unsupported;

@@ -94,3 +94,29 @@ ad-hoc signed for development (Developer ID + notarisation later). Built and ins
 `~/Applications` by `scripts/macos/app.sh build|install`. Ad-hoc signatures change with each build,
 so macOS may ask for permissions again after an update (**Inferred**). Later: install the
 virtual-mic driver from the app (admin password via the system dialog).
+
+## 6. Platforms
+
+The app crate is shared by macOS and Windows (ADR 0005). Everything OS-specific lives in
+`crates/ss-app/src/platform/` behind the same names per OS; the rest of the app has no
+`cfg(target_os)`.
+
+| Piece | macOS | Windows |
+|---|---|---|
+| UI, tray, hotkeys (egui, `tray-icon`, `global-hotkey`) | ✅ | ✅ (same crates) |
+| Headset control (`ss-nova-pro` over hidapi) | ✅ | ✅ (verified with `ssctl` in M1) |
+| Config (`ss-store`), supervisor logic, DSP, mic chain | ✅ | ✅ (portable) |
+| AudioMix + virtual mic | process taps + HAL driver | M4 (`ss-audio-windows`); until then the backend reports "not available" |
+| Autostart | LaunchAgent | `HKCU\…\Run` via `reg.exe` (**untested**) |
+| Reconnect USB | IOUSBHost re-enumeration | not yet (button hidden) |
+| Fix crackling automatically | `usbaudiod` underflow log stream | not yet (option disabled) |
+
+**Known gap:** the Windows build of `ss-app` is not compiled on the owner's Mac (no Windows target
+installed); it has to be checked on Windows or in CI.
+
+## 7. Fix crackling automatically
+
+Off by default (`app.auto_fix_crackling`). macOS: `/usr/bin/log stream` filtered to `usbaudiod`
+"USB underflow" messages (no admin rights). `crackle::BurstDetector` triggers a USB reset when
+≥ 20 underflows arrive within 3 s, at most once per 30 s (observed crackling episodes produce
+20–50 per second; normal operation none). The Settings page shows how often it fixed crackling.

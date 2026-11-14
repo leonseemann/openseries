@@ -233,6 +233,9 @@ pub enum GateConfig {
 pub struct AppConfig {
     /// Start at login.
     pub autostart: bool,
+    /// Reset the base station's USB connection automatically when the OS reports bursts of USB
+    /// underflows (the crackling signature). Off by default.
+    pub auto_fix_crackling: bool,
     /// Global hotkeys (`None` = unbound), e.g. `"Ctrl+Alt+M"`.
     pub hotkeys: HotkeysConfig,
 }
