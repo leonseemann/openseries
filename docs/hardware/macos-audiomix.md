@@ -44,9 +44,9 @@ Ctrl-C stops the mix and all apps play normally again.
 | 6 | **Input stream order** of the aggregate device (session.rs, Inferred) | headset mic buffers first, then taps in tap-list order | ✅ Observed with `--probe`: input buffers `[1 ch, 2 ch]`; #0 rose from −50 to −22 dBFS only while speaking into the headset mic, #1 carried the music (−8…−27 dBFS). Mic first, tap second. Order among several taps: tap-list order (check 8) |
 | 7 | Output buffer is interleaved `f32` with the device's channel count | sound, not silence | ✅ Observed: 1 output buffer × 2 ch (interleaved), 512 frames per callback, ≈ 95 callbacks/s at 48 kHz |
 | 8 | `--game` / `--chat` assignment | each app ends up on its channel | ✅ Observed with `--probe` (`--game com.google.Chrome --chat com.spotify.client`, Zoom meeting unassigned): input buffers `[1, 2, 2, 2]` = mic, Game, Chat, Media. Chrome only on #1 (−16…−18 dBFS), Spotify only on #2 (−26 dBFS), Zoom only on #3; the Media catch-all tap correctly excludes assigned apps. Taps keep tap-list order. Sounded normal (crackles: see check 11) |
-| 9 | `--dial` | turning the dial lowers game or chat; base station returns to normal after Ctrl-C | ⏳ |
+| 9 | `--dial` | turning the dial lowers game or chat; base station returns to normal after Ctrl-C | ✅ Observed: ChatMix is only reachable on the base station while a host enables it (`SetChatMixDial`); then **pressing the base-station knob** opens it. Events arrive without extra macOS permission (no Input Monitoring prompt): centre = game 100 % / chat 100 %, 12 steps of ≈ 8.3 % per side down to 0 %. Attenuation audible on the expected side; restore on Ctrl-C without errors |
 | 10 | `--game-bass 6`, `--media-smart-volume` | audible effect | ⏳ |
-| 11 | Latency / glitches under load | no crackles | ⏳ |
+| 11 | Latency / glitches under load | no crackles | ⚠️ Crackles during the check-9 run; the owner attributes them to a known 2.4 GHz wireless issue of the headset (also seen on Windows, fixed by restarting the base station). Retest after restart pending |
 | 12 | Does the Nova Pro expose a separate "chat" output device on macOS? (ADR 0002, Unknown) | note device list | ✅ Observed: no — one output device (2 ch) and one input (1 ch mic) only; ChatMix must stay software-side |
 
 ## Findings and follow-ups
