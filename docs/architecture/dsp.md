@@ -48,3 +48,13 @@ Audio format inside the engine: interleaved `f32`, any channel count (up to 8 fo
 - Dynamics tests: static gain curve at steady state, attack/release monotonicity.
 - ChatMix tests: centre = unity, extremes, monotonic.
 - `ssdsp` produces WAV files for subjective listening tests.
+
+## 5. Listening tests with `ssdsp`
+
+```bash
+cargo run -p ssdsp -- in.wav out.wav --band 1000:-6:1 --bass 6 --smart-volume balanced --gain -3
+```
+
+`--band FREQ:GAIN_DB:Q[:TYPE]` (TYPE = Sonar filter id, default 7 = peaking, repeatable up to 10),
+`--bass/--treble/--clarity` (dB), `--smart-volume soft|balanced|extreme`, `--gain` (dB),
+`--gate` (threshold dBFS). Processing runs in 512-frame blocks like the real-time engine.

@@ -22,4 +22,11 @@ cargo run -p ssctl -- set eq -- -2 0 1 2 0 0 0 1 2 3
 cargo run -p ssctl -- watch --chatmix-dial       # print dial / battery events
 ```
 
-Crates: `ss-core` (domain), `ss-nova-pro` (device driver), `ss-hid` (hidapi transport), `ssctl` (CLI).
+Milestone **M2 – DSP** (`docs/architecture/dsp.md`):
+
+```bash
+cargo run -p ssdsp -- in.wav out.wav --band 1000:-6:1 --bass 6 --smart-volume balanced
+```
+
+Crates: `ss-core` (domain), `ss-nova-pro` (device driver), `ss-hid` (hidapi transport),
+`ss-dsp` (audio processing), `ssctl` (headset CLI), `ssdsp` (offline DSP tool).

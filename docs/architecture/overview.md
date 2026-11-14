@@ -70,11 +70,12 @@ traits ("ports") defined in `ss-core`; binaries wire concrete adapters into serv
 
 | Crate | Kind | Responsibility | Status |
 |---|---|---|---|
-| `ss-core` | lib | Value objects (EQ gain, volume, battery, noise control…), mixer & preset models, port traits (`HidTransport`, …) | v1 – started |
-| `ss-nova-pro` | lib | Pure encoder/decoder for the Nova Pro Wireless HID protocol (no I/O) | v1 – started |
-| `ss-hid` | lib | `hidapi`-based transport: discovery, open both vendor collections, read/write | v1 – started |
-| `ssctl` | bin | CLI for headset status and settings (first usable deliverable, hardware testing) | v1 – started |
-| `ss-dsp` | lib | Biquad PEQ, gain, compressor, gate, smart volume, ChatMix law, denoise wrapper; RT-safe | v1 – planned |
+| `ss-core` | lib | Value objects (EQ gain, volume, battery, noise control…), mixer & preset models, port traits (`HidTransport`, …) | v1 – in progress |
+| `ss-nova-pro` | lib | Pure encoder/decoder for the Nova Pro Wireless HID protocol (no I/O) | v1 – done |
+| `ss-hid` | lib | `hidapi`-based transport: discovery, open both vendor collections, read/write | v1 – done |
+| `ssctl` | bin | CLI for headset status and settings (first usable deliverable, hardware testing) | v1 – done |
+| `ss-dsp` | lib | Biquad PEQ, gain, compressor, gate, smart volume, ChatMix law, denoise wrapper; RT-safe | v1 – done (denoise in M6) |
+| `ssdsp` | bin | Offline WAV processing for listening tests | v1 – done |
 | `ss-audio-windows` | lib | Device enumeration, WASAPI streams, process-loopback capture, `IAudioPolicyConfig` routing | v1 – planned |
 | `ss-audio-macos` | lib | CoreAudio devices, AUHAL I/O, Audio Process Taps, driver IPC | v1 – planned |
 | `ss-hal-driver-macos` | cdylib | Minimal AudioServerPlugIn exposing virtual channels; ring buffer to the daemon | v1 – planned |
@@ -154,8 +155,8 @@ changes travel as small messages over an `rtrb` SPSC queue; meters travel back t
 
 ## 9. Roadmap
 
-1. **M1 – Headset CLI:** `ss-core`, `ss-nova-pro`, `ss-hid`, `ssctl` (status, battery, ANC, sidetone, mic, EQ, ChatMix events). Hardware verification on the owner's Nova Pro Wireless.
-2. **M2 – DSP:** `ss-dsp` with tests; offline WAV processing tool for listening tests.
+1. ✅ **M1 – Headset CLI:** `ss-core`, `ss-nova-pro`, `ss-hid`, `ssctl` (status, battery, ANC, sidetone, mic, EQ, ChatMix events). Hardware verification on the owner's Nova Pro Wireless.
+2. ✅ **M2 – DSP:** `ss-dsp` with tests; offline WAV processing tool for listening tests.
 3. **M3 – macOS audio:** HAL driver + `ss-audio-macos`, end-to-end Game/Chat routing with ChatMix dial.
 4. **M4 – Windows audio:** spike + ADR 0003, `ss-audio-windows`.
 5. **M5 – Daemon + UI:** local API, tray, hotkeys, presets, onboarding.
