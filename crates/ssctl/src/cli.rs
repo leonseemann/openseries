@@ -92,7 +92,7 @@ pub enum Setting {
         /// Level.
         level: u8,
     },
-    /// ChatMix position held by the base station (0–100 each; **Inferred** opcode, test only).
+    /// ChatMix position held by the base station (0–100 each).
     Chatmix {
         /// Game level.
         game: u8,

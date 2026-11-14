@@ -41,9 +41,9 @@ pub enum Command {
     SetMixerPresent(bool),
     /// Set the ChatMix position shown/held by the base station: `06 45 <game> <chat>`.
     ///
-    /// **Inferred, not verified on hardware** (`docs/hardware/nova-pro-wireless.md`): every
-    /// verified setting writes with the opcode of its event (`BD`, `39`, `37`, `2E`), and the dial
-    /// reports `07 45 <game> <chat>`. Values are 0–100 by type ([`ss_core::headset::Percent`]).
+    /// **Observed** (`docs/hardware/nova-pro-wireless.md`): the settings block reads the new values
+    /// back (found by analogy: every verified setting writes with the opcode of its event).
+    /// Values are 0–100 by type ([`ss_core::headset::Percent`]).
     SetChatMix(ChatMixBalance),
     /// Set the inactivity auto-off timer.
     SetAutoOff(AutoOff),

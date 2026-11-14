@@ -249,10 +249,11 @@ impl AppCore {
         }
     }
 
-    /// Moves the software ChatMix by `step` (hotkeys).
+    /// Moves the software ChatMix by `step` (hotkeys) and tells the base station.
     pub fn nudge_chatmix(&self, step: f32) {
         let position = *lock(&self.chatmix_position) + step;
         self.set_chatmix(position);
+        self.sync_chatmix_to_headset();
     }
 
     /// Sets the software ChatMix (−1 = only game … 0 = centre … +1 = only chat). Turning the
@@ -262,6 +263,19 @@ impl AppCore {
         *lock(&self.chatmix_position) = position;
         let balance = ss_dsp::balance_from_slider(position);
         let _ = self.audio_tx.send(AudioMsg::ChatMix(balance));
+    }
+
+    /// Sends the current ChatMix position to the base station (`06 45`), so its display and dial
+    /// continue from there. Only while AudioMix owns the dial; call it when a change is finished
+    /// (slider released), not for every drag step.
+    pub fn sync_chatmix_to_headset(&self) {
+        if !lock(&self.config).audiomix.enabled {
+            return;
+        }
+        let balance = ss_dsp::balance_from_slider(*lock(&self.chatmix_position));
+        let _ = self
+            .headset_tx
+            .send(HeadsetMsg::Send(ss_nova_pro::Command::SetChatMix(balance)));
     }
 
     /// Resets the base station's USB connection (software re-plug) and reconnects.

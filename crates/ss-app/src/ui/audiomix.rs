@@ -86,8 +86,13 @@ fn chatmix(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
         if response.changed() {
             core.set_chatmix(position);
         }
+        // The mix follows every drag step; the base station only gets the final position.
+        if response.drag_stopped() || (response.changed() && !response.dragged()) {
+            core.sync_chatmix_to_headset();
+        }
         if ui.small_button("Centre").clicked() {
             core.set_chatmix(0.0);
+            core.sync_chatmix_to_headset();
         }
         let balance = ss_dsp::balance_from_slider(snapshot.chatmix_position);
         ui.label(
