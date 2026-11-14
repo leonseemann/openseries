@@ -21,12 +21,12 @@ The app lives in the menu bar (headphone icon); "Open StealSeries…" shows the 
 | 3 | Headset page | battery, ANC, sidetone, mic volume shown; changing ANC/sidetone works | ✅ Observed: values shown; ANC selection follows app changes and the headset button after the read-back fix (`2c0da0a`). Battery has only 9 hardware steps (12.5 %), shown as ≈ |
 | 4 | AudioMix **off** (default) | no permission prompt, nothing routed; FineTune works normally | ⏳ |
 | 5 | AudioMix **on** | macOS asks **StealSeries** (not the terminal) for audio capture; music keeps playing through the mix | ✅ Observed: the prompt named StealSeries; music played through the mix |
-| 6 | Assign an app to Game/Chat | routed; ChatMix dial affects it; assignment survives an app restart and a StealSeries restart | ⏳ |
+| 6 | Assign an app to Game/Chat | routed; ChatMix dial affects it; assignment survives an app restart and a StealSeries restart | 🟡 Observed: Chrome on Game gets quieter with the dial towards Chat, Spotify on Media unaffected; ChatMix slider ↔ dial ↔ display stay in sync. Restart persistence not tested yet |
 | 7 | FineTune started while AudioMix is on | AudioMix pauses with a hint; resumes after FineTune quits | ⏳ |
 | 8 | Channel fader, mute, boosts, Smart Volume, EQ | audible, no rebuild glitch | ⏳ |
 | 9 | Microphone page: feed on + processing | macOS asks StealSeries for the microphone; StealSeries Microphone works in QuickTime | ⏳ |
 | 10 | Tray toggles AudioMix / mic with the window closed | state changes, check marks follow | ⏳ |
-| 11 | Hotkeys Ctrl+Alt+←/→, Ctrl+Alt+M | ChatMix steps; mic feed toggles | ⏳ |
+| 11 | Hotkeys Ctrl+Alt+←/→, Ctrl+Alt+M | ChatMix steps; mic feed toggles | 🟡 Observed: ChatMix hotkeys step the mix, the slider and the base-station display; mic hotkey not tested yet |
 | 12 | Autostart on, log out/in | app starts in the menu bar | ⏳ |
 | 13 | Quit from the menu | base station ChatMix returns to normal, apps play normally | ⏳ |
 | 14 | Headset page → **Reconnect USB** (IOUSBHost re-enumeration, `ss-usb-macos`) | base station re-plugs in software; app reconnects; running AudioMix/mic recover | ✅ Observed 2026-11-14 in the app with AudioMix on and music playing: short audio dropout, then music continued through the mix; headset page repopulated; no error. Works **without admin rights**. Power stays on (display did not restart in the spike), so it is a USB reset, not a power cycle; whether it cures the 2.4 GHz crackles (owner's fix: unplug the cable) is Unknown until they recur. The CoreAudio device id changed in the spike (119 → 143) but **not** in this run (stayed 143) — ids can be reused, so the supervisor's device-list check is a safety net, not a guarantee; here the aggregate device recovered on its own |
