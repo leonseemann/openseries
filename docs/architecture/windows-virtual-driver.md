@@ -78,8 +78,11 @@ adds the loopback pair afterwards, and every install step is reversible (`pnputi
 
 - `ss_engine::DriftBuffer` with unit tests (steady state, faster/slower producer, underrun,
   no allocation on the audio path).
-- `ss-audio-windows::policy` — bindings for `IAudioPolicyConfig` (get/set/clear per-app default
-  endpoint), verified read-only on the owner's PC (`Get…` only).
+- `ss-audio-windows::policy` — bindings for `IAudioPolicyConfig` (get/set per-app default
+  endpoint) with the vtable layout read from Sonar's interop metadata (`sonar.md` §2.3). Verified
+  read-only on the owner's PC: the 21H2+ interface activates and `Get…` works (`winspike
+  policy`). `Set…` is not yet exercised — a reversible round trip (set an app to the endpoint it
+  already uses, read back, clear) needs the owner's OK because it writes a persisted setting.
 
 ## 5. Open questions
 

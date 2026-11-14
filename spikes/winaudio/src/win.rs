@@ -36,6 +36,7 @@ pub fn run(args: &[String]) -> Res<()> {
     match args.first().map(String::as_str) {
         Some("endpoints") => endpoints(),
         Some("sessions") => sessions(),
+        Some("policy") => policy(),
         Some("capture") => capture(&CaptureArgs::parse(&args[1..])?),
         _ => {
             eprintln!(
@@ -138,6 +139,31 @@ fn sessions() -> Res<()> {
             mute,
             dbfs(peak),
             s.endpoint
+        );
+    }
+    Ok(())
+}
+
+// ---------------------------------------------------------------- per-app routing (read-only)
+
+/// Reads (never writes) the per-app default render endpoint of every audio session's process.
+fn policy() -> Res<()> {
+    let policy = ss_audio_windows::policy::AudioPolicy::open()?;
+    println!("AudioPolicyConfig: {}", policy.variant());
+    let names = process_names()?;
+    let mut seen = HashSet::new();
+    for session in all_sessions()? {
+        if session.pid == 0 || !seen.insert(session.pid) {
+            continue;
+        }
+        let endpoint = policy.render_endpoint(session.pid)?;
+        println!(
+            "{:>7}  {:<28} {}",
+            session.pid,
+            names.get(&session.pid).map_or("?", String::as_str),
+            endpoint
+                .as_deref()
+                .unwrap_or("(follows the system default)")
         );
     }
     Ok(())

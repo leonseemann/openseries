@@ -16,6 +16,8 @@ pub mod ledger;
 #[cfg(windows)]
 mod mixer;
 #[cfg(windows)]
+pub mod policy;
+#[cfg(windows)]
 mod session;
 
 #[cfg(windows)]

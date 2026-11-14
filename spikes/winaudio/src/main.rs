@@ -8,6 +8,7 @@
 //! ```text
 //! winspike endpoints                 # render/capture endpoints (is there a Nova Pro "chat" output?)
 //! winspike sessions                  # audio sessions: pid, exe, state, volume, mute, peak
+//! winspike policy                    # per-app default render endpoint (read-only)
 //! winspike capture --name spotify.exe --silence mute --seconds 30 [--wav out.wav]
 //! ```
 //!

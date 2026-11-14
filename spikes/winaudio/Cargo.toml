@@ -12,6 +12,7 @@ name = "winspike"
 path = "src/main.rs"
 
 [target.'cfg(windows)'.dependencies]
+ss-audio-windows.workspace = true
 wasapi = "0.27"
 windows = { version = "0.62", features = [
     "Win32_Foundation",
