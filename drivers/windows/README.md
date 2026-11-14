@@ -13,9 +13,15 @@ commits so the diff to upstream stays reviewable.
 Removed from the import: the sample APOs (`APO/`) and the keyword detector adapter — separate
 projects we do not need.
 
-Build (Visual Studio Build Tools 2022 + WDK 10.0.26100 + the "Windows Driver Kit" and
-"Spectre-mitigated libs" components):
+Build (Visual Studio Build Tools 2022 with `Component.Microsoft.Windows.DriverKit.BuildTools` and
+`Microsoft.VisualStudio.Component.VC.Runtimes.x86.x64.Spectre`, plus WDK 10.0.26100 —
+**Observed** 2026-11-14: the unchanged import builds):
 
 ```powershell
-msbuild drivers\windows\StealSeriesAudio\TabletAudioSample\TabletAudioSample.vcxproj /p:Configuration=Debug /p:Platform=x64
+powershell -ExecutionPolicy Bypass -File scripts\windows\driver.ps1
 ```
+
+Notes: the script uses the 64-bit MSBuild (the WDK's InfVerif exists only as a 64-bit DLL; the
+32-bit MSBuild fails with "x86\InfVerif.dll not found") and builds the `EndpointsCommon` library
+before the driver. The component id `Microsoft.Windows.DriverKit` does not exist for the Build Tools;
+the Build Tools one is `Component.Microsoft.Windows.DriverKit.BuildTools`.
