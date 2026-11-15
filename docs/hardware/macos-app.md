@@ -41,6 +41,7 @@ The app lives in the menu bar (headphone icon); "Open OpenSeries…" shows the w
 | 23 | In-app update to a newer release (Settings → Updates or menu bar → Install update) | app quits, bundle replaced, new version opens by itself; Developer ID signed: no new permission prompts | ⏳ needs two releases |
 | 24 | Rename (ADR 0007): quit and delete `StealSeries.app`, install `OpenSeries.app`, Getting started → Install driver… | settings carried over (`~/Library/Application Support/OpenSeries`); only "OpenSeries Microphone" under Sound → Input (old StealSeries driver removed); no `dev.stealseries.app` LaunchAgent left | ⏳ |
 | 25 | Device platform (ADR 0008) re-test, as Windows row 21, plus Reconnect USB on the device page and the automatic crackling fix | as on Windows; Reconnect USB re-plugs the base station and the device comes back by itself | ⏳ |
+| 26 | Automatic channel assignment as Windows row 22 (Discord, Safari/Chrome, a game from the App Store or Steam) | Discord Chat · built-in list; a game Game · games category or game library | ⏳ |
 
 ## Findings
 
