@@ -1,6 +1,8 @@
 # ADR 0001 — v1 scope: Arctis Nova Pro Wireless + Sonar core
 
-- **Status:** Accepted (2026-11-14)
+- **Status:** Accepted (2026-11-14); architectural limit to one device lifted by
+  [ADR 0008](0008-multi-device-support.md) (proposed 2026-11-15) — the supported and verified device
+  is still the Arctis Nova Pro Wireless
 - **Deciders:** project owner
 
 ## Context
