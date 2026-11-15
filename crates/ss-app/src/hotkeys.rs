@@ -121,7 +121,8 @@ impl Hotkeys {
                 .unwrap_or_else(PoisonError::into_inner)
                 .get(&event.id)
                 .copied();
-            if let Some(action) = action {
+            // Without a base station StealSeries is paused and ignores its hotkeys (app.md §8).
+            if let Some(action) = action.filter(|_| core.active()) {
                 action.run(&core);
             }
         }));

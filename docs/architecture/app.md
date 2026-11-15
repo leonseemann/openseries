@@ -191,3 +191,24 @@ Off by default (`app.auto_fix_crackling`). macOS: `/usr/bin/log stream` filtered
 "USB underflow" messages (no admin rights). `crackle::BurstDetector` triggers a USB reset when
 ≥ 20 underflows arrive within 3 s, at most once per 30 s (observed crackling episodes produce
 20–50 per second; normal operation none). The Settings page shows how often it fixed crackling.
+
+## 8. Base-station gate (owner requirement 2026-11-15)
+
+StealSeries only acts while an **Arctis Nova Pro Wireless base station is connected**. Without it
+the app is completely passive, so it never interferes with other headsets on the same computer
+(e.g. a guest's HyperX on the owner's Mac):
+
+| Part | Base station connected | No base station |
+|---|---|---|
+| AudioMix (taps / session volumes) | runs as configured | stopped; Windows session volumes restored |
+| Virtual-mic feed | runs as configured | stopped |
+| System default input (SON-06) | switched while the feed runs | restored / left alone |
+| Global hotkeys | registered | **unregistered** (keys free for other apps) |
+| Automatic crackling fix (USB resets) | as configured | off |
+| Headset thread | talks to the base station | only enumerates HID devices with the Nova Pro VID/PID — never opens others |
+| Window, tray, notifications | normal | window shows "paused" banner; tray says paused |
+
+The config is not changed, so everything resumes on its own when the base station returns.
+"Connected" is the headset thread's `base_station` flag; until the first scan it counts as not
+connected (fail safe: nothing starts before the base station is seen). Development runs with
+`STEALSERIES_NO_HEADSET=1` have no headset thread and skip the gate.

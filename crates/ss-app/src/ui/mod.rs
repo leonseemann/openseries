@@ -142,11 +142,13 @@ impl App {
 
     /// Keeps the registered hotkeys in line with the config; suspends them while the editor
     /// records a combination (the OS would otherwise swallow it).
-    fn sync_hotkeys(&mut self, wanted: &HotkeysConfig) {
+    /// While the base station is missing (`active == false`) they are unregistered too, so other
+    /// apps can use the key combinations (`docs/architecture/app.md` §8).
+    fn sync_hotkeys(&mut self, wanted: &HotkeysConfig, active: bool) {
         let Some(hotkeys) = self.hotkeys.as_mut() else {
             return;
         };
-        if self.hotkey_capture.recording.is_some() {
+        if self.hotkey_capture.recording.is_some() || !active {
             if self.applied_hotkeys.take().is_some() {
                 hotkeys.suspend();
             }
@@ -227,6 +229,16 @@ impl App {
             components::banner(ui, Tone::Warning, problem);
             ui.add_space(8.0);
         }
+        if !snapshot.active {
+            components::banner(
+                ui,
+                Tone::Neutral,
+                "StealSeries is paused: no Arctis Nova Pro base station is connected. Until it \
+                 is back, StealSeries does not touch app audio, microphones or hotkeys, so other \
+                 headsets work undisturbed.",
+            );
+            ui.add_space(8.0);
+        }
         match self.page {
             Page::Overview => overview::show(ui, &self.core, snapshot, &mut self.page),
             Page::Headset => headset::show(ui, &self.core, snapshot),
@@ -252,7 +264,7 @@ impl eframe::App for App {
         if let Some(tray) = self.tray.as_mut() {
             tray.sync(&snapshot);
         }
-        self.sync_hotkeys(&snapshot.config.app.hotkeys);
+        self.sync_hotkeys(&snapshot.config.app.hotkeys, snapshot.active);
         onboarding::show(ctx, &self.core, &snapshot);
 
         self.sidebar(ctx, &snapshot);

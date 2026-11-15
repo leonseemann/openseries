@@ -40,6 +40,9 @@ pub struct Snapshot {
     pub crackle: CrackleStatus,
     /// ChatMix position, −1 (game) … +1 (chat); follows the dial and the slider.
     pub chatmix_position: f32,
+    /// StealSeries may act: a base station is connected (or development mode without the
+    /// headset thread). When `false` everything is paused (`app.md` §8).
+    pub active: bool,
 }
 
 /// Shared application core.
@@ -61,6 +64,8 @@ pub struct AppCore {
     crackle_status: Arc<Mutex<CrackleStatus>>,
     crackle_watch: Mutex<Option<crate::platform::UnderflowWatch>>,
     notify: Notifier,
+    /// `false` in development runs without the headset thread: the base-station gate is skipped.
+    gated: bool,
 }
 
 impl AppCore {
@@ -115,6 +120,9 @@ impl AppCore {
                 Arc::clone(&headset_state),
                 audio_tx.clone(),
             )?);
+        } else {
+            // Development runs without the headset thread skip the base-station gate (§8).
+            let _ = audio_tx.send(AudioMsg::BaseStation(true));
         }
 
         // Dial events go from the headset thread to the audio thread; the software slider
@@ -179,6 +187,7 @@ impl AppCore {
             crackle_status: Arc::new(Mutex::new(CrackleStatus::default())),
             crackle_watch: Mutex::new(None),
             notify: Arc::clone(notify),
+            gated: with_headset,
         });
         if core.config().app.auto_fix_crackling {
             core.apply_crackle_watch(true);
@@ -236,11 +245,15 @@ impl AppCore {
             return;
         }
         let headset_tx = self.headset_tx.clone();
+        let gate_state = Arc::clone(&self.headset_state);
+        let gated = self.gated;
         let crackle_status = Arc::clone(&self.crackle_status);
         let detector = Mutex::new(BurstDetector::default());
         let notify = Arc::clone(&self.notify);
         let started = crate::platform::watch_usb_underflows(move || {
-            if lock(&detector).record(Instant::now()) {
+            // Never reset USB devices while no Nova Pro base station is connected (§8).
+            let base_station = !gated || lock(&gate_state).base_station;
+            if base_station && lock(&detector).record(Instant::now()) {
                 let _ = headset_tx.send(HeadsetMsg::ResetUsb);
                 let mut status = lock(&crackle_status);
                 status.fixes = status.fixes.saturating_add(1);
@@ -297,6 +310,12 @@ impl AppCore {
         let _ = self.headset_tx.send(HeadsetMsg::Send(command));
     }
 
+    /// Whether StealSeries may act right now (base station connected, `app.md` §8).
+    #[must_use]
+    pub fn active(&self) -> bool {
+        !self.gated || lock(&self.headset_state).base_station
+    }
+
     /// Everything the UI renders.
     #[must_use]
     pub fn snapshot(&self) -> Snapshot {
@@ -308,6 +327,7 @@ impl AppCore {
             save_error: lock(&self.save_error).clone(),
             crackle: lock(&self.crackle_status).clone(),
             chatmix_position: *lock(&self.chatmix_position),
+            active: self.active(),
         }
     }
 
@@ -329,8 +349,9 @@ impl AppCore {
     }
 }
 
-/// Headset on/off → audio thread (device fallback, SON-28). Polling keeps the headset thread
-/// unaware of the audio side. Ends once the audio thread is gone.
+/// Base station present/absent (gate, `app.md` §8) and headset on/off (device fallback, SON-28)
+/// → audio thread. Polling keeps the headset thread unaware of the audio side. Ends once the
+/// audio thread is gone.
 fn spawn_link_forward(
     state: Arc<Mutex<HeadsetState>>,
     audio_tx: Sender<AudioMsg>,
@@ -339,8 +360,18 @@ fn spawn_link_forward(
         .name("headset-link-forward".to_owned())
         .spawn(move || {
             let mut last = None;
+            let mut last_base = None;
             loop {
-                let linked = lock(&state).status.map(|s| s.connected);
+                let (base, linked) = {
+                    let state = lock(&state);
+                    (state.base_station, state.status.map(|s| s.connected))
+                };
+                if last_base != Some(base) {
+                    last_base = Some(base);
+                    if audio_tx.send(AudioMsg::BaseStation(base)).is_err() {
+                        return;
+                    }
+                }
                 if let Some(now) = linked {
                     if last != Some(now) {
                         last = Some(now);

@@ -104,6 +104,7 @@ impl Tray {
         self.audiomix.set_checked(snapshot.config.audiomix.enabled);
         self.mic.set_checked(snapshot.config.mic.enabled);
         let text = match snapshot.headset.status {
+            _ if !snapshot.active => "Paused · base station not connected".to_owned(),
             Some(status) if status.connected => status.headset_battery.map_or_else(
                 || "Headset connected".to_owned(),
                 |b| format!("Headset · ≈{} %", b.percent()),
