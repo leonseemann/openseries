@@ -21,6 +21,7 @@ use self::components::{Tone, service_tone};
 use crate::core::{AppCore, Snapshot};
 use crate::hotkeys::Hotkeys;
 use crate::tray::Tray;
+use crate::update::UpdateState;
 use ss_store::config::HotkeysConfig;
 
 /// Initial window size in points.
@@ -237,6 +238,24 @@ impl App {
                  is back, StealSeries does not touch app audio, microphones or hotkeys, so other \
                  headsets work undisturbed.",
             );
+            ui.add_space(8.0);
+        }
+        if let (UpdateState::Available(update), false) =
+            (&snapshot.update, self.page == Page::Settings)
+        {
+            ui.horizontal(|ui| {
+                components::status(
+                    ui,
+                    Tone::Good,
+                    &format!("StealSeries {} is available.", update.version),
+                );
+                if ui.small_button("Install update").clicked() {
+                    self.core.install_update();
+                }
+                if ui.small_button("Details").clicked() {
+                    self.page = Page::Settings;
+                }
+            });
             ui.add_space(8.0);
         }
         match self.page {

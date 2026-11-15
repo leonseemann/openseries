@@ -106,7 +106,7 @@ def main():
                 print(f"length differs: file {len(current)} chars, generated {len(content)}")
             return 1
         return 0
-    OUTPUT.write_text(content, encoding="utf-8")
+    OUTPUT.write_text(content, encoding="utf-8", newline="\n")  # LF on every OS
     print(f"wrote {OUTPUT.relative_to(ROOT)} ({len(content) // 1024} KiB)")
     return 0
 

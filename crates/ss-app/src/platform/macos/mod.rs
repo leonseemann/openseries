@@ -3,10 +3,12 @@
 mod autostart;
 mod driver;
 mod underflow;
+mod update;
 
 pub use autostart::set as set_autostart;
 pub use driver::{install_mic_driver, mic_driver_installed};
 pub use underflow::{UnderflowWatch, watch_usb_underflows};
+pub use update::{install_update, update_install_target};
 
 use ss_nova_pro::ids;
 
@@ -27,6 +29,13 @@ pub const CHANNEL_DSP_SUPPORTED: bool = true;
 pub const USB_RESET_SUPPORTED: bool = true;
 /// Whether [`watch_usb_underflows`] can work on this OS.
 pub const UNDERFLOW_WATCH_SUPPORTED: bool = true;
+
+/// Ends a process that did not quit when asked (single instance, `app.md` §9).
+pub fn terminate_process(pid: u32) {
+    let _ = std::process::Command::new("/bin/kill")
+        .args(["-9", &pid.to_string()])
+        .status();
+}
 
 /// Software re-plug of the Nova Pro base station.
 ///

@@ -5,7 +5,7 @@
 //! while the window is hidden.
 
 use std::sync::mpsc::{self, RecvTimeoutError, Sender};
-use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+use std::sync::{Arc, Mutex, MutexGuard, OnceLock, PoisonError};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime};
 
@@ -17,6 +17,7 @@ use crate::audio::supervisor::{AudioBackend, AudioStatus};
 use crate::crackle::{BurstDetector, CrackleStatus};
 use crate::headset::{self, HeadsetMsg, HeadsetState};
 use crate::notify::Notifier;
+use crate::update::{UpdateState, Updater};
 
 /// Quiet time before a changed config is written (slider drags write once).
 const SAVE_DEBOUNCE: Duration = Duration::from_millis(500);
@@ -43,6 +44,8 @@ pub struct Snapshot {
     /// StealSeries may act: a base station is connected (or development mode without the
     /// headset thread). When `false` everything is paused (`app.md` §8).
     pub active: bool,
+    /// In-app updates (ADR 0006).
+    pub update: UpdateState,
 }
 
 /// Shared application core.
@@ -66,6 +69,8 @@ pub struct AppCore {
     notify: Notifier,
     /// `false` in development runs without the headset thread: the base-station gate is skipped.
     gated: bool,
+    /// The update checker, attached once after start ([`AppCore::attach_updater`]).
+    updater: OnceLock<Updater>,
 }
 
 impl AppCore {
@@ -188,6 +193,7 @@ impl AppCore {
             crackle_watch: Mutex::new(None),
             notify: Arc::clone(notify),
             gated: with_headset,
+            updater: OnceLock::new(),
         });
         if core.config().app.auto_fix_crackling {
             core.apply_crackle_watch(true);
@@ -310,6 +316,25 @@ impl AppCore {
         let _ = self.headset_tx.send(HeadsetMsg::Send(command));
     }
 
+    /// Connects the update checker (it needs the finished core, so it starts afterwards).
+    pub fn attach_updater(&self, updater: Updater) {
+        let _ = self.updater.set(updater);
+    }
+
+    /// Looks for a new release now.
+    pub fn check_for_updates(&self) {
+        if let Some(updater) = self.updater.get() {
+            updater.check_now();
+        }
+    }
+
+    /// Downloads, verifies and installs the offered update, then quits (ADR 0006 §4).
+    pub fn install_update(&self) {
+        if let Some(updater) = self.updater.get() {
+            updater.install();
+        }
+    }
+
     /// Whether StealSeries may act right now (base station connected, `app.md` §8).
     #[must_use]
     pub fn active(&self) -> bool {
@@ -332,6 +357,10 @@ impl AppCore {
             crackle: lock(&self.crackle_status).clone(),
             chatmix_position: *lock(&self.chatmix_position),
             active,
+            update: self
+                .updater
+                .get()
+                .map_or(UpdateState::Unsupported, Updater::state),
         }
     }
 

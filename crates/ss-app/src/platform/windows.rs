@@ -3,6 +3,8 @@
 //! not available yet. Headset control, UI, tray and hotkeys work cross-platform.
 
 use std::num::NonZeroIsize;
+use std::os::windows::process::CommandExt as _;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
@@ -33,6 +35,13 @@ pub const USB_RESET_SUPPORTED: bool = false;
 /// Whether [`watch_usb_underflows`] can work on this OS.
 pub const UNDERFLOW_WATCH_SUPPORTED: bool = false;
 
+/// `CREATE_NO_WINDOW` process creation flag (Win32 `CreateProcess`).
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+/// Command-line switches of the Inno Setup installer for an in-app update: no wizard, no
+/// message boxes, no reboot; the installer starts the new version when done (`installer/windows`).
+const SILENT_INSTALL_ARGS: [&str; 4] = ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-"];
+
 /// Registry key for per-user start-up programs.
 const RUN_KEY: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
 /// Value name under [`RUN_KEY`].
@@ -44,6 +53,8 @@ const RUN_VALUE: &str = "StealSeries";
 /// A user-facing message if `reg.exe` fails.
 pub fn set_autostart(enabled: bool) -> Result<(), String> {
     let mut command = Command::new("reg");
+    // A GUI app starting a console program would flash a console window.
+    command.creation_flags(CREATE_NO_WINDOW);
     if enabled {
         let exe = std::env::current_exe().map_err(|e| format!("locating the app: {e}"))?;
         command.args([
@@ -125,4 +136,34 @@ pub const fn mic_driver_installed() -> Option<bool> {
 /// Always.
 pub fn install_mic_driver() -> Result<(), String> {
     Err("no virtual-mic driver for this operating system yet".to_owned())
+}
+
+/// Ends a process that did not quit when asked (single instance, `app.md` §9).
+pub fn terminate_process(pid: u32) {
+    let _ = Command::new("taskkill")
+        .args(["/PID", &pid.to_string(), "/F"])
+        .creation_flags(CREATE_NO_WINDOW)
+        .status();
+}
+
+/// Updates install through the per-user installer from wherever the app runs; returns the
+/// running executable.
+///
+/// # Errors
+/// If the executable cannot be located.
+pub fn update_install_target() -> Result<PathBuf, String> {
+    std::env::current_exe().map_err(|e| format!("locating the app: {e}"))
+}
+
+/// Starts the verified installer silently (ADR 0006 §4); the caller quits right after so the
+/// installer can replace the files. The installer starts the new version.
+///
+/// # Errors
+/// If the installer cannot be started.
+pub fn install_update(package: &Path) -> Result<(), String> {
+    Command::new(package)
+        .args(SILENT_INSTALL_ARGS)
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| format!("starting the installer: {e}"))
 }

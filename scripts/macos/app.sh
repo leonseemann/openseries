@@ -5,7 +5,8 @@
 #   scripts/macos/app.sh install   # build + copy to ~/Applications (no sudo) and open it
 #
 # Ad-hoc signatures change with every build, so macOS may ask for permissions again after an
-# update (a stable signing identity comes with distribution signing).
+# update. Set SIGN_IDENTITY to a code-signing certificate in the keychain (CI uses a free
+# self-signed one, ADR 0006) to keep one stable identity across updates.
 set -eu
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
@@ -24,7 +25,7 @@ build() {
     # (app.md §2, onboarding). Signed on its own by hal-driver.sh, then sealed with the app.
     "$ROOT/scripts/macos/hal-driver.sh" build
     cp -R "$ROOT/target/StealSeriesMic.driver" "$BUNDLE/Contents/Resources/"
-    codesign --force --sign - "$BUNDLE"
+    codesign --force --sign "${SIGN_IDENTITY:--}" "$BUNDLE"
     echo "built $BUNDLE"
 }
 

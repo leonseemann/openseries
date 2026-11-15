@@ -1,0 +1,29 @@
+[package]
+name = "ss-update"
+description = "Release lookup and signature check for in-app updates (ADR 0006)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[features]
+# Key generation and signing for the release workflow (`ss-release-sign`); never in the app.
+sign = ["dep:getrandom"]
+
+[dependencies]
+base64 = "0.22"
+ed25519-dalek = "2"
+semver = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+thiserror.workspace = true
+getrandom = { version = "0.3", optional = true }
+
+[[bin]]
+name = "ss-release-sign"
+required-features = ["sign"]
+
+[lints]
+workspace = true

@@ -11,6 +11,11 @@ use tray_icon::{Icon, TrayIcon, TrayIconBuilder};
 
 use crate::core::{AppCore, Snapshot};
 use crate::platform::NativeWindow;
+use crate::update::UpdateState;
+use ss_update::Platform;
+
+/// Tray item text while no update is on offer.
+const CHECK_FOR_UPDATES: &str = "Check for updates";
 
 /// Edge length of the generated template icon in pixels (menu bar icons are 22 pt @2x).
 const ICON_SIZE: u32 = 44;
@@ -21,6 +26,7 @@ pub struct Tray {
     status: MenuItem,
     audiomix: CheckMenuItem,
     mic: CheckMenuItem,
+    update: MenuItem,
 }
 
 impl Tray {
@@ -39,6 +45,7 @@ impl Tray {
         let audiomix = CheckMenuItem::new("AudioMix", true, config.audiomix.enabled, None);
         let mic = CheckMenuItem::new("Virtual microphone", true, config.mic.enabled, None);
         let reconnect = MenuItem::new("Reconnect USB (fixes crackling)", true, None);
+        let update = MenuItem::new(CHECK_FOR_UPDATES, true, None);
         let open = MenuItem::new("Open StealSeries…", true, None);
         let quit = MenuItem::new("Quit StealSeries", true, None);
 
@@ -53,6 +60,9 @@ impl Tray {
         if crate::platform::USB_RESET_SUPPORTED {
             menu.append_items(&[&reconnect, &PredefinedMenuItem::separator()])?;
         }
+        if Platform::current().is_some() {
+            menu.append_items(&[&update, &PredefinedMenuItem::separator()])?;
+        }
         menu.append_items(&[&open, &quit])?;
         let icon = TrayIconBuilder::new()
             .with_menu(Box::new(menu))
@@ -61,10 +71,11 @@ impl Tray {
             .with_icon_as_template(true)
             .build()?;
 
-        let (audiomix_id, mic_id, reconnect_id, open_id, quit_id) = (
+        let (audiomix_id, mic_id, reconnect_id, update_id, open_id, quit_id) = (
             audiomix.id().clone(),
             mic.id().clone(),
             reconnect.id().clone(),
+            update.id().clone(),
             open.id().clone(),
             quit.id().clone(),
         );
@@ -77,6 +88,13 @@ impl Tray {
                 core.update_config(|c| c.mic.enabled = !c.mic.enabled);
             } else if *id == reconnect_id {
                 core.reset_headset_usb();
+            } else if *id == update_id {
+                // The item reads "Install update …" while one is on offer (see `sync`).
+                if core.snapshot().update.update().is_some() {
+                    core.install_update();
+                } else {
+                    core.check_for_updates();
+                }
             } else if *id == open_id {
                 // On Windows a hidden window runs no UI frames, so the viewport command alone
                 // would never be applied; show it natively first.
@@ -96,6 +114,7 @@ impl Tray {
             status,
             audiomix,
             mic,
+            update,
         })
     }
 
@@ -112,6 +131,23 @@ impl Tray {
             _ => "Headset not connected".to_owned(),
         };
         self.status.set_text(text);
+        let state = &snapshot.update;
+        let (label, enabled) = match state {
+            UpdateState::Checking => ("Checking for updates…".to_owned(), false),
+            UpdateState::Downloading { update, .. } => (
+                format!("Downloading StealSeries {}…", update.version),
+                false,
+            ),
+            UpdateState::Installing(version) => {
+                (format!("Installing StealSeries {version}…"), false)
+            }
+            _ => state.update().map_or_else(
+                || (CHECK_FOR_UPDATES.to_owned(), true),
+                |update| (format!("Install update {}…", update.version), true),
+            ),
+        };
+        self.update.set_text(label);
+        self.update.set_enabled(enabled);
     }
 }
 

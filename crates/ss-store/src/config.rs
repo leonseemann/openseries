@@ -267,6 +267,24 @@ pub struct AppConfig {
     pub notifications: NotificationsConfig,
     /// The "Getting started" window was closed with Done.
     pub onboarding_done: bool,
+    /// In-app updates (ADR 0006).
+    pub updates: UpdatesConfig,
+}
+
+/// In-app updates (ADR 0006).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct UpdatesConfig {
+    /// Look for a new release shortly after start and every few hours.
+    pub check_automatically: bool,
+}
+
+impl Default for UpdatesConfig {
+    fn default() -> Self {
+        Self {
+            check_automatically: true,
+        }
+    }
 }
 
 /// Desktop notifications.

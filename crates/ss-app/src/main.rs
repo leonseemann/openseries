@@ -17,10 +17,12 @@ mod core;
 mod crackle;
 mod headset;
 mod hotkeys;
+mod instance;
 mod notify;
 mod platform;
 mod tray;
 mod ui;
+mod update;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, OnceLock};
@@ -47,6 +49,15 @@ fn main() -> Result<()> {
     }
     let with_headset = std::env::var_os(NO_HEADSET_ENV).is_none();
     let store = Store::per_user().context("locating the config directory")?;
+    // Only one StealSeries: a running one quits cleanly and this start replaces it (§9).
+    let instance_scope = instance::scope(store.path());
+    match instance::replace_running(&instance_scope) {
+        instance::Takeover::NoneRunning => {}
+        instance::Takeover::Replaced => eprintln!("replaced the running StealSeries"),
+        instance::Takeover::Terminated => {
+            eprintln!("warning: the running StealSeries did not quit in time; terminated it");
+        }
+    }
 
     let egui_ctx: Arc<OnceLock<egui::Context>> = Arc::new(OnceLock::new());
     let repaint_ctx = Arc::clone(&egui_ctx);
@@ -61,7 +72,21 @@ fn main() -> Result<()> {
         eprintln!("warning: {warning}");
     }
 
+    if let Err(error) = instance::listen(&instance_scope, Arc::downgrade(&core)) {
+        eprintln!("warning: single-instance check unavailable: {error}");
+    }
     alerts::spawn(Arc::downgrade(&core)).context("starting the notification thread")?;
+    core.attach_updater(
+        update::spawn(Arc::downgrade(&core), Arc::clone(&notify))
+            .context("starting the update thread")?,
+    );
+    if core.config().app.autostart {
+        // Re-point "start at login" at this executable: an update or a move may have changed
+        // its path.
+        if let Err(error) = platform::set_autostart(true) {
+            eprintln!("warning: autostart: {error}");
+        }
+    }
 
     if headless {
         run_headless(&core)?;
@@ -86,6 +111,7 @@ fn main() -> Result<()> {
 /// Stops the services (restoring the base station, saving the config) and exits the process.
 pub fn quit(core: &AppCore) -> ! {
     core.shutdown();
+    instance::unregister(&instance::scope(core.config_path()));
     std::process::exit(0);
 }
 

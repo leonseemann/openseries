@@ -35,6 +35,13 @@ pub fn reset_base_usb() -> Result<(), String> {
     Err("Reconnect USB is not available on this OS".to_owned())
 }
 
+/// Ends a process that did not quit when asked (single instance, `app.md` §9).
+pub fn terminate_process(pid: u32) {
+    let _ = std::process::Command::new("kill")
+        .args(["-9", &pid.to_string()])
+        .status();
+}
+
 /// Not available on this OS.
 pub struct UnderflowWatch;
 
@@ -74,4 +81,20 @@ pub const fn mic_driver_installed() -> Option<bool> {
 /// Always.
 pub fn install_mic_driver() -> Result<(), String> {
     Err("no virtual-mic driver for this operating system yet".to_owned())
+}
+
+/// No release packages for this OS.
+///
+/// # Errors
+/// Always.
+pub fn update_install_target() -> Result<std::path::PathBuf, String> {
+    Err("no update packages for this operating system".to_owned())
+}
+
+/// Not available on this OS.
+///
+/// # Errors
+/// Always.
+pub fn install_update(_package: &std::path::Path) -> Result<(), String> {
+    Err("no update packages for this operating system".to_owned())
 }

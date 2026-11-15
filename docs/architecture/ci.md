@@ -8,7 +8,9 @@ AGENTS.md: `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D wa
 |---|---|---|---|
 | rustfmt | ubuntu-latest | every push / PR | cheapest runner, no compile |
 | clippy + test (Windows) | windows-latest | every push / PR | the platform nobody builds locally (owner develops on a Mac) |
-| clippy + test (macOS) | macos-latest | PRs and manual runs | macOS minutes are billed 10× on a private repo; the same checks run locally before each commit |
+| clippy + test (macOS) | macos-latest | PRs and manual runs | macOS minutes were billed 10× while the repo was private (public since ADR 0006: free; kept as is, the same checks run locally) |
+
+Installers and releases have their own workflow, see [release.md](release.md).
 
 Build time is kept low by:
 

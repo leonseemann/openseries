@@ -79,7 +79,7 @@ the tray icon.
 | Headset | Noise control (mode, transparency strength) · Microphone (volume, sidetone, mute LED) · Equalizer (preset, custom curve, presets) · Power & display (auto-off, OLED brightness) · Device (firmware, USB, reconnect) |
 | AudioMix | AudioMix switch + status · Output (device, backups) · ChatMix · Channels (one card per channel) · Apps (assignment list) |
 | Microphone | Virtual microphone switch + status · Source (device, backups, default input) · Processing (noise suppression, gate, stabilizer, EQ, gain) · Presets |
-| Settings | General (start at login, notifications) · Hotkeys · Crackling · About (version, licences, getting started, reset, quit) |
+| Settings | General (start at login, notifications) · Hotkeys · Crackling · Updates (automatic check, status, install) · About (version, licences, getting started, reset, quit) |
 
 ## 5. Implementation
 

@@ -145,7 +145,8 @@ dropped. An imported preset of another kind lands in that kind's list.
 | Crate | Responsibility |
 |---|---|
 | `ss-store` | config DTOs, load/save, migration, defaults (portable, unit-tested) |
-| `ss-app` (bin) | composition root: `AppCore`, headset + audio threads, egui UI, tray, hotkeys, autostart; macOS bundle via `scripts/macos/app.sh` |
+| `ss-app` (bin) | composition root: `AppCore`, headset + audio threads, egui UI, tray, hotkeys, autostart, update thread; macOS bundle via `scripts/macos/app.sh` |
+| `ss-update` | release lookup (GitHub JSON, semver, package choice) and Ed25519 signature check for in-app updates; `ss-release-sign` tool for CI ([release.md](release.md)) |
 
 `AppCore`'s state machine (what to (re)build for which config/process/device change) is plain Rust
 and unit-tested without CoreAudio; the CoreAudio calls sit behind a small trait so tests use a fake.
@@ -154,7 +155,8 @@ and unit-tested without CoreAudio; the CoreAudio calls sit behind a small trait 
 
 `StealSeries.app/Contents/{Info.plist, MacOS/stealseries, Resources/}`; `LSUIElement = true`,
 `NSAudioCaptureUsageDescription`, `NSMicrophoneUsageDescription`, `LSMinimumSystemVersion 14.4`,
-ad-hoc signed for development (Developer ID + notarisation later). Built and installed to
+ad-hoc signed for development; release builds optionally with a free self-signed identity
+([release.md](release.md) §3; no paid Developer ID, ADR 0006). Built and installed to
 `~/Applications` by `scripts/macos/app.sh build|install`. Ad-hoc signatures change with each build,
 so macOS may ask for permissions again after an update (**Inferred**). Later: install the
 virtual-mic driver from the app (admin password via the system dialog).
@@ -174,6 +176,7 @@ The app crate is shared by macOS and Windows (ADR 0005). Everything OS-specific 
 | Autostart | LaunchAgent | `HKCU\…\Run` via `reg.exe` (verified 2026-11-14) |
 | Reconnect USB | IOUSBHost re-enumeration | not yet (button hidden) |
 | Fix crackling automatically | `usbaudiod` underflow log stream | not yet (option disabled) |
+| Install an update (ADR 0006) | swap the `.app` bundle after quitting | silent Inno Setup installer |
 | Show the hidden window from the tray | `ViewportCommand::Visible` | Win32 `ShowWindow` via `ss-window-windows` (see below) |
 
 **Hidden window on Windows (Observed 2026-11-14):** eframe only runs UI frames on `WM_PAINT`, which
@@ -212,3 +215,23 @@ The config is not changed, so everything resumes on its own when the base statio
 "Connected" is the headset thread's `base_station` flag; until the first scan it counts as not
 connected (fail safe: nothing starts before the base station is seen). Development runs with
 `STEALSERIES_NO_HEADSET=1` have no headset thread and skip the gate.
+
+## 9. Single instance (owner requirement 2026-11-15)
+
+Only one StealSeries runs per user. A new start **replaces** the running one instead of being
+refused, so starting the app again (Start menu, a development build next to the installed one,
+the installer after an update) always ends with the newest binary running (`src/instance.rs`):
+
+1. The running app listens on a random `127.0.0.1` port and writes `{pid, port, token}` to
+   `instance.json` next to `config.json` (removed again on quit).
+2. A new start reads the record, connects, checks the greeting `stealseries <token>` (a stale
+   port reused by another program never matches), sends `quit <token>` and waits until the
+   connection closes, i.e. the old process has run its normal quit (restore app volumes and the
+   default input, save the config) and exited. Only then does it open the base station — on
+   macOS hidapi opens it exclusively.
+3. A verified old instance that does not exit within 10 s is terminated (`taskkill /F` /
+   `kill -9`); a missing or stale record means nothing runs.
+
+Development runs with another `APPDATA` / `HOME` (screenshots) have their own config directory and
+therefore their own instance. Builds from before this change do not listen; they have to be quit
+by hand once.

@@ -1,0 +1,145 @@
+# Builds the installers and publishes a GitHub release (ADR 0006, docs/architecture/release.md).
+#
+# * Push a tag `vX.Y.Z` (equal to the workspace version) → packages are built, signed with the
+#   update key and published as a release; installed apps offer the update.
+# * Run manually (workflow_dispatch) → the same packages as workflow artifacts, nothing published.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  # Ed25519 private key for update signatures (repository secret, base64).
+  UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
+
+jobs:
+  version:
+    name: version check
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: version
+        name: Workspace version matches the tag
+        run: |
+          version=$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"/\1/p' Cargo.toml)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "workspace version $version"
+          if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match the workspace version $version"
+            exit 1
+          fi
+
+  windows:
+    name: Windows installer
+    needs: version
+    runs-on: windows-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: release
+      - name: Build
+        run: cargo build --release --locked -p ss-app
+      - name: Inno Setup
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup --no-progress -y | Out-Null }
+          & $iscc /Qp "/DAppVersion=$env:VERSION" installer\windows\stealseries.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Collect
+        run: |
+          mkdir -p dist
+          cp "target/installer/StealSeries-$VERSION-windows-x64-setup.exe" dist/
+      - name: Sign for in-app updates
+        run: scripts/release-sign.sh dist/*.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/
+          if-no-files-found: error
+
+  macos:
+    name: macOS app
+    needs: version
+    runs-on: macos-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+      MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: release
+      - name: Import the signing certificate
+        # Optional free self-signed certificate (docs/architecture/release.md §3): a stable
+        # identity keeps macOS permissions across updates. Without it the app is ad-hoc signed.
+        if: env.MACOS_CERTIFICATE != ''
+        run: |
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          password=$(openssl rand -hex 16)
+          echo "$MACOS_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 3600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          security import "$RUNNER_TEMP/cert.p12" -k "$keychain" -P "$MACOS_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain"
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          identity=$(security find-certificate -a -p "$keychain" | openssl x509 -noout -subject -nameopt multiline \
+            | sed -n 's/^ *commonName *= //p' | head -n 1)
+          echo "SIGN_IDENTITY=$identity" >> "$GITHUB_ENV"
+      - name: Build the app bundle
+        run: scripts/macos/app.sh build
+      - name: Package
+        run: |
+          mkdir -p dist
+          codesign --verify --deep --strict target/StealSeries.app
+          ditto -c -k --keepParent target/StealSeries.app "dist/StealSeries-$VERSION-macos-arm64.zip"
+      - name: Sign for in-app updates
+        run: scripts/release-sign.sh dist/*.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    name: publish release
+    if: github.ref_type == 'tag'
+    needs: [version, windows, macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          ls -l dist
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "StealSeries $VERSION" \
+            --generate-notes
