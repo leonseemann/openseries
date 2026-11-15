@@ -162,8 +162,9 @@ Which AudioMix channel an app plays on, in this order (the first that answers wi
      `public.app-category.games` or `…-games`), or lies in `steamapps/common`.
 4. Otherwise **Media** (as before: unassigned apps are not routed).
 
-The AudioMix list shows where an assignment comes from ("catalogue", "game library", "games
-category") and lets the user override it, which stores an own assignment.
+The AudioMix list shows where an assignment comes from ("built-in list", "game library", "games
+category", "your choice") and lets the user override it, which stores an own assignment. Own
+choices have a **Reset** button that removes them, so the app goes back to its automatic channel.
 
 Process details: Windows reads the full executable path (`QueryFullProcessImageNameW`,
 `ss-audio-windows`); macOS reads it with `ps -o comm=` and the category with

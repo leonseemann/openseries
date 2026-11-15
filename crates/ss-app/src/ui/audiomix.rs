@@ -475,30 +475,56 @@ fn apps_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, show_idle: 
                     );
                 });
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if let Some(selected) = components::segmented(
-                        ui,
-                        Some(current),
-                        &[
-                            (Channel::Aux, "Aux"),
-                            (Channel::Media, "Media"),
-                            (Channel::Chat, "Chat"),
-                            (Channel::Game, "Game"),
-                        ],
-                    ) {
-                        // Picking the automatic channel removes the own assignment; anything else
-                        // (also Media) is stored as the user's choice.
-                        core.update_config(|c| {
-                            if selected == automatic {
-                                c.audiomix.assignments.remove(&key);
-                            } else {
-                                c.audiomix.assignments.insert(key.clone(), selected);
-                            }
-                        });
-                    }
+                    channel_controls(ui, core, &key, current, automatic, source);
                 });
             });
         }
     });
+}
+
+/// Channel choice of one app plus "Reset" for the user's own choices.
+fn channel_controls(
+    ui: &mut egui::Ui,
+    core: &AppCore,
+    key: &str,
+    current: Channel,
+    automatic: Channel,
+    source: Option<Source>,
+) {
+    if let Some(selected) = components::segmented(
+        ui,
+        Some(current),
+        &[
+            (Channel::Aux, "Aux"),
+            (Channel::Media, "Media"),
+            (Channel::Chat, "Chat"),
+            (Channel::Game, "Game"),
+        ],
+    ) {
+        // Picking the automatic channel removes the own assignment; anything else (also Media)
+        // is stored as the user's choice.
+        core.update_config(|c| {
+            if selected == automatic {
+                c.audiomix.assignments.remove(key);
+            } else {
+                c.audiomix.assignments.insert(key.to_owned(), selected);
+            }
+        });
+    }
+    // Back to the default (catalogue, game detection or Media); only for the user's choices.
+    if source == Some(Source::Own)
+        && ui
+            .small_button("Reset")
+            .on_hover_text(format!(
+                "Back to the automatic channel: {}",
+                channel_name(automatic)
+            ))
+            .clicked()
+    {
+        core.update_config(|c| {
+            c.audiomix.assignments.remove(key);
+        });
+    }
 }
 
 /// A process standing for the app `key` (its path and category drive game detection).
@@ -529,6 +555,16 @@ fn effective(config: &AudioMixConfig, process: &ProcessInfo) -> (Channel, Option
     classify(config, process).map_or((Channel::Media, None), |(channel, source)| {
         (Channel::from(channel), Some(source))
     })
+}
+
+/// User-facing name of a channel.
+const fn channel_name(channel: Channel) -> &'static str {
+    match channel {
+        Channel::Game => "Game",
+        Channel::Chat => "Chat",
+        Channel::Media => "Media",
+        Channel::Aux => "Aux",
+    }
 }
 
 /// The channel without the user's own assignment (catalogue or detection, else Media).
