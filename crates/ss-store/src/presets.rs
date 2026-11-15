@@ -26,8 +26,10 @@ use crate::config::{
     BandConfig, BoostConfig, ChannelConfig, EqConfig, FaderConfig, GateConfig, Loudness, MicConfig,
 };
 
-/// Number of bands of the headset's on-device EQ.
-pub const HEADSET_EQ_BANDS: usize = 10;
+/// Device that owned the EQ curves stored before presets were kept per device (ADR 0008).
+pub const LEGACY_EQ_DEVICE: &str = "arctis-nova-pro-wireless";
+/// Most bands an on-device EQ preset may have (sanity limit for imported files).
+pub const MAX_EQ_BANDS: usize = 64;
 /// `format` value of an exported preset.
 const FORMAT: &str = "openseries-preset";
 /// Version of the export format.
@@ -39,7 +41,11 @@ const SONAR_FILTERS: usize = 10;
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct PresetsConfig {
-    /// Headset EQ curves (dB per band, lowest band first).
+    /// On-device EQ curves per device id (dB per band, lowest band first; ADR 0008).
+    pub device_eq: BTreeMap<String, BTreeMap<String, Vec<f32>>>,
+    /// Curves of the time before presets were kept per device; read once and moved to
+    /// [`Self::device_eq`] by [`Self::adopt_legacy`], never written.
+    #[serde(skip_serializing)]
     pub headset_eq: BTreeMap<String, Vec<f32>>,
     /// Playback channel sounds.
     pub playback: BTreeMap<String, ChannelConfig>,
@@ -51,7 +57,8 @@ pub struct PresetsConfig {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "settings", rename_all = "snake_case")]
 pub enum PresetData {
-    /// Headset EQ curve.
+    /// On-device EQ curve (stored for the device it was saved or imported on). The serialized
+    /// kind stays `headset_eq`, so older exports keep working.
     HeadsetEq(Vec<f32>),
     /// Playback channel sound.
     Playback(ChannelConfig),
@@ -81,11 +88,18 @@ impl PresetData {
 }
 
 impl PresetsConfig {
-    /// Stores `data` under `name`, replacing a preset of the same kind and name.
-    pub fn insert(&mut self, name: String, data: PresetData) {
+    /// Stores `data` under `name`, replacing a preset of the same kind and name. EQ curves belong
+    /// to a device: `eq_device` names it (`None` drops the curve; the UI only offers EQ presets on
+    /// a device page).
+    pub fn insert(&mut self, name: String, data: PresetData, eq_device: Option<&str>) {
         match data {
             PresetData::HeadsetEq(curve) => {
-                self.headset_eq.insert(name, curve);
+                if let Some(device) = eq_device {
+                    self.device_eq
+                        .entry(device.to_owned())
+                        .or_default()
+                        .insert(name, curve);
+                }
             }
             PresetData::Playback(channel) => {
                 self.playback.insert(name, channel);
@@ -94,6 +108,29 @@ impl PresetsConfig {
                 self.mic.insert(name, mic);
             }
         }
+    }
+}
+
+impl PresetsConfig {
+    /// Moves curves stored before presets were kept per device to the device they were made for.
+    /// Existing per-device presets of the same name win.
+    pub fn adopt_legacy(&mut self) {
+        if self.headset_eq.is_empty() {
+            return;
+        }
+        let target = self
+            .device_eq
+            .entry(LEGACY_EQ_DEVICE.to_owned())
+            .or_default();
+        for (name, curve) in std::mem::take(&mut self.headset_eq) {
+            target.entry(name).or_insert(curve);
+        }
+    }
+
+    /// The EQ presets of `device`.
+    #[must_use]
+    pub fn eq_of(&self, device: &str) -> Option<&BTreeMap<String, Vec<f32>>> {
+        self.device_eq.get(device)
     }
 }
 
@@ -169,8 +206,8 @@ pub fn import_json(text: &str) -> Result<(String, PresetData), ImportError> {
         let preset: ExportedPreset =
             serde_json::from_value(value).map_err(|e| ImportError::Json(e.to_string()))?;
         if let PresetData::HeadsetEq(curve) = &preset.data {
-            if curve.len() != HEADSET_EQ_BANDS {
-                return Err(ImportError::Invalid("a headset EQ needs 10 bands"));
+            if curve.is_empty() || curve.len() > MAX_EQ_BANDS {
+                return Err(ImportError::Invalid("an EQ curve needs 1 to 64 bands"));
             }
         }
         return Ok((preset.name, preset.data));
@@ -327,7 +364,7 @@ mod tests {
             ..MicConfig::default()
         };
         for data in [
-            PresetData::HeadsetEq(vec![1.5; HEADSET_EQ_BANDS]),
+            PresetData::HeadsetEq(vec![1.5; 10]),
             PresetData::playback_of(&channel),
             PresetData::mic_of(&mic),
         ] {
@@ -414,9 +451,48 @@ mod tests {
     fn rejects_unknown_and_invalid_files() {
         assert_eq!(import_json("{}"), Err(ImportError::UnknownFormat));
         assert!(matches!(import_json("nope"), Err(ImportError::Json(_))));
-        let short = r#"{"format":"openseries-preset","version":1,"name":"x","kind":"headset_eq","settings":[1,2]}"#;
-        assert!(matches!(import_json(short), Err(ImportError::Invalid(_))));
+        // EQ curves fit any device band count now (ADR 0008), but not zero bands.
+        let empty = r#"{"format":"openseries-preset","version":1,"name":"x","kind":"headset_eq","settings":[]}"#;
+        assert!(matches!(import_json(empty), Err(ImportError::Invalid(_))));
         let newer = r#"{"format":"openseries-preset","version":99,"name":"x","kind":"headset_eq","settings":[]}"#;
         assert_eq!(import_json(newer), Err(ImportError::TooNew(99)));
+    }
+}
+
+#[cfg(test)]
+mod device_eq_tests {
+    use super::*;
+
+    #[test]
+    fn legacy_curves_move_to_the_nova_pro_once() {
+        let mut presets: PresetsConfig =
+            serde_json::from_str(r#"{"headset_eq":{"Old":[1,2,3,4,5,6,7,8,9,10]}}"#).unwrap();
+        presets.insert(
+            "Old".to_owned(),
+            PresetData::HeadsetEq(vec![0.0; 10]),
+            Some(LEGACY_EQ_DEVICE),
+        );
+        presets.adopt_legacy();
+        assert!(presets.headset_eq.is_empty());
+        // The per-device preset of the same name wins.
+        assert_eq!(
+            presets.eq_of(LEGACY_EQ_DEVICE).and_then(|m| m.get("Old")),
+            Some(&vec![0.0; 10])
+        );
+        let json = serde_json::to_string(&presets).unwrap();
+        assert!(!json.contains("headset_eq"), "{json}");
+    }
+
+    #[test]
+    fn eq_curves_need_a_device() {
+        let mut presets = PresetsConfig::default();
+        presets.insert("x".to_owned(), PresetData::HeadsetEq(vec![1.0; 3]), None);
+        assert!(presets.device_eq.is_empty());
+        presets.insert(
+            "x".to_owned(),
+            PresetData::HeadsetEq(vec![1.0; 3]),
+            Some("d"),
+        );
+        assert_eq!(presets.eq_of("d").map(BTreeMap::len), Some(1));
     }
 }

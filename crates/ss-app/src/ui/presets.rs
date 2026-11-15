@@ -1,4 +1,4 @@
-//! The preset bar shared by the Headset, AudioMix and Microphone pages (`docs/architecture/app.md`
+//! The preset bar shared by the device, AudioMix and Microphone pages (`docs/architecture/app.md`
 //! §3.1): pick a preset to apply it, save the current sound under a name, delete, export, import.
 
 use std::path::PathBuf;
@@ -11,8 +11,8 @@ use crate::core::{AppCore, Snapshot};
 /// Which preset list a bar works on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
-    /// On-device headset EQ curves.
-    HeadsetEq,
+    /// On-device EQ curves of the device with this id (ADR 0008).
+    DeviceEq(&'static str),
     /// AudioMix channel sounds.
     Playback,
     /// Mic chain sounds.
@@ -22,7 +22,10 @@ pub enum Kind {
 impl Kind {
     fn names(self, presets: &PresetsConfig) -> Vec<String> {
         match self {
-            Self::HeadsetEq => presets.headset_eq.keys().cloned().collect(),
+            Self::DeviceEq(device) => presets
+                .eq_of(device)
+                .map(|curves| curves.keys().cloned().collect())
+                .unwrap_or_default(),
             Self::Playback => presets.playback.keys().cloned().collect(),
             Self::Mic => presets.mic.keys().cloned().collect(),
         }
@@ -30,9 +33,9 @@ impl Kind {
 
     fn get(self, presets: &PresetsConfig, name: &str) -> Option<PresetData> {
         match self {
-            Self::HeadsetEq => presets
-                .headset_eq
-                .get(name)
+            Self::DeviceEq(device) => presets
+                .eq_of(device)
+                .and_then(|curves| curves.get(name))
                 .cloned()
                 .map(PresetData::HeadsetEq),
             Self::Playback => presets
@@ -46,8 +49,10 @@ impl Kind {
 
     fn remove(self, presets: &mut PresetsConfig, name: &str) {
         match self {
-            Self::HeadsetEq => {
-                presets.headset_eq.remove(name);
+            Self::DeviceEq(device) => {
+                if let Some(curves) = presets.device_eq.get_mut(device) {
+                    curves.remove(name);
+                }
             }
             Self::Playback => {
                 presets.playback.remove(name);
@@ -58,17 +63,28 @@ impl Kind {
         }
     }
 
-    const fn of(data: &PresetData) -> Self {
-        match data {
-            PresetData::HeadsetEq(_) => Self::HeadsetEq,
-            PresetData::Playback(_) => Self::Playback,
-            PresetData::Mic(_) => Self::Mic,
+    /// The list `data` belongs to when imported from a bar of kind `bar` (EQ curves go to the
+    /// bar's device; `None` if there is none).
+    const fn of(data: &PresetData, bar: Self) -> Option<Self> {
+        match (data, bar) {
+            (PresetData::HeadsetEq(_), Self::DeviceEq(device)) => Some(Self::DeviceEq(device)),
+            (PresetData::HeadsetEq(_), _) => None,
+            (PresetData::Playback(_), _) => Some(Self::Playback),
+            (PresetData::Mic(_), _) => Some(Self::Mic),
+        }
+    }
+
+    /// The device that EQ curves of this list belong to.
+    const fn eq_device(self) -> Option<&'static str> {
+        match self {
+            Self::DeviceEq(device) => Some(device),
+            Self::Playback | Self::Mic => None,
         }
     }
 
     const fn label(self) -> &'static str {
         match self {
-            Self::HeadsetEq => "headset EQ",
+            Self::DeviceEq(_) => "device EQ",
             Self::Playback => "channel",
             Self::Mic => "microphone",
         }
@@ -132,7 +148,7 @@ pub fn bar(
             }
         }
         if ui.button("Import…").clicked() {
-            state.message = match import(core) {
+            state.message = match import(core, kind) {
                 Ok(None) => None,
                 Ok(Some((name, imported))) if imported == kind => {
                     state.selected = Some(name.clone());
@@ -159,7 +175,7 @@ pub fn bar(
         {
             if let Some(data) = current() {
                 let replaced = names.contains(&name);
-                core.update_config(|c| c.presets.insert(name.clone(), data));
+                core.update_config(|c| c.presets.insert(name.clone(), data, kind.eq_device()));
                 state.message = Some(if replaced {
                     format!("replaced \"{name}\"")
                 } else {
@@ -198,8 +214,9 @@ fn export(name: &str, data: &PresetData) -> String {
     }
 }
 
-/// Asks for a file and stores the preset it contains (any kind). `Ok(None)` = cancelled.
-fn import(core: &AppCore) -> Result<Option<(String, Kind)>, String> {
+/// Asks for a file and stores the preset it contains (any kind; EQ curves only on a device page,
+/// for that device). `Ok(None)` = cancelled.
+fn import(core: &AppCore, bar: Kind) -> Result<Option<(String, Kind)>, String> {
     let Some(path): Option<PathBuf> = rfd::FileDialog::new()
         .add_filter("Preset (OpenSeries or Sonar JSON)", &["json"])
         .pick_file()
@@ -208,8 +225,9 @@ fn import(core: &AppCore) -> Result<Option<(String, Kind)>, String> {
     };
     let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
     let (name, data) = import_json(&text).map_err(|e| e.to_string())?;
-    let kind = Kind::of(&data);
-    core.update_config(|c| c.presets.insert(name.clone(), data));
+    let kind =
+        Kind::of(&data, bar).ok_or("this is a device EQ preset; import it on the device's page")?;
+    core.update_config(|c| c.presets.insert(name.clone(), data, kind.eq_device()));
     Ok(Some((name, kind)))
 }
 

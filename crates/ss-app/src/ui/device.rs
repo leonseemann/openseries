@@ -524,7 +524,7 @@ fn curve_editor(
         ui,
         core,
         snapshot,
-        presets::Kind::HeadsetEq,
+        presets::Kind::DeviceEq(device.info.id),
         ("device-eq", device.key()),
         || Some(PresetData::HeadsetEq(curve.clone())),
     );

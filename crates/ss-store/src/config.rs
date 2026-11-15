@@ -348,10 +348,11 @@ mod tests {
         config.app.autostart = true;
         config.app.onboarding_done = true;
         config.mic.gain_db = 6.0;
-        config
-            .presets
-            .headset_eq
-            .insert("Mine".to_owned(), vec![1.0; 10]);
+        config.presets.insert(
+            "Mine".to_owned(),
+            crate::presets::PresetData::HeadsetEq(vec![1.0; 10]),
+            Some("some-device"),
+        );
         let reset = config.reset_keeping_presets();
         assert_eq!(reset.presets, config.presets);
         assert_eq!(

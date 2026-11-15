@@ -90,7 +90,7 @@ pub(super) fn chatmix_control(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snap
                     .show_value(false)
                     .clamping(egui::SliderClamping::Always),
             )
-            .on_hover_text("Also follows the dial on the base station and the balance hotkeys.");
+            .on_hover_text("Also follows the dial on your device and the balance hotkeys.");
         ui.label(RichText::new("Chat").color(p.text));
         if response.changed() {
             core.set_chatmix(position);

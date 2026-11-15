@@ -106,6 +106,7 @@ impl Store {
             )),
             Ok(mut config) => {
                 config.version = CONFIG_VERSION;
+                config.presets.adopt_legacy();
                 Loaded {
                     config,
                     warning: None,
