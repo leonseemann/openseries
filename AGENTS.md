@@ -47,6 +47,10 @@ private repository `leonseemann/openseries-re`, cloned into `docs/re/` (listed i
 git clone https://github.com/leonseemann/openseries-re.git docs/re
 ```
 
+Maintainers keep their personal Claude Code instructions in that repository as well
+(`maintainer/CLAUDE.md`), imported by a git-ignored `CLAUDE.local.md`; the public `CLAUDE.md`
+only imports this file.
+
 Commit and push RE notes **there**, never here. References like `docs/re/sonar.md §3.2` in code and
 docs stay valid for maintainers with the clone. Public docs, code comments and commit messages may
 state the interoperability facts the code needs (protocol layouts, field names, wire values), but
