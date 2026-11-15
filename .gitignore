@@ -12,3 +12,5 @@
 /drivers/windows/**/Release/
 /drivers/windows/**/.vs/
 /drivers/windows/**/*.user
+# Private reverse-engineering notes: a clone of leonseemann/openseries-re (AGENTS.md)
+/docs/re/

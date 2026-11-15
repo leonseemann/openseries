@@ -17,7 +17,7 @@ prompt once (no paid Authenticode certificate); see
 on request (Settings → Updates).
 
 ## Layout
-- `docs/re/` — reverse-engineering findings with evidence (what GG does, how)
+- `docs/re/` — reverse-engineering notes; kept in a private repository (see AGENTS.md)
 - `docs/architecture/` — design of the Rust rewrite
 
 ## Status

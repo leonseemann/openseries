@@ -27,7 +27,8 @@ AGENTS.md              ← you are here
 README.md
 docs/
   README.md            ← documentation index (start here)
-  re/                  ← reverse-engineering findings of the original GG app
+  re/                  ← reverse-engineering findings of the original GG app — PRIVATE: a clone of
+                         leonseemann/openseries-re, git-ignored here (see below)
   architecture/        ← design of the Rust rewrite
   adr/                 ← architecture decision records (NNNN-title.md)
 crates/                ← Rust workspace members (see docs/architecture/overview.md)
@@ -35,6 +36,21 @@ crates/                ← Rust workspace members (see docs/architecture/overvie
 
 Never place extracted vendor files inside the repo; use a scratch directory outside it
 (`/vendor-extract/` and `/scratch/` are git-ignored as a safety net).
+
+## Private reverse-engineering notes
+
+`docs/re/` is **not part of this public repository** (moved 2026-11-15 after the legal review:
+EU law allows decompiling for interoperability but limits passing on what was learned). It is the
+private repository `leonseemann/openseries-re`, cloned into `docs/re/` (listed in `.gitignore`):
+
+```bash
+git clone https://github.com/leonseemann/openseries-re.git docs/re
+```
+
+Commit and push RE notes **there**, never here. References like `docs/re/sonar.md §3.2` in code and
+docs stay valid for maintainers with the clone. Public docs, code comments and commit messages may
+state the interoperability facts the code needs (protocol layouts, field names, wire values), but
+must not copy or paraphrase GG's internal architecture from `docs/re/`.
 
 ## Engineering principles
 
