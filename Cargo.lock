@@ -3918,7 +3918,7 @@ dependencies = [
 
 [[package]]
 name = "ss-app"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "ctrlc",
@@ -3948,7 +3948,7 @@ dependencies = [
 
 [[package]]
 name = "ss-audio-macos"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "block2 0.6.2",
@@ -3970,7 +3970,7 @@ dependencies = [
 
 [[package]]
 name = "ss-audio-windows"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "ss-core",
  "ss-dsp",
@@ -3983,14 +3983,14 @@ dependencies = [
 
 [[package]]
 name = "ss-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "thiserror 2.0.21",
 ]
 
 [[package]]
 name = "ss-device"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "ss-core",
  "thiserror 2.0.21",
@@ -3998,7 +3998,7 @@ dependencies = [
 
 [[package]]
 name = "ss-devices"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "ss-device",
  "ss-hid",
@@ -4007,7 +4007,7 @@ dependencies = [
 
 [[package]]
 name = "ss-dsp"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "allocation-counter",
  "nnnoiseless",
@@ -4016,7 +4016,7 @@ dependencies = [
 
 [[package]]
 name = "ss-engine"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "allocation-counter",
  "rtrb",
@@ -4026,7 +4026,7 @@ dependencies = [
 
 [[package]]
 name = "ss-hal-driver-macos"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "objc2-core-audio",
  "objc2-core-audio-types",
@@ -4035,7 +4035,7 @@ dependencies = [
 
 [[package]]
 name = "ss-hid"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "hidapi",
  "ss-core",
@@ -4045,7 +4045,7 @@ dependencies = [
 
 [[package]]
 name = "ss-nova-pro"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "ss-core",
  "ss-device",
@@ -4054,7 +4054,7 @@ dependencies = [
 
 [[package]]
 name = "ss-store"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -4065,7 +4065,7 @@ dependencies = [
 
 [[package]]
 name = "ss-update"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "base64 0.22.1",
  "ed25519-dalek",
@@ -4079,7 +4079,7 @@ dependencies = [
 
 [[package]]
 name = "ss-usb-macos"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "objc2 0.6.5",
  "objc2-core-foundation",
@@ -4091,14 +4091,14 @@ dependencies = [
 
 [[package]]
 name = "ss-window-windows"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "windows-sys 0.59.0",
 ]
 
 [[package]]
 name = "ssctl"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -4110,7 +4110,7 @@ dependencies = [
 
 [[package]]
 name = "ssdsp"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -4121,7 +4121,7 @@ dependencies = [
 
 [[package]]
 name = "ssmix"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -5170,7 +5170,7 @@ checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
 name = "winaudio-spike"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "ctrlc",
  "hound",
