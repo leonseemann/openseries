@@ -1,7 +1,7 @@
 # Devices: an extensible platform for any device and transport
 
 Decision: [ADR 0008](../adr/0008-multi-device-support.md) (accepted). Status: **Phase A
-implemented 2026-11-15** (Nova Pro on the platform; owner re-test pending). Differences from the
+implemented 2026-11-15** (Nova Pro on the platform; verified on Windows by the owner, macOS re-test pending). Differences from the
 plan below are listed in §10. Goal: adding a headset, keyboard, mouse or a new transport such as Bluetooth must
 not touch the app core.
 
