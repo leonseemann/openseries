@@ -46,3 +46,21 @@ Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or [MIT l
 at your option ([ADR 0003](docs/adr/0003-license.md)). Unless you explicitly state otherwise, any
 contribution intentionally submitted for inclusion in this project shall be dual licensed as above,
 without any additional terms or conditions.
+
+Exception: `drivers/windows/StealSeriesAudio/` is derived from Microsoft's SysVAD sample and stays
+under the [Microsoft Public License](drivers/windows/StealSeriesAudio/LICENSE-MS-PL). It is parked
+and not part of the released app. The licences of all third-party crates and fonts in the app are
+listed in [THIRD_PARTY_LICENSES.md](crates/ss-app/THIRD_PARTY_LICENSES.md) and shown on the app's
+About page.
+
+## Trademarks
+
+SteelSeries, Arctis, Sonar, GameSense and ChatMix are trademarks of SteelSeries ApS. They are used
+here only to describe which hardware and file formats this independent project works with. This
+project is not affiliated with, endorsed by or sponsored by SteelSeries.
+
+## Privacy
+
+StealSeries collects no data and has no telemetry. Its only network access is the update check
+(`api.github.com`, `github.com`), which can be switched off in Settings → Updates; GitHub sees the
+request like any website visit. Settings stay on your computer.
