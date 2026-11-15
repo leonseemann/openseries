@@ -319,15 +319,19 @@ impl AppCore {
     /// Everything the UI renders.
     #[must_use]
     pub fn snapshot(&self) -> Snapshot {
+        // Copy the headset state in its own statement: a guard temporary inside the struct
+        // literal would live until its end and `active` would deadlock on the same mutex.
+        let headset = lock(&self.headset_state).clone();
+        let active = !self.gated || headset.base_station;
         Snapshot {
             config: self.config(),
             audio: lock(&self.audio_status).clone(),
-            headset: lock(&self.headset_state).clone(),
+            headset,
             config_warning: self.config_warning.clone(),
             save_error: lock(&self.save_error).clone(),
             crackle: lock(&self.crackle_status).clone(),
             chatmix_position: *lock(&self.chatmix_position),
-            active: self.active(),
+            active,
         }
     }
 
