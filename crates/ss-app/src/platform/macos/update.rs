@@ -1,12 +1,12 @@
 //! Installing a downloaded, verified update on macOS (ADR 0006 §4): unpack the zipped
-//! `StealSeries.app`, then a detached shell helper waits for this process to quit, swaps the
+//! `OpenSeries.app`, then a detached shell helper waits for this process to quit, swaps the
 //! bundle in place and opens the new one.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 /// Name of the bundle inside the release zip.
-const BUNDLE_NAME: &str = "StealSeries.app";
+const BUNDLE_NAME: &str = "OpenSeries.app";
 
 /// Helper run by `/bin/sh` after the app quits. `$1` pid, `$2` installed bundle, `$3` new bundle.
 /// Keeps the old bundle until the new one is in place and puts it back if the move fails.
@@ -29,13 +29,13 @@ open "$2"
 /// A user-facing reason if the app does not run from a bundle (e.g. `cargo run`).
 pub fn update_install_target() -> Result<PathBuf, String> {
     let exe = std::env::current_exe().map_err(|e| format!("locating the app: {e}"))?;
-    // …/StealSeries.app/Contents/MacOS/stealseries
+    // …/OpenSeries.app/Contents/MacOS/openseries
     exe.ancestors()
         .nth(3)
         .filter(|bundle| bundle.extension().is_some_and(|e| e == "app"))
         .map(Path::to_path_buf)
         .ok_or_else(|| {
-            "StealSeries does not run from an app bundle; install the update from the release \
+            "OpenSeries does not run from an app bundle; install the update from the release \
              page instead"
                 .to_owned()
         })
@@ -70,7 +70,7 @@ pub fn install_update(package: &Path) -> Result<(), String> {
         .arg(&new_bundle)
         .status();
     Command::new("/bin/sh")
-        .args(["-c", SWAP_SCRIPT, "stealseries-update"])
+        .args(["-c", SWAP_SCRIPT, "openseries-update"])
         .arg(std::process::id().to_string())
         .arg(&installed)
         .arg(&new_bundle)

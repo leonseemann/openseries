@@ -43,8 +43,8 @@ impl HotkeyAction {
     #[must_use]
     pub const fn label(self) -> &'static str {
         match self {
-            Self::ChatMixGame => "ChatMix towards Game",
-            Self::ChatMixChat => "ChatMix towards Chat",
+            Self::ChatMixGame => "Game/Chat balance towards Game",
+            Self::ChatMixChat => "Game/Chat balance towards Chat",
             Self::MicMute => "Mute virtual microphone",
             Self::ReconnectUsb => "Reconnect USB (fixes crackling)",
         }
@@ -121,7 +121,7 @@ impl Hotkeys {
                 .unwrap_or_else(PoisonError::into_inner)
                 .get(&event.id)
                 .copied();
-            // Without a base station StealSeries is paused and ignores its hotkeys (app.md §8).
+            // Without a base station OpenSeries is paused and ignores its hotkeys (app.md §8).
             if let Some(action) = action.filter(|_| core.active()) {
                 action.run(&core);
             }
@@ -182,7 +182,7 @@ impl Hotkeys {
 fn registration_problem(text: &str, error: &global_hotkey::Error) -> String {
     match error {
         global_hotkey::Error::AlreadyRegistered(_) => format!(
-            "{text} is already used by another app (or a second StealSeries). Choose another \
+            "{text} is already used by another app (or a second OpenSeries). Choose another \
              combination in Settings → Hotkeys."
         ),
         other => format!("{text} could not be registered ({other})."),

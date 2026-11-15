@@ -1,4 +1,4 @@
-//! Feeds a physical microphone into the virtual "StealSeries Microphone"
+//! Feeds a physical microphone into the virtual "OpenSeries Microphone"
 //! (`docs/architecture/virtual-mic-driver.md` §7).
 //!
 //! A private aggregate device combines the microphone's device (main, clock) with the hidden
@@ -32,11 +32,11 @@ use ss_dsp::{MicChain, MicChainSettings, Processor};
 
 /// UID of the hidden feed device published by `ss-hal-driver-macos`
 /// (`virtual-mic-driver.md` §2; checked against the driver's model in a test).
-pub const FEED_DEVICE_UID: &str = "dev.stealseries.mic.feed";
+pub const FEED_DEVICE_UID: &str = "dev.openseries.mic.feed";
 /// UID of the visible virtual microphone (must never be used as the source).
-pub const VIRTUAL_MIC_UID: &str = "dev.stealseries.mic";
+pub const VIRTUAL_MIC_UID: &str = "dev.openseries.mic";
 /// Label of the dispatch queue running the IOProc.
-const QUEUE_LABEL: &str = "dev.stealseries.micfeed.io";
+const QUEUE_LABEL: &str = "dev.openseries.micfeed.io";
 /// Pending live chain changes; only the newest matters, a few slots absorb slider drags.
 const SETTINGS_QUEUE: usize = 8;
 
@@ -93,8 +93,7 @@ impl MicFeedSession {
         }
         device_id_for_uid(FEED_DEVICE_UID).map_err(|_| {
             AudioError::NotFound(
-                "StealSeries Microphone driver (run scripts/macos/hal-driver.sh install)"
-                    .to_owned(),
+                "OpenSeries Microphone driver (run scripts/macos/hal-driver.sh install)".to_owned(),
             )
         })?;
         let layout = FeedLayout {

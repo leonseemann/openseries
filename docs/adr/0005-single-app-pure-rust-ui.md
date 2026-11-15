@@ -27,7 +27,7 @@ GPL-3.0 or a Slint-specific royalty-free licence with attribution duties — rej
 
 ## Decision
 
-- **Option B.** One binary/bundle **`StealSeries.app`** (crate `ss-app`), `LSUIElement` menu-bar app:
+- **Option B.** One binary/bundle **`OpenSeries.app`** (crate `ss-app`), `LSUIElement` menu-bar app:
   tray icon always present, the egui window opens from the tray and can be closed without
   quitting.
 - Crates: `eframe`/`egui` (window), `tray-icon` (menu bar), `global-hotkey` (hotkeys), `serde` +

@@ -1,15 +1,16 @@
-# StealSeries
+# OpenSeries
 
 Clean-room, cross-platform (Windows + macOS) reimplementation of the SteelSeries GG
 feature set in Rust — with a working Sonar-style **AudioMix** on macOS.
 
 > Not affiliated with SteelSeries ApS. No proprietary code or assets are copied;
 > behaviour is reimplemented from observed interfaces for interoperability.
+> Formerly named StealSeries ([ADR 0007](docs/adr/0007-rename-to-openseries.md)).
 
 ## Install
 
-Download the latest installer from [Releases](https://github.com/leonseemann/stealseries/releases):
-`StealSeries-…-windows-x64-setup.exe` (Windows 10/11) or `StealSeries-…-macos-arm64.zip`
+Download the latest installer from [Releases](https://github.com/leonseemann/openseries/releases):
+`OpenSeries-…-windows-x64-setup.exe` (Windows 10/11) or `OpenSeries-…-macos-arm64.zip`
 (Apple Silicon, macOS 14.4+, signed and notarized). Free of charge. Windows shows a SmartScreen
 prompt once (no paid Authenticode certificate); see
 [docs/architecture/release.md](docs/architecture/release.md) §4. Afterwards the app updates itself
@@ -47,8 +48,8 @@ at your option ([ADR 0003](docs/adr/0003-license.md)). Unless you explicitly sta
 contribution intentionally submitted for inclusion in this project shall be dual licensed as above,
 without any additional terms or conditions.
 
-Exception: `drivers/windows/StealSeriesAudio/` is derived from Microsoft's SysVAD sample and stays
-under the [Microsoft Public License](drivers/windows/StealSeriesAudio/LICENSE-MS-PL). It is parked
+Exception: `drivers/windows/OpenSeriesAudio/` is derived from Microsoft's SysVAD sample and stays
+under the [Microsoft Public License](drivers/windows/OpenSeriesAudio/LICENSE-MS-PL). It is parked
 and not part of the released app. The licences of all third-party crates and fonts in the app are
 listed in [THIRD_PARTY_LICENSES.md](crates/ss-app/THIRD_PARTY_LICENSES.md) and shown on the app's
 About page.
@@ -61,6 +62,6 @@ project is not affiliated with, endorsed by or sponsored by SteelSeries.
 
 ## Privacy
 
-StealSeries collects no data and has no telemetry. Its only network access is the update check
+OpenSeries collects no data and has no telemetry. Its only network access is the update check
 (`api.github.com`, `github.com`), which can be switched off in Settings → Updates; GitHub sees the
 request like any website visit. Settings stay on your computer.

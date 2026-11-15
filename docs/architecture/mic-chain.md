@@ -1,6 +1,6 @@
 # Mic chain (M6): denoise → gate → compressor → mic EQ
 
-Processes the headset microphone before it reaches the virtual "StealSeries Microphone"
+Processes the headset microphone before it reaches the virtual "OpenSeries Microphone"
 ([virtual-mic-driver.md §7](virtual-mic-driver.md)). Covers SON-19 (AI noise cancelling),
 SON-21 (noise gate, manual + automatic threshold), SON-23 (volume stabilizer) and SON-25 (mic EQ)
 from [feature-inventory.md](../re/feature-inventory.md). Later: SON-22 (impact NR), SON-24 (AEC).

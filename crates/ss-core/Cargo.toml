@@ -1,6 +1,6 @@
 [package]
 name = "ss-core"
-description = "Platform-independent domain model and port traits for StealSeries."
+description = "Platform-independent domain model and port traits for OpenSeries."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

@@ -5,34 +5,34 @@ capture an app while its playback is silenced (S3/S4, **Observed**), so per-chan
 virtual microphone need virtual endpoints. M4a (session mixer) stays as the fallback when the
 driver is not installed.
 
-Status (2026-11-14): **parked, not planned for now** — the driver cannot be loaded on the owner's PC (Secure Boot must stay on for anti-cheat) and signing it for others costs money; the app must stay free, and VB-Cable is not used either (ADR 0004 updates). The user-mode pieces below remain as building blocks. First driver build done, not yet loaded. `drivers/windows/StealSeriesAudio`
+Status (2026-11-14): **parked, not planned for now** — the driver cannot be loaded on the owner's PC (Secure Boot must stay on for anti-cheat) and signing it for others costs money; the app must stay free, and VB-Cable is not used either (ADR 0004 updates). The user-mode pieces below remain as building blocks. First driver build done, not yet loaded. `drivers/windows/OpenSeriesAudio`
 builds with `scripts/windows/driver.ps1` into a test-signed package (driver, INF, signed catalog);
 `scripts/windows/driver-install.ps1` installs/removes it once test-signing mode is on.
 
 Implemented in this first step (reduction of SysVAD):
 
 - Render: four sinks `WaveGame/TopologyGame` … `WaveAux/TopologyAux` = speaker-style topology
-  with a per-endpoint Name GUID (`stealseriestoptable.h`) + SysVAD's HDMI wave filter (stereo,
+  with a per-endpoint Name GUID (`openseriestoptable.h`) + SysVAD's HDMI wave filter (stereo,
   no offload pin, loopback pin), so every stream goes through the engine mix. Windows should show
-  them as "Game (StealSeries Audio)" etc. (names from `MediaCategories` in the INF; **Inferred**
+  them as "Game (OpenSeries Audio)" etc. (names from `MediaCategories` in the INF; **Inferred**
   until seen on the PC).
-- Capture: SysVAD's mic-in pair only, named "Microphone (StealSeries Audio)", silent (tone
+- Capture: SysVAD's mic-in pair only, named "Microphone (OpenSeries Audio)", silent (tone
   generator off) until the feed loopback is added.
 - Off by default: Bluetooth HFP/USB/A2DP sideband endpoints (the code needs their defines to
   compile, so they are disabled at runtime in `adapter.cpp`), data-file saving.
-- Own INF (`StealSeriesAudio.inx`, hardware id `Root\StealSeriesAudio`, service
-  `stealseriesaudio`) replaces the three sample INFs.
+- Own INF (`OpenSeriesAudio.inx`, hardware id `Root\OpenSeriesAudio`, service
+  `openseriesaudio`) replaces the three sample INFs.
 
-## 1. Endpoints (one driver package `StealSeriesAudio`)
+## 1. Endpoints (one driver package `OpenSeriesAudio`)
 
 | Endpoint (friendly name) | Flow | In the driver | Used by |
 |---|---|---|---|
-| StealSeries Game | render | sink: accepts and discards data, reports position | apps routed to Game |
-| StealSeries Chat | render | sink | Discord, Teams … |
-| StealSeries Media | render | sink; becomes the **Windows default output** while AudioMix runs, so unassigned apps land here (SON-06) | everything else |
-| StealSeries Aux | render | sink | optional |
-| StealSeries Mic Feed | render | writes into the driver-internal loopback buffer | our process only (hidden from users as far as Windows allows — Unknown) |
-| StealSeries Microphone | capture | reads the loopback buffer | Discord, Zoom, OBS … |
+| OpenSeries Game | render | sink: accepts and discards data, reports position | apps routed to Game |
+| OpenSeries Chat | render | sink | Discord, Teams … |
+| OpenSeries Media | render | sink; becomes the **Windows default output** while AudioMix runs, so unassigned apps land here (SON-06) | everything else |
+| OpenSeries Aux | render | sink | optional |
+| OpenSeries Mic Feed | render | writes into the driver-internal loopback buffer | our process only (hidden from users as far as Windows allows — Unknown) |
+| OpenSeries Microphone | capture | reads the loopback buffer | Discord, Zoom, OBS … |
 
 Format: 48 kHz, stereo for render endpoints, mono for the microphone, 32-bit float and 16-bit PCM
 offered (the shared-mode engine converts). The driver holds **no DSP and no IPC**, like the macOS
@@ -47,19 +47,19 @@ workspace member.
 
 ```mermaid
 flowchart LR
-  APPS["apps"] -->|"per-app default endpoint<br/>(IAudioPolicyConfig)"| VG["StealSeries Game/Chat/Media/Aux<br/>(driver sinks)"]
+  APPS["apps"] -->|"per-app default endpoint<br/>(IAudioPolicyConfig)"| VG["OpenSeries Game/Chat/Media/Aux<br/>(driver sinks)"]
   VG -->|"WASAPI loopback capture,<br/>one stream per endpoint"| DB["DriftBuffer per channel<br/>(ss-engine)"]
   DB --> ENG["MixEngine<br/>(same as macOS)"]
   ENG -->|"WASAPI shared render,<br/>event driven"| HS["Arctis Nova Pro headset"]
-  MIC["headset mic<br/>(WASAPI capture)"] --> CHAIN["MicChain"] -->|"WASAPI render"| FEED["StealSeries Mic Feed"]
-  FEED -->|"driver loopback"| VMIC["StealSeries Microphone"]
+  MIC["headset mic<br/>(WASAPI capture)"] --> CHAIN["MicChain"] -->|"WASAPI render"| FEED["OpenSeries Mic Feed"]
+  FEED -->|"driver loopback"| VMIC["OpenSeries Microphone"]
 ```
 
 1. **Routing.** Assigned apps get their per-process default render endpoint set to the channel's
    endpoint with the undocumented `IAudioPolicyConfig::SetPersistedDefaultAudioEndpoint`
    (two IIDs by Windows build, **Observed** in Sonar, `sonar.md` §2.3; EarTrumpet uses the same).
    The device id is passed as `\\?\SWD#MMDEVAPI#<endpoint id>#{e6327cad-dcec-4949-ae8a-991e976a79d2}`.
-   Unassigned apps follow the Windows default output, which AudioMix switches to "StealSeries
+   Unassigned apps follow the Windows default output, which AudioMix switches to "OpenSeries
    Media" and restores on stop (like the default-input handling on macOS). Apps that ignore
    per-app defaults (Sonar keeps a "routing-error-prone" list) stay on Media.
 2. **Capture.** A standard WASAPI **loopback** stream on each virtual render endpoint returns what
@@ -73,8 +73,8 @@ flowchart LR
    an SPSC ring buffer whose reader resamples by a few hundred ppm to hold its fill level at a
    target (PI control, cubic interpolation). Target fill ≈ 2 headset periods (≈ 20 ms) — the
    latency budget is Unknown until measured.
-5. **Virtual mic.** Headset mic → `MicChain` (live changes as on macOS) → render to "StealSeries
-   Mic Feed" → driver loopback → "StealSeries Microphone". The same `DriftBuffer` sits between the
+5. **Virtual mic.** Headset mic → `MicChain` (live changes as on macOS) → render to "OpenSeries
+   Mic Feed" → driver loopback → "OpenSeries Microphone". The same `DriftBuffer` sits between the
    mic capture and the feed render.
 
 ## 3. Development and signing
@@ -100,7 +100,7 @@ adds the loopback pair afterwards, and every install step is reversible (`pnputi
 
 ## 5. Open questions
 
-- Can "StealSeries Mic Feed" be hidden from the Sound settings? (Unknown; SysVAD has no flag
+- Can "OpenSeries Mic Feed" be hidden from the Sound settings? (Unknown; SysVAD has no flag
   that removes an endpoint from the UI.)
 - Latency of the whole loopback → engine → headset path (target < 30 ms; Unknown).
 - Behaviour of apps in exclusive mode (bypass the virtual endpoints; documented limitation).

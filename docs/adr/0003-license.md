@@ -5,7 +5,7 @@
 
 ## Decision
 
-All StealSeries code is dual-licensed under **MIT OR Apache-2.0** (the Rust ecosystem default).
+All OpenSeries code is dual-licensed under **MIT OR Apache-2.0** (the Rust ecosystem default).
 Files derived from Microsoft's SysVAD sample (possible future Windows driver) would keep their
 **MS-PL** license in a separate directory.
 

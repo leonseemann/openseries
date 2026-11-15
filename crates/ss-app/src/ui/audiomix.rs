@@ -46,7 +46,7 @@ pub fn show(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, show_idle: &
     if !config.enabled {
         return;
     }
-    components::card(ui, Some("ChatMix"), |ui| {
+    components::card(ui, Some("Game/Chat balance"), |ui| {
         chatmix_control(ui, core, snapshot);
     });
     apps_card(ui, core, snapshot, show_idle);
@@ -59,11 +59,11 @@ fn switch_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
     components::card(ui, None, |ui| {
         let mut enabled = config.enabled;
         let description = if DSP {
-            "Routes app audio through StealSeries. When off, StealSeries does not touch system \
+            "Routes app audio through OpenSeries. When off, OpenSeries does not touch system \
              audio at all — use that when another audio tool should handle your apps."
         } else {
             "Sets each app's volume by its channel and balances Game and Chat. When off, \
-             StealSeries does not touch app volumes."
+             OpenSeries does not touch app volumes."
         };
         components::row(ui, "AudioMix", Some(description), |ui| {
             if components::switch(ui, &mut enabled) {
@@ -90,7 +90,7 @@ pub(super) fn chatmix_control(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snap
                     .show_value(false)
                     .clamping(egui::SliderClamping::Always),
             )
-            .on_hover_text("Also follows the dial on the base station and the ChatMix hotkeys.");
+            .on_hover_text("Also follows the dial on the base station and the balance hotkeys.");
         ui.label(RichText::new("Chat").color(p.text));
         if response.changed() {
             core.set_chatmix(position);

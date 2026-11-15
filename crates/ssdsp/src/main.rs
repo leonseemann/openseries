@@ -1,4 +1,4 @@
-//! `ssdsp` — run a WAV file through the StealSeries playback channel strip or, with `--mic`,
+//! `ssdsp` — run a WAV file through the OpenSeries playback channel strip or, with `--mic`,
 //! the mic chain (denoise → gate → stabilizer → mic EQ) for listening tests.
 //!
 //! Audio is processed in small blocks, exactly as the real-time engine will do it.

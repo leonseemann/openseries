@@ -4,7 +4,7 @@
 //! `WM_PAINT` — and Windows sends no `WM_PAINT` to a hidden window. Once the window is hidden
 //! (closing it keeps the app in the tray), eframe stops running the UI frame, so a queued
 //! `ViewportCommand::Visible(true)` is never applied. **Observed** 2026-11-14 on Windows 11:
-//! "Open StealSeries…" in the tray did nothing. [`show_window`] shows the window directly instead.
+//! "Open OpenSeries…" in the tray did nothing. [`show_window`] shows the window directly instead.
 //! On other platforms the functions are no-ops.
 
 // FFI adapter crate: `unsafe` is allowed here only (AGENTS.md). Every block has a SAFETY note.

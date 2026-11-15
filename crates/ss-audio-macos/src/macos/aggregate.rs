@@ -20,9 +20,9 @@ use super::tap::ProcessTap;
 use crate::AudioError;
 
 /// Name shown for the (private, normally invisible) aggregate device.
-const DEVICE_NAME: &str = "StealSeries AudioMix";
+const DEVICE_NAME: &str = "OpenSeries AudioMix";
 /// Prefix of the aggregate device UID; a random suffix keeps sessions unique.
-const UID_PREFIX: &str = "dev.stealseries.audiomix.";
+const UID_PREFIX: &str = "dev.openseries.audiomix.";
 
 /// One physical (or driver) device inside an aggregate device.
 #[derive(Debug, Clone, Copy)]

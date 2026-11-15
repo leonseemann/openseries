@@ -102,7 +102,7 @@ fn quick_controls(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, page: 
         components::row(
             ui,
             "AudioMix",
-            Some("Sort apps into Game, Chat, Media and Aux and balance them with ChatMix."),
+            Some("Sort apps into Game, Chat, Media and Aux and balance Game against Chat."),
             |ui| {
                 if components::switch(ui, &mut enabled) {
                     core.update_config(|c| c.audiomix.enabled = enabled);
@@ -119,7 +119,7 @@ fn quick_controls(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, page: 
 }
 
 fn chatmix_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
-    components::card(ui, Some("ChatMix"), |ui| {
+    components::card(ui, Some("Game/Chat balance"), |ui| {
         if snapshot.config.audiomix.enabled {
             audiomix::chatmix_control(ui, core, snapshot);
         } else {

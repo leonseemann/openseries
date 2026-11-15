@@ -19,7 +19,7 @@ const RESTORE_FILE: &str = "session-volumes.txt";
 #[must_use]
 pub fn audio_backend() -> AudioBackend {
     let path = ss_store::Store::per_user().map_or_else(
-        |_| std::env::temp_dir().join("StealSeries").join(RESTORE_FILE),
+        |_| std::env::temp_dir().join("OpenSeries").join(RESTORE_FILE),
         |store| store.path().with_file_name(RESTORE_FILE),
     );
     crate::audio::windows::WinAudioBackend::new(path)
@@ -45,7 +45,27 @@ const SILENT_INSTALL_ARGS: [&str; 4] = ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NO
 /// Registry key for per-user start-up programs.
 const RUN_KEY: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
 /// Value name under [`RUN_KEY`].
-const RUN_VALUE: &str = "StealSeries";
+const RUN_VALUE: &str = "OpenSeries";
+/// Run value of the former app name (StealSeries, ADR 0007).
+const LEGACY_RUN_VALUE: &str = "StealSeries";
+/// Toast registration of the former app name (ADR 0007).
+const LEGACY_AUMID_KEY: &str = r"HKCU\Software\Classes\AppUserModelId\StealSeries.App";
+
+/// Removes what the former app name (StealSeries) registered: its "start at login" value and its
+/// toast sender. Settings move with `ss-store`; autostart is re-applied under the new name at
+/// start-up if it was on.
+pub fn remove_legacy_registrations() {
+    for args in [
+        vec!["delete", RUN_KEY, "/v", LEGACY_RUN_VALUE, "/f"],
+        vec!["delete", LEGACY_AUMID_KEY, "/f"],
+    ] {
+        // Fails harmlessly when nothing is there.
+        let _ = Command::new("reg")
+            .args(args)
+            .creation_flags(CREATE_NO_WINDOW)
+            .output();
+    }
+}
 
 /// Starts the app at login via the per-user `Run` registry value (verified on Windows 11, 2026-11-14).
 ///
@@ -139,14 +159,14 @@ pub fn install_mic_driver() -> Result<(), String> {
 }
 
 /// Toast sender ID (AUMID). The installer's Start-menu shortcut carries the same ID
-/// (`installer/windows/stealseries.iss`); [`init_notifications`] registers it for all runs.
-const NOTIFICATION_APP_ID: &str = "StealSeries.App";
+/// (`installer/windows/openseries.iss`); [`init_notifications`] registers it for all runs.
+const NOTIFICATION_APP_ID: &str = "OpenSeries.App";
 /// Per-user registration of [`NOTIFICATION_APP_ID`] (name and icon shown on toasts).
-const AUMID_KEY: &str = r"HKCU\Software\Classes\AppUserModelId\StealSeries.App";
+const AUMID_KEY: &str = r"HKCU\Software\Classes\AppUserModelId\OpenSeries.App";
 /// Toast icon, written next to `config.json`.
 const NOTIFICATION_ICON: &[u8] = include_bytes!("../../bundle/icon/AppIcon.png");
 
-/// Registers "StealSeries" with its icon as the sender of our notifications; without it Windows
+/// Registers "OpenSeries" with its icon as the sender of our notifications; without it Windows
 /// shows them as coming from PowerShell (notify-rust's default ID).
 pub fn init_notifications() {
     let Ok(store) = ss_store::Store::per_user() else {
@@ -157,7 +177,7 @@ pub fn init_notifications() {
         return;
     }
     for (name, value) in [
-        ("DisplayName", "StealSeries".to_owned()),
+        ("DisplayName", "OpenSeries".to_owned()),
         ("IconUri", icon.display().to_string()),
     ] {
         let _ = Command::new("reg")
@@ -169,7 +189,7 @@ pub fn init_notifications() {
     }
 }
 
-/// Sends a notification as StealSeries (see [`init_notifications`]).
+/// Sends a notification as OpenSeries (see [`init_notifications`]).
 pub fn prepare_notification(notification: &mut notify_rust::Notification) {
     notification.app_id(NOTIFICATION_APP_ID);
 }

@@ -11,7 +11,7 @@ pub use semver;
 pub use signature::{SignatureError, verify};
 
 /// GitHub repository that publishes the releases.
-pub const REPOSITORY: &str = "leonseemann/stealseries";
+pub const REPOSITORY: &str = "leonseemann/openseries";
 
 /// GitHub API endpoint of the newest published (non-draft, non-prerelease) release.
 #[must_use]

@@ -16,7 +16,7 @@ Options considered:
 
 | Option | Playback channels | Pros | Cons |
 |---|---|---|---|
-| A. HAL driver with loopback devices (BlackHole-style) for every channel | User/OS sends apps to "StealSeries Game" etc. | Works on 12+; apps can pick a channel themselves | Driver needed for everything; per-app routing still needs a mechanism; 5 extra devices visible |
+| A. HAL driver with loopback devices (BlackHole-style) for every channel | User/OS sends apps to "OpenSeries Game" etc. | Works on 12+; apps can pick a channel themselves | Driver needed for everything; per-app routing still needs a mechanism; 5 extra devices visible |
 | **B. Audio Process Taps** (macOS 14.4+) | Tap selected processes, mute their original output, re-render processed mix | No driver for playback; true per-app routing; nothing to install for playback | macOS 14.4+; needs audio-capture permission (TCC) |
 | C. Become the system default output (Background Music style) | One virtual default device, split by process in the driver | Works on older macOS | Complex driver, fragile, GPL references only |
 
@@ -28,9 +28,9 @@ Options considered:
   receives all tap streams and writes the output in the same callback → no ring buffers, no clock
   drift between channels (the aggregate device handles drift correction).
 - **Unassigned apps** fall into the Media channel by default (a global tap excluding assigned
-  processes), so "everything goes through StealSeries" when AudioMix is on.
+  processes), so "everything goes through OpenSeries" when AudioMix is on.
 - **Virtual microphone: a minimal AudioServerPlugIn (HAL driver)** exposing one loopback device
-  "StealSeries Microphone". The daemon writes the processed mic into the device's output side; apps
+  "OpenSeries Microphone". The daemon writes the processed mic into the device's output side; apps
   read its input side. The driver contains no DSP and no IPC (loopback inside the driver).
 - **Minimum macOS: 14.4.** The playback engine requires the app to declare
   `NSAudioCaptureUsageDescription`.

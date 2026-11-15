@@ -1,4 +1,4 @@
-# Prior art — open-source projects relevant to StealSeries
+# Prior art — open-source projects relevant to OpenSeries
 
 > Scope: **SteelSeries Arctis Nova Pro Wireless** (base station + headset) and the Sonar core
 > (virtual channels, per-app routing, ChatMix, DSP, virtual mic) on **Windows and macOS**.
@@ -15,7 +15,7 @@
     (usually because of GPL/AGPL/unclear license, or because it is another language).
   - **Avoid** — technical or legal reasons not to rely on it.
 - Protocol facts taken from community projects are third-party observations. Under our evidence rules
-  (`AGENTS.md`, rule 3) they count as **Inferred** for StealSeries until confirmed against GG's own device
+  (`AGENTS.md`, rule 3) they count as **Inferred** for OpenSeries until confirmed against GG's own device
   specification files (`docs/re/engine.md` §4.2) or a user-approved hardware test. Facts (byte layouts,
   command IDs) are not copyrightable; the code that implements them is — we reimplement from the table
   below, not from the source files.
@@ -124,7 +124,7 @@ find the EQ band frequencies, the ANC button event, and the report sizes from th
 Notes
 - Process Taps: the API appears in the macOS 14.2 SDK; AudioCap and most samples require **14.4+** (stable
   permission flow). Our `sonar.md` §6 says 14.4 — keep 14.4 as the supported floor (Inferred).
-- No mature Rust AudioServerPlugIn crate exists → we write a small `stealseries-hal-driver` crate
+- No mature Rust AudioServerPlugIn crate exists → we write a small `openseries-hal-driver` crate
   (`cdylib`, C ABI vtable `AudioServerPlugInDriverInterface`) that is a dumb ring-buffer endpoint, with DSP in
   our daemon (as `sonar.md` "Implications" #1 proposes). Requires Developer-ID signing + notarisation and an
   admin install into `/Library/Audio/Plug-Ins/HAL`.
@@ -215,7 +215,7 @@ making this an opt-in "Sonar compatibility mode" (and only when real GG is not i
 
 ---
 
-## 7. License analysis and recommendation for StealSeries
+## 7. License analysis and recommendation for OpenSeries
 
 ### 7.1 Copyleft items we must not copy into an MIT/Apache codebase
 

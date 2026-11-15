@@ -89,7 +89,7 @@ boosts, Smart Volume and volume boost above 0 dB need the M4b driver; the UI say
    it.
 4. **Stop:** dropping the handle writes every original back.
 5. **Crash safety:** Windows persists per-app session volumes across restarts, so a crash would
-   leave apps quieter. Originals are written to `%APPDATA%\StealSeries\session-volumes.txt`
+   leave apps quieter. Originals are written to `%APPDATA%\OpenSeries\session-volumes.txt`
    (keyed by the session identifier, which is stable per app) before we change anything and removed
    once restored. While no mix runs, the backend restores any listed session it finds, including
    apps that were closed while the mix was running.

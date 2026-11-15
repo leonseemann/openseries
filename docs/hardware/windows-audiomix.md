@@ -8,7 +8,7 @@ Quit SteelSeries GG first (it also changes app volumes and owns the ChatMix dial
 
 ```powershell
 cargo build --release -p ss-app -p winaudio-spike
-.\target\release\stealseries.exe
+.\target\release\openseries.exe
 ```
 
 Open the Windows volume mixer (*Settings → System → Sound → Volume mixer*) next to the app to see
@@ -30,12 +30,12 @@ Run on 2026-11-14: Windows 11 Pro (build 26300), Nova Pro Wireless, GG not runni
 | 8 | Change an app's slider in the Windows mixer while AudioMix runs | the new level is kept (not snapped back) | ✅ Observed 2026-11-14 |
 | 9 | App started while AudioMix runs (e.g. open a new player) | lands on its channel / Media at the right level within ~2 s | ✅ Observed 2026-11-14 |
 | 10 | AudioMix off, and Quit | every app slider back to where it was before | ✅ Observed 2026-11-14 |
-| 11 | Crash safety: Game at 20 %, kill `stealseries.exe` in Task Manager, restart the app | app volumes restored on start; `%APPDATA%\StealSeries\session-volumes.txt` gone | ✅ Observed 2026-11-14 |
-| 12 | Virtual microphone switch | "needs the StealSeries audio driver (milestone M4b)", nothing crashes | ✅ Observed 2026-11-14 |
+| 11 | Crash safety: Game at 20 %, kill `openseries.exe` in Task Manager, restart the app | app volumes restored on start; `%APPDATA%\OpenSeries\session-volumes.txt` gone | ✅ Observed 2026-11-14 |
+| 12 | Virtual microphone switch | "needs the OpenSeries audio driver (milestone M4b)", nothing crashes | ✅ Observed 2026-11-14 |
 
 ## Smoke test without the owner (2026-11-14, agent)
 
-Isolated config (`APPDATA` pointed to a scratch folder, `STEALSERIES_NO_HEADSET=1`), AudioMix on
+Isolated config (`APPDATA` pointed to a scratch folder, `OPENSERIES_NO_HEADSET=1`), AudioMix on
 with all faders at 100 % (so no audible change): the session mixer started, wrote the restore file
 (here the Spotify session) and kept it after a hard kill; the next start with AudioMix off restored
 it and deleted the file. Session volumes before and after (`winspike sessions`) were identical.

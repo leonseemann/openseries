@@ -41,7 +41,7 @@ needs virtual render endpoints, i.e. a driver**, which is exactly why Sonar ship
 | Option | Per-channel volume, mute, ChatMix | Per-channel DSP (EQ, boosts, Smart Volume) | Virtual mic | Cost / risk |
 |---|---|---|---|---|
 | **A. Session mixer** (no driver): assign apps to Game/Chat/Media/Aux; drive each app session's volume = channel fader × mute × ChatMix gain | ✅ | ❌ | ❌ | Small. Documented APIs only (`IAudioSessionManager2`, `ISimpleAudioVolume`, session notifications). Changes the user's per-app mixer volumes (must restore on exit/crash). |
-| **B. Own virtual audio driver**: SysVAD-derived WaveRT driver (MS-PL, C++) with Game/Chat/Media/Aux render endpoints + "StealSeries Microphone" capture; apps routed with `IAudioPolicyConfig` (undocumented, sonar.md §2.3); our process captures the endpoints and renders the processed mix to the headset | ✅ | ✅ | ✅ | Large. Kernel C++ outside the Rust workspace. Dev/test needs **test-signing mode** (`bcdedit /set testsigning on`, usually requires Secure Boot off). Distribution needs an **EV code-signing certificate + Microsoft attestation signing** (yearly cost). A driver bug can blue-screen the PC. |
+| **B. Own virtual audio driver**: SysVAD-derived WaveRT driver (MS-PL, C++) with Game/Chat/Media/Aux render endpoints + "OpenSeries Microphone" capture; apps routed with `IAudioPolicyConfig` (undocumented, sonar.md §2.3); our process captures the endpoints and renders the processed mix to the headset | ✅ | ✅ | ✅ | Large. Kernel C++ outside the Rust workspace. Dev/test needs **test-signing mode** (`bcdedit /set testsigning on`, usually requires Secure Boot off). Distribution needs an **EV code-signing certificate + Microsoft attestation signing** (yearly cost). A driver bug can blue-screen the PC. |
 | **C. Third-party virtual cable** (e.g. VB-Audio Cable, installed by the user) as sink + routing + capture | ✅ | ✅ (one cable per channel) | ✅ (one more cable) | No driver work, but extra install, several paid cables for 4 channels + mic, licence/redistribution not ours, foreign device names. Good only as a **development stand-in** to build the B pipeline before the driver exists. |
 | D. Process loopback + session mute | — | — | — | **Ruled out by S3/S4.** |
 
@@ -56,7 +56,7 @@ default-device fallback (SON-06) matters.
 1. **M4a — session mixer (option A) now.** `ss-audio-windows` implements the app's audio backend
    with what works without a driver: app list, channel assignment, channel faders, mute, ChatMix
    (slider, hotkeys and the base-station dial) applied as per-app session volumes. The app's
-   AudioMix page shows the per-channel DSP controls as "needs the StealSeries audio driver" on
+   AudioMix page shows the per-channel DSP controls as "needs the OpenSeries audio driver" on
    Windows. Session volumes are saved before changing them and restored on stop, quit and the
    next start after a crash.
 2. **M4b — own virtual audio driver (option B)**, as a separate component (`drivers/windows/`, C++,
@@ -67,7 +67,7 @@ default-device fallback (SON-06) matters.
 
 ## Update 2026-11-14: own driver parked, VB-Cable as the stand-in
 
-The first driver build (`drivers/windows/StealSeriesAudio`, test-signed) cannot be loaded on the
+The first driver build (`drivers/windows/OpenSeriesAudio`, test-signed) cannot be loaded on the
 owner's PC: `bcdedit /set testsigning on` is blocked by Secure Boot, and Secure Boot must stay on
 because kernel anti-cheats (Easy Anti-Cheat, Vanguard, FACEIT …) require it and refuse
 test-signing mode. Testing in a Hyper-V VM was offered and declined by the owner.
@@ -80,7 +80,7 @@ resumes once it can be attestation-signed (EV certificate; cost decision before 
 
 ## Update 2026-11-14 (later): no per-channel DSP or virtual mic on Windows for now
 
-The owner wants StealSeries to stay **completely free**: no paid code-signing certificate (needed
+The owner wants OpenSeries to stay **completely free**: no paid code-signing certificate (needed
 for our own driver on PCs with Secure Boot) and no dependency on VB-Cable (donationware; bundling
 needs a licence from VB-Audio). So the VB-Cable stand-in above is **not pursued**.
 

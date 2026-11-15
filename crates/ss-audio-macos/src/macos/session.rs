@@ -36,7 +36,7 @@ const MAX_CALLBACK_FRAMES: usize = 4096;
 /// Most taps a session can have (one per mixer channel, see `plan_taps`).
 const MAX_TAPS: usize = ChannelId::COUNT;
 /// Label of the dispatch queue running the IOProc.
-const QUEUE_LABEL: &str = "dev.stealseries.audiomix.io";
+const QUEUE_LABEL: &str = "dev.openseries.audiomix.io";
 
 pub(super) type IoBlock = RcBlock<
     dyn Fn(

@@ -22,7 +22,7 @@ pub fn show(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, capture: &mu
     components::page_header(
         ui,
         "Settings",
-        "How StealSeries starts, notifies and reacts to keys.",
+        "How OpenSeries starts, notifies and reacts to keys.",
     );
     general_card(ui, core, snapshot);
     hotkeys_card(ui, core, snapshot, capture);
@@ -79,7 +79,7 @@ fn updates_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
             ui.horizontal_wrapped(|ui| {
                 ui.label(
                     RichText::new(
-                        "Installing quits StealSeries for a moment; it starts again by itself.",
+                        "Installing quits OpenSeries for a moment; it starts again by itself.",
                     )
                     .small()
                     .color(p.text_secondary),
@@ -143,7 +143,7 @@ fn general_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
         components::row(
             ui,
             "Start at login",
-            Some("StealSeries waits in the menu bar / tray."),
+            Some("OpenSeries waits in the menu bar / tray."),
             |ui| {
                 if components::switch(ui, &mut autostart) {
                     core.update_config(|c| c.app.autostart = autostart);
@@ -197,7 +197,7 @@ fn hotkeys_card(
     components::card(ui, Some("Hotkeys"), |ui| {
         let p = theme::palette(ui);
         ui.label(
-            RichText::new("Work everywhere, also while StealSeries is in the background.")
+            RichText::new("Work everywhere, also while OpenSeries is in the background.")
                 .small()
                 .color(p.text_secondary),
         );
@@ -320,7 +320,7 @@ fn crackling_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
             ui,
             "Fix crackling automatically",
             Some(
-                "When the base station's USB audio stutters, StealSeries reconnects it: about \
+                "When the base station's USB audio stutters, OpenSeries reconnects it: about \
                  one second of silence instead of ongoing crackling.",
             ),
             |ui| {
@@ -380,8 +380,8 @@ fn about_card(ui: &mut egui::Ui, core: &AppCore) {
         components::divider(ui);
         components::row(
             ui,
-            "Quit StealSeries",
-            Some("Closing the window keeps StealSeries running in the background."),
+            "Quit OpenSeries",
+            Some("Closing the window keeps OpenSeries running in the background."),
             |ui| {
                 if ui.button("Quit").clicked() {
                     crate::quit(core);
@@ -401,7 +401,7 @@ fn about_card(ui: &mut egui::Ui, core: &AppCore) {
     });
 }
 
-/// "Reset StealSeries settings…" with a confirmation step (DEV-12, app part). The headset's own
+/// "Reset OpenSeries settings…" with a confirmation step (DEV-12, app part). The headset's own
 /// factory reset is not offered: its command is unverified (`nova-pro-wireless.md`).
 fn reset_settings(ui: &mut egui::Ui, core: &AppCore) {
     let id = ui.id().with("confirm-reset");
@@ -422,7 +422,7 @@ fn reset_settings(ui: &mut egui::Ui, core: &AppCore) {
     components::banner(
         ui,
         Tone::Warning,
-        "Reset AudioMix, microphone, hotkeys, notifications and all other StealSeries settings? \
+        "Reset AudioMix, microphone, hotkeys, notifications and all other OpenSeries settings? \
          AudioMix and the virtual microphone switch off and start at login is turned off.",
     );
     ui.horizontal(|ui| {

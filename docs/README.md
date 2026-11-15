@@ -26,7 +26,7 @@
 | Hardware verification: Nova Pro Wireless | [`hardware/nova-pro-wireless.md`](hardware/nova-pro-wireless.md) | 🔄 in progress |
 | Continuous integration (fmt, clippy, tests on Windows/macOS) | [`architecture/ci.md`](architecture/ci.md) | ✅ |
 | Releases: installers, update signing, in-app updates | [`architecture/release.md`](architecture/release.md) | 🔄 first release pending |
-| Decisions | [`adr/`](adr/) — [0001 v1 scope](adr/0001-v1-scope.md), [0002 macOS audio](adr/0002-macos-audio-strategy.md), [0003 license](adr/0003-license.md), [0004 Windows audio](adr/0004-windows-audio-strategy.md), [0005 one app, egui](adr/0005-single-app-pure-rust-ui.md), [0006 installers + updates](adr/0006-distribution-and-updates.md) | ✅ |
+| Decisions | [`adr/`](adr/) — [0001 v1 scope](adr/0001-v1-scope.md), [0002 macOS audio](adr/0002-macos-audio-strategy.md), [0003 license](adr/0003-license.md), [0004 Windows audio](adr/0004-windows-audio-strategy.md), [0005 one app, egui](adr/0005-single-app-pure-rust-ui.md), [0006 installers + updates](adr/0006-distribution-and-updates.md), [0007 rename to OpenSeries](adr/0007-rename-to-openseries.md) | ✅ |
 
 ## Evidence convention
 

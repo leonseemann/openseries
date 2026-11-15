@@ -17,8 +17,8 @@ without publishing anything — useful to try the installer before tagging.
 
 | Package | Built by | Contents |
 |---|---|---|
-| `StealSeries-X.Y.Z-windows-x64-setup.exe` (+ `.sig`) | `windows` job: `cargo build --release`, Inno Setup ([`installer/windows/stealseries.iss`](../../installer/windows/stealseries.iss)) | per-user install to `%LOCALAPPDATA%\Programs\StealSeries`, Start-menu entry, optional desktop shortcut, uninstaller (removes the "start at login" value; keeps the settings in `%APPDATA%`) |
-| `StealSeries-X.Y.Z-macos-arm64.zip` (+ `.sig`) | `macos` job: [`scripts/macos/app.sh build`](../../scripts/macos/app.sh), `ditto` | `StealSeries.app` incl. the bundled virtual-mic driver; Apple Silicon only |
+| `OpenSeries-X.Y.Z-windows-x64-setup.exe` (+ `.sig`) | `windows` job: `cargo build --release`, Inno Setup ([`installer/windows/openseries.iss`](../../installer/windows/openseries.iss)) | per-user install to `%LOCALAPPDATA%\Programs\OpenSeries`, Start-menu entry, optional desktop shortcut, uninstaller (removes the "start at login" value; keeps the settings in `%APPDATA%`) |
+| `OpenSeries-X.Y.Z-macos-arm64.zip` (+ `.sig`) | `macos` job: [`scripts/macos/app.sh build`](../../scripts/macos/app.sh), `ditto` | `OpenSeries.app` incl. the bundled virtual-mic driver; Apple Silicon only |
 
 ## 2. Update signing key (Ed25519)
 
@@ -64,7 +64,7 @@ secret. Already notarized releases keep working after expiry (secure timestamp).
 - **Windows:** download the `setup.exe` from the release page and run it. SmartScreen shows
   "Windows protected your PC" (no paid Authenticode certificate) → *More info* → *Run anyway*.
   No admin rights needed.
-- **macOS:** download the zip, open it, move `StealSeries.app` to *Applications*, open it
+- **macOS:** download the zip, open it, move `OpenSeries.app` to *Applications*, open it
   normally (notarized: macOS only asks "downloaded from the internet – open?"). Allow microphone
   and audio capture; install the virtual-mic driver from the Getting-started window.
 
@@ -76,7 +76,7 @@ Later updates come through the app (Settings → Updates or the tray / menu bar)
 
 | Step | What happens |
 |---|---|
-| Check | 20 s after start, then every 6 h while "Check for updates automatically" is on, or on "Check now" / tray. `GET https://api.github.com/repos/leonseemann/stealseries/releases/latest` (unauthenticated: 60 requests/h per IP, far above our 4/day). |
+| Check | 20 s after start, then every 6 h while "Check for updates automatically" is on, or on "Check now" / tray. `GET https://api.github.com/repos/leonseemann/openseries/releases/latest` (unauthenticated: 60 requests/h per IP, far above our 4/day). |
 | Offer | Newer semver than the running app + a package and `.sig` for this platform → Settings → Updates, a line at the top of every page, tray item "Install update X.Y.Z…", one notification per version (if notifications are on). |
 | Download | Signature first, then the package (≤ 256 MB) into memory with progress; verified with `ss-update::verify` (name + SHA-256 + Ed25519) before anything touches the disk. |
 | Install | Windows: the installer runs with `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-`, the app quits (restoring app volumes, saving the config); the installer replaces the files and starts the new version. macOS: `ditto` unpacks the bundle, a detached `/bin/sh` helper waits for the app to exit, moves the old bundle aside, moves the new one in (rolls back if that fails) and opens it. |

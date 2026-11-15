@@ -16,7 +16,7 @@ use sha2::{Digest as _, Sha256};
 pub const PUBLIC_KEY: &str = "ClE8RAK2TY+R69CUvAHBAEVGemHhmftkq440OVo+duk=";
 
 /// Domain separation, so a signature cannot be reused for another purpose.
-const CONTEXT: &str = "stealseries-update-v1";
+const CONTEXT: &str = "openseries-update-v1";
 
 /// Why a package was rejected.
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
@@ -114,7 +114,7 @@ mod tests {
         BASE64.encode([7_u8; 32])
     }
 
-    const NAME: &str = "StealSeries-0.2.0-windows-x64-setup.exe";
+    const NAME: &str = "OpenSeries-0.2.0-windows-x64-setup.exe";
 
     #[test]
     fn signature_round_trip() {
@@ -142,7 +142,7 @@ mod tests {
         assert_eq!(
             verify_with(
                 &public,
-                "StealSeries-9.9.9-windows-x64-setup.exe",
+                "OpenSeries-9.9.9-windows-x64-setup.exe",
                 b"package",
                 &signature
             ),
@@ -178,7 +178,7 @@ mod tests {
         let message = String::from_utf8(signed_message("a.zip", b"")).unwrap();
         assert_eq!(
             message,
-            "stealseries-update-v1\na.zip\n\
+            "openseries-update-v1\na.zip\n\
              e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         );
     }

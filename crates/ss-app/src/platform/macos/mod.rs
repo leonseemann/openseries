@@ -6,6 +6,13 @@ mod underflow;
 mod update;
 
 pub use autostart::set as set_autostart;
+
+/// Removes what the former app name (StealSeries) registered: its login item. Its virtual-mic
+/// driver is replaced by "Install driver…" ([`install_mic_driver`]); settings move with
+/// `ss-store` (ADR 0007).
+pub fn remove_legacy_registrations() {
+    autostart::remove_legacy();
+}
 pub use driver::{install_mic_driver, mic_driver_installed};
 pub use underflow::{UnderflowWatch, watch_usb_underflows};
 pub use update::{install_update, update_install_target};
@@ -21,7 +28,7 @@ pub fn audio_backend() -> AudioBackend {
     crate::audio::macos::MacAudioBackend
 }
 
-/// The HAL driver provides "StealSeries Microphone".
+/// The HAL driver provides "OpenSeries Microphone".
 pub const VIRTUAL_MIC_SUPPORTED: bool = true;
 /// Channel DSP runs in `ss-engine` on the tapped audio.
 pub const CHANNEL_DSP_SUPPORTED: bool = true;
@@ -30,10 +37,10 @@ pub const USB_RESET_SUPPORTED: bool = true;
 /// Whether [`watch_usb_underflows`] can work on this OS.
 pub const UNDERFLOW_WATCH_SUPPORTED: bool = true;
 
-/// Bundle identifier of `StealSeries.app` (`bundle/Info.plist`).
-const BUNDLE_ID: &str = "dev.stealseries.app";
+/// Bundle identifier of `OpenSeries.app` (`bundle/Info.plist`).
+const BUNDLE_ID: &str = "dev.openseries.app";
 
-/// Sends our notifications as StealSeries.app (name and icon) instead of another app.
+/// Sends our notifications as OpenSeries.app (name and icon) instead of another app.
 pub fn init_notifications() {
     let _ = notify_rust::set_application(BUNDLE_ID);
 }

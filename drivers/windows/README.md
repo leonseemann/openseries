@@ -1,11 +1,11 @@
 # Windows drivers
 
-`StealSeriesAudio/` — the M4b virtual audio driver
+`OpenSeriesAudio/` — the M4b virtual audio driver
 ([design](../../docs/architecture/windows-virtual-driver.md), [ADR 0004](../../docs/adr/0004-windows-audio-strategy.md)).
 
 It starts as an import of Microsoft's **SysVAD** sample (`audio/sysvad` of
 [microsoft/Windows-driver-samples](https://github.com/microsoft/Windows-driver-samples), commit in
-`StealSeriesAudio/UPSTREAM_COMMIT`), licensed **MS-PL** (`StealSeriesAudio/LICENSE-MS-PL`). These
+`OpenSeriesAudio/UPSTREAM_COMMIT`), licensed **MS-PL** (`OpenSeriesAudio/LICENSE-MS-PL`). These
 files keep their MS-PL licence and notices; they are a separate component next to the MIT/Apache
 Rust code and are not part of the Cargo workspace. Our changes are made in later, separate
 commits so the diff to upstream stays reviewable.

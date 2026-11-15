@@ -1,4 +1,4 @@
-//! Configuration of the StealSeries app (`docs/architecture/app.md` §3).
+//! Configuration of the OpenSeries app (`docs/architecture/app.md` §3).
 //!
 //! * [`config`] — versioned serde DTOs of `config.json`, with defaults for every field.
 //! * [`convert`] — mapping to the serde-free domain types (`ss-core`, `ss-dsp`).

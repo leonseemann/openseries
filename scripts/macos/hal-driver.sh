@@ -1,8 +1,8 @@
 #!/bin/sh
-# Builds, installs or removes the virtual-mic HAL plug-in StealSeriesMic.driver.
+# Builds, installs or removes the virtual-mic HAL plug-in OpenSeriesMic.driver.
 # See docs/architecture/virtual-mic-driver.md §6 and docs/hardware/macos-virtual-mic.md.
 #
-#   scripts/macos/hal-driver.sh build      # → target/StealSeriesMic.driver (ad-hoc signed)
+#   scripts/macos/hal-driver.sh build      # → target/OpenSeriesMic.driver (ad-hoc signed)
 #   scripts/macos/hal-driver.sh install    # build + copy to /Library/Audio/Plug-Ins/HAL (sudo)
 #   scripts/macos/hal-driver.sh uninstall  # remove it again (sudo)
 #
@@ -10,7 +10,7 @@
 set -eu
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-NAME=StealSeriesMic
+NAME=OpenSeriesMic
 BUNDLE="$ROOT/target/$NAME.driver"
 HAL_DIR=/Library/Audio/Plug-Ins/HAL
 CRATE=ss-hal-driver-macos

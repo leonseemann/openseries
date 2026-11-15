@@ -234,7 +234,7 @@ impl<B: AudioBackend> AudioSupervisor<B> {
     }
 
     /// The Nova Pro base station appeared or disappeared. Without it AudioMix, the mic feed and
-    /// the default-input switch stop (and restore what they changed), so StealSeries never
+    /// the default-input switch stop (and restore what they changed), so OpenSeries never
     /// interferes with other headsets (`docs/architecture/app.md` §8).
     pub fn on_base_station(&mut self, present: bool) {
         if self.base_station != present {

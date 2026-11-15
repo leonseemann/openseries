@@ -41,13 +41,13 @@ impl Tray {
         window: Option<NativeWindow>,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let config = core.config();
-        let status = MenuItem::new("StealSeries", false, None);
+        let status = MenuItem::new("OpenSeries", false, None);
         let audiomix = CheckMenuItem::new("AudioMix", true, config.audiomix.enabled, None);
         let mic = CheckMenuItem::new("Virtual microphone", true, config.mic.enabled, None);
         let reconnect = MenuItem::new("Reconnect USB (fixes crackling)", true, None);
         let update = MenuItem::new(CHECK_FOR_UPDATES, true, None);
-        let open = MenuItem::new("Open StealSeries…", true, None);
-        let quit = MenuItem::new("Quit StealSeries", true, None);
+        let open = MenuItem::new("Open OpenSeries…", true, None);
+        let quit = MenuItem::new("Quit OpenSeries", true, None);
 
         let menu = Menu::new();
         menu.append_items(&[
@@ -66,7 +66,7 @@ impl Tray {
         menu.append_items(&[&open, &quit])?;
         let icon = TrayIconBuilder::new()
             .with_menu(Box::new(menu))
-            .with_tooltip("StealSeries")
+            .with_tooltip("OpenSeries")
             .with_icon(template_icon()?)
             .with_icon_as_template(true)
             .build()?;
@@ -134,12 +134,11 @@ impl Tray {
         let state = &snapshot.update;
         let (label, enabled) = match state {
             UpdateState::Checking => ("Checking for updates…".to_owned(), false),
-            UpdateState::Downloading { update, .. } => (
-                format!("Downloading StealSeries {}…", update.version),
-                false,
-            ),
+            UpdateState::Downloading { update, .. } => {
+                (format!("Downloading OpenSeries {}…", update.version), false)
+            }
             UpdateState::Installing(version) => {
-                (format!("Installing StealSeries {version}…"), false)
+                (format!("Installing OpenSeries {version}…"), false)
             }
             _ => state.update().map_or_else(
                 || (CHECK_FOR_UPDATES.to_owned(), true),

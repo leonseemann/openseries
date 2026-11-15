@@ -8,7 +8,7 @@ code). Interface reference: Apple's public SDK header `CoreAudio/AudioServerPlug
 
 ## 1. What the user sees
 
-- One new **input** device, **"StealSeries Microphone"**, selectable in Discord, Zoom, OBS,
+- One new **input** device, **"OpenSeries Microphone"**, selectable in Discord, Zoom, OBS,
   QuickTime and as system input.
 - Nothing else. The device the daemon writes into is **hidden**.
 
@@ -19,10 +19,10 @@ The plug-in publishes two devices that share one ring buffer and one clock:
 ```mermaid
 flowchart LR
   subgraph coreaudiod["coreaudiod (driver helper process)"]
-    subgraph plugin["StealSeriesMic.driver"]
-      FEED["Device 'StealSeries Microphone Feed'<br/>hidden, output only<br/>WriteMix → ring"]
+    subgraph plugin["OpenSeriesMic.driver"]
+      FEED["Device 'OpenSeries Microphone Feed'<br/>hidden, output only<br/>WriteMix → ring"]
       RING[("loopback ring<br/>mono f32, 48 kHz")]
-      MIC["Device 'StealSeries Microphone'<br/>visible, input only<br/>ReadInput ← ring"]
+      MIC["Device 'OpenSeries Microphone'<br/>visible, input only<br/>ReadInput ← ring"]
       FEED --> RING --> MIC
     end
   end
@@ -33,13 +33,13 @@ flowchart LR
 | Object ID | Object | Notes |
 |---|---|---|
 | 1 | Plug-in (`kAudioObjectPlugInObject`) | owns both devices |
-| 2 | Device **StealSeries Microphone**, UID `dev.stealseries.mic` | input only, can be default input, not default system device |
+| 2 | Device **OpenSeries Microphone**, UID `dev.openseries.mic` | input only, can be default input, not default system device |
 | 3 | its input stream | 1 channel, terminal type microphone |
-| 4 | Device **StealSeries Microphone Feed**, UID `dev.stealseries.mic.feed` | output only, `IsHidden = 1`, cannot be default |
+| 4 | Device **OpenSeries Microphone Feed**, UID `dev.openseries.mic.feed` | output only, `IsHidden = 1`, cannot be default |
 | 5 | its output stream | 1 channel |
 
 Why two devices instead of one BlackHole-style loopback device: a single device would also appear
-as an *output* called "StealSeries Microphone" in every app and in Sound settings, inviting users
+as an *output* called "OpenSeries Microphone" in every app and in Sound settings, inviting users
 to send audio into their own mic. A hidden output device keeps the UI clean; the daemon opens it
 by UID. The HAL runs client IO on the hidden device normally (**Observed**,
 [macos-virtual-mic.md](../hardware/macos-virtual-mic.md) check 6).
@@ -83,7 +83,7 @@ own input level.
 | `clock` | any | zero-timestamp math (§3), unit-tested |
 | `model` | any | object IDs, the property table as plain Rust values (`PropertyValue`), UID lookup, unit-tested |
 | `selectors` | any | four-char codes from `AudioHardwareBase.h` / `AudioServerPlugIn.h`, named; a macOS test cross-checks them against `objc2-core-audio` |
-| `ffi` (macOS) | macOS | `#[repr(C)]` vtable, factory `StealSeriesMic_Create`, COM refcounting, value serialisation (CFString, ASBD, ranges), IO entry points. Every entry point is wrapped in `catch_unwind` and maps errors to HAL status codes. |
+| `ffi` (macOS) | macOS | `#[repr(C)]` vtable, factory `OpenSeriesMic_Create`, COM refcounting, value serialisation (CFString, ASBD, ranges), IO entry points. Every entry point is wrapped in `catch_unwind` and maps errors to HAL status codes. |
 
 `crate-type = ["cdylib", "rlib"]`: the cdylib is the driver binary, the rlib lets the portable
 logic be tested on every OS.
@@ -93,8 +93,8 @@ logic be tested on every OS.
 `scripts/macos/hal-driver.sh build|install|uninstall`:
 
 1. `cargo build --release -p ss-hal-driver-macos`
-2. Assemble `target/StealSeriesMic.driver/Contents/{Info.plist, MacOS/StealSeriesMic}`.
-   `Info.plist` registers factory UUID → `StealSeriesMic_Create` for type
+2. Assemble `target/OpenSeriesMic.driver/Contents/{Info.plist, MacOS/OpenSeriesMic}`.
+   `Info.plist` registers factory UUID → `OpenSeriesMic_Create` for type
    `443ABAB8-E7B3-491A-B985-BEB9187030DB` (`kAudioServerPlugInTypeUUID`).
 3. Ad-hoc `codesign --sign -` (enough for local development; distribution needs Developer ID +
    notarisation, ADR 0002).

@@ -221,7 +221,7 @@ pub struct MicConfig {
     pub input_device_uid: Option<String>,
     /// Backup microphones in priority order (SON-27/28).
     pub input_fallback: Vec<String>,
-    /// While the feed runs, make "StealSeries Microphone" the system default input and restore
+    /// While the feed runs, make "OpenSeries Microphone" the system default input and restore
     /// the previous default afterwards (SON-06).
     pub set_as_default_input: bool,
     /// Denoise dry/wet mix, `None` = off.

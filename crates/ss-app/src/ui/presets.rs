@@ -183,7 +183,7 @@ pub fn bar(
 /// Asks for a file and writes the preset; returns a status message.
 fn export(name: &str, data: &PresetData) -> String {
     let Some(path) = rfd::FileDialog::new()
-        .add_filter("StealSeries preset", &["json"])
+        .add_filter("OpenSeries preset", &["json"])
         .set_file_name(format!("{}.json", file_stem(name)))
         .save_file()
     else {
@@ -201,7 +201,7 @@ fn export(name: &str, data: &PresetData) -> String {
 /// Asks for a file and stores the preset it contains (any kind). `Ok(None)` = cancelled.
 fn import(core: &AppCore) -> Result<Option<(String, Kind)>, String> {
     let Some(path): Option<PathBuf> = rfd::FileDialog::new()
-        .add_filter("Preset (StealSeries or Sonar JSON)", &["json"])
+        .add_filter("Preset (OpenSeries or Sonar JSON)", &["json"])
         .pick_file()
     else {
         return Ok(None);

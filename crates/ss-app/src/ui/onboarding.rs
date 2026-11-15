@@ -35,7 +35,7 @@ impl Step {
             Self::AudioMix => "Turn on AudioMix",
             Self::MicDriver => "Install the microphone driver",
             Self::VirtualMic => "Turn on the virtual microphone",
-            Self::Autostart => "Start StealSeries at login (optional)",
+            Self::Autostart => "Start OpenSeries at login (optional)",
         }
     }
 
@@ -55,11 +55,11 @@ impl Step {
                 }
             }
             Self::MicDriver => {
-                "Adds \"StealSeries Microphone\" to macOS. Needs your administrator password; \
+                "Adds \"OpenSeries Microphone\" to macOS. Needs your administrator password; \
                  audio pauses for about a second."
             }
             Self::VirtualMic => {
-                "Feeds your processed voice into \"StealSeries Microphone\" — select it in \
+                "Feeds your processed voice into \"OpenSeries Microphone\" — select it in \
                  Discord, Zoom or OBS."
             }
             Self::Autostart => "Keeps the headset settings and AudioMix available after login.",
@@ -111,7 +111,7 @@ pub fn show(ctx: &egui::Context, core: &AppCore, snapshot: &Snapshot) {
         let p = theme::palette(ui);
         ui.set_width(DIALOG_WIDTH);
         ui.label(
-            egui::RichText::new("Welcome to StealSeries")
+            egui::RichText::new("Welcome to OpenSeries")
                 .text_style(egui::TextStyle::Heading)
                 .color(p.text),
         );

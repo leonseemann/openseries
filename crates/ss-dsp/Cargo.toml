@@ -1,6 +1,6 @@
 [package]
 name = "ss-dsp"
-description = "Real-time-safe audio processing blocks for StealSeries (EQ, boosts, dynamics, ChatMix)."
+description = "Real-time-safe audio processing blocks for OpenSeries (EQ, boosts, dynamics, ChatMix)."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

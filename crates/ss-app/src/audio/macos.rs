@@ -15,7 +15,7 @@ use super::supervisor::{AudioBackend, MicHandle, MixHandle};
 /// UID prefix of every device this app creates: private aggregate devices
 /// (`ss-audio-macos`) and the virtual-mic driver's devices (`ss-hal-driver-macos`). They appear in
 /// this process's device list but must never be offered or watched.
-const OWN_DEVICE_PREFIX: &str = "dev.stealseries.";
+const OWN_DEVICE_PREFIX: &str = "dev.openseries.";
 
 fn is_own_device(uid: &str) -> bool {
     uid.starts_with(OWN_DEVICE_PREFIX)
@@ -94,7 +94,7 @@ impl AudioBackend for MacAudioBackend {
         let specs = plan_taps(&plan.routes, own_pid());
         let (session, controller) = AudioMixSession::start(&output, &specs).map_err(|e| {
             format!(
-                "{e} — allow StealSeries under Privacy & Security → Screen & System Audio Recording"
+                "{e} — allow OpenSeries under Privacy & Security → Screen & System Audio Recording"
             )
         })?;
         Ok(Box::new(MixSession {
@@ -142,7 +142,7 @@ fn input_device(uid: Option<&str>) -> Result<InputDevice, String> {
     };
     if device.uid == VIRTUAL_MIC_UID {
         return Err(
-            "the system input is StealSeries Microphone itself; choose the headset as source"
+            "the system input is OpenSeries Microphone itself; choose the headset as source"
                 .to_owned(),
         );
     }

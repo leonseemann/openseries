@@ -6,13 +6,13 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleExecutable</key>
-	<string>StealSeriesMic</string>
+	<string>OpenSeriesMic</string>
 	<key>CFBundleIdentifier</key>
-	<string>dev.stealseries.mic.driver</string>
+	<string>dev.openseries.mic.driver</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>StealSeriesMic</string>
+	<string>OpenSeriesMic</string>
 	<key>CFBundlePackageType</key>
 	<string>BNDL</string>
 	<key>CFBundleShortVersionString</key>
@@ -23,7 +23,7 @@
 	<dict>
 		<!-- Factory UUID of this driver → exported factory function. -->
 		<key>80F5B334-7275-473F-8E88-A458CF9B44E7</key>
-		<string>StealSeriesMic_Create</string>
+		<string>OpenSeriesMic_Create</string>
 	</dict>
 	<key>CFPlugInTypes</key>
 	<dict>

@@ -1,4 +1,4 @@
-# The app (M5): `StealSeries.app`
+# The app (M5): `OpenSeries.app`
 
 Decision: [ADR 0005](../adr/0005-single-app-pure-rust-ui.md) — one menu-bar app, egui window,
 services in-process. Scope: the ✅ v1 rows of [ADR 0001](../adr/0001-v1-scope.md) that are not
@@ -49,11 +49,11 @@ flowchart LR
 | App | menu-bar icon with quick toggles, window, autostart (LaunchAgent), global hotkeys (ChatMix, mute), settings saved automatically |
 
 Notes on v1 behaviour:
-- **Mic mute hotkey** toggles the mic feed (StealSeries Microphone goes silent); a click-free live
+- **Mic mute hotkey** toggles the mic feed (OpenSeries Microphone goes silent); a click-free live
   mute needs the mic command queue (later).
 - **Reconnect USB** is on the headset page, in the menu-bar menu and on a hotkey (default Ctrl+Alt+R): the manual cure for both kinds of crackling (`docs/hardware/macos-app.md` Findings).
 - **ChatMix hotkeys** move a software balance in steps of 10 %; moving the headset dial overrides it.
-- **Reset StealSeries settings…** (DEV-12, app part; Settings, with a confirmation step):
+- **Reset OpenSeries settings…** (DEV-12, app part; Settings, with a confirmation step):
   `Config::reset_keeping_presets` — every setting back to its default (AudioMix and virtual mic
   off, autostart off and its registration removed, hotkeys default, onboarding shown again),
   saved presets kept. The headset's own factory reset (`06 FD`) is **not** offered: the command
@@ -63,15 +63,15 @@ Notes on v1 behaviour:
   Settings → "Show getting started" reopens it) with a live checklist — base station connected,
   headset on, AudioMix running, on macOS the mic driver installed and the virtual mic running,
   start at login — each with its action button and a short hint (`ui::onboarding::steps`, unit
-  tested). **Install driver…** (macOS) copies `StealSeriesMic.driver` from
-  `StealSeries.app/Contents/Resources` (put there by `scripts/macos/app.sh`) to
+  tested). **Install driver…** (macOS) copies `OpenSeriesMic.driver` from
+  `OpenSeries.app/Contents/Resources` (put there by `scripts/macos/app.sh`) to
   `/Library/Audio/Plug-Ins/HAL` and restarts `coreaudiod` through `osascript … with administrator
   privileges` — the same steps as `hal-driver.sh install`, **untested on the Mac** so far.
 - **Live mic chain changes**: changing denoise, gate, stabilizer, mic EQ or gain no longer
   restarts the mic feed (no audible gap); only a different source device does. See
   [mic-chain.md §5](mic-chain.md).
 - **Virtual mic as default input** (SON-06, macOS; Microphone page option, off by default): when
-  the mic feed starts, the supervisor makes "StealSeries Microphone" the system default input
+  the mic feed starts, the supervisor makes "OpenSeries Microphone" the system default input
   (`kAudioHardwarePropertyDefaultInputDevice`, `ss_audio_macos::set_default_input_device`) and
   remembers the previous default; when the feed stops (switch off, failure, quit) it restores that
   default — but only if ours is still the default, so a choice made by hand meanwhile is kept. It
@@ -100,7 +100,7 @@ Notes on v1 behaviour:
 
 ## 3. Configuration (`ss-store`)
 
-`~/Library/Application Support/StealSeries/config.json`, versioned (`"version": 1`), written
+`~/Library/Application Support/OpenSeries/config.json`, versioned (`"version": 1`), written
 atomically (temp file + rename) and debounced (500 ms). Domain types stay serde-free; `ss-store`
 owns the DTOs and the mapping. Unknown/invalid files are moved aside to `config.invalid-<ts>.json`
 and defaults are used (never crash on a bad file).
@@ -133,7 +133,7 @@ names are unique per kind and sorted):
 
 The shared preset bar: pick a preset to apply it, "Save current" under a name (same name replaces),
 Delete, Export… / Import… through the system file dialog (`rfd`). Export writes one preset as
-`{"format": "stealseries-preset", "version": 1, "name", "kind", "settings"}`. Import reads that and,
+`{"format": "openseries-preset", "version": 1, "name", "kind", "settings"}`. Import reads that and,
 best effort, a **Sonar config object** (`docs/re/sonar.md` §4.2): `virtualAudioDevice`
 `game|chatRender|media|aux` → playback, `chatCapture` → microphone; PEQ filters, boosts, Smart
 Volume, general gain, noise cancelling / gate / stabilizer are mapped. Whether GG's own export file
@@ -153,7 +153,7 @@ and unit-tested without CoreAudio; the CoreAudio calls sit behind a small trait 
 
 ## 5. Bundle
 
-`StealSeries.app/Contents/{Info.plist, MacOS/stealseries, Resources/}`; `LSUIElement = true`,
+`OpenSeries.app/Contents/{Info.plist, MacOS/openseries, Resources/}`; `LSUIElement = true`,
 `NSAudioCaptureUsageDescription`, `NSMicrophoneUsageDescription`, `LSMinimumSystemVersion 14.4`,
 ad-hoc signed for development; release builds are Developer ID signed (hardened runtime) and
 notarized in CI ([release.md](release.md) §3, ADR 0006). Built and installed to
@@ -176,14 +176,14 @@ The app crate is shared by macOS and Windows (ADR 0005). Everything OS-specific 
 | Autostart | LaunchAgent | `HKCU\…\Run` via `reg.exe` (verified 2026-11-14) |
 | Reconnect USB | IOUSBHost re-enumeration | not yet (button hidden) |
 | Fix crackling automatically | `usbaudiod` underflow log stream | not yet (option disabled) |
-| Notification sender | `set_application(dev.stealseries.app)` | AUMID `StealSeries.App` registered under `HKCU\Software\Classes\AppUserModelId` (name + icon) and on the Start-menu shortcut; without it toasts show "PowerShell" (Observed 2026-11-15) |
-| App icon | `AppIcon.icns` built by `app.sh` (`sips`, `iconutil`) | embedded in `stealseries.exe` by `build.rs` (`winresource`), installer icon |
+| Notification sender | `set_application(dev.openseries.app)` | AUMID `OpenSeries.App` registered under `HKCU\Software\Classes\AppUserModelId` (name + icon) and on the Start-menu shortcut; without it toasts show "PowerShell" (Observed 2026-11-15) |
+| App icon | `AppIcon.icns` built by `app.sh` (`sips`, `iconutil`) | embedded in `openseries.exe` by `build.rs` (`winresource`), installer icon |
 | Install an update (ADR 0006) | swap the `.app` bundle after quitting | silent Inno Setup installer |
 | Show the hidden window from the tray | `ViewportCommand::Visible` | Win32 `ShowWindow` via `ss-window-windows` (see below) |
 
 **Hidden window on Windows (Observed 2026-11-14):** eframe only runs UI frames on `WM_PAINT`, which
 Windows never sends to a hidden window. After closing the window to the tray, the queued
-`Visible(true)` command was therefore never applied and "Open StealSeries…" did nothing. The tray
+`Visible(true)` command was therefore never applied and "Open OpenSeries…" did nothing. The tray
 handler now shows the window natively (`platform::NativeWindow`, HWND taken from the creation
 context) before sending the viewport command.
 
@@ -199,7 +199,7 @@ Off by default (`app.auto_fix_crackling`). macOS: `/usr/bin/log stream` filtered
 
 ## 8. Base-station gate (owner requirement 2026-11-15)
 
-StealSeries only acts while an **Arctis Nova Pro Wireless base station is connected**. Without it
+OpenSeries only acts while an **Arctis Nova Pro Wireless base station is connected**. Without it
 the app is completely passive, so it never interferes with other headsets on the same computer
 (e.g. a guest's HyperX on the owner's Mac):
 
@@ -216,17 +216,17 @@ the app is completely passive, so it never interferes with other headsets on the
 The config is not changed, so everything resumes on its own when the base station returns.
 "Connected" is the headset thread's `base_station` flag; until the first scan it counts as not
 connected (fail safe: nothing starts before the base station is seen). Development runs with
-`STEALSERIES_NO_HEADSET=1` have no headset thread and skip the gate.
+`OPENSERIES_NO_HEADSET=1` have no headset thread and skip the gate.
 
 ## 9. Single instance (owner requirement 2026-11-15)
 
-Only one StealSeries runs per user. A new start **replaces** the running one instead of being
+Only one OpenSeries runs per user. A new start **replaces** the running one instead of being
 refused, so starting the app again (Start menu, a development build next to the installed one,
 the installer after an update) always ends with the newest binary running (`src/instance.rs`):
 
 1. The running app listens on a random `127.0.0.1` port and writes `{pid, port, token}` to
    `instance.json` next to `config.json` (removed again on quit).
-2. A new start reads the record, connects, checks the greeting `stealseries <token>` (a stale
+2. A new start reads the record, connects, checks the greeting `openseries <token>` (a stale
    port reused by another program never matches), sends `quit <token>` and waits until the
    connection closes, i.e. the old process has run its normal quit (restore app volumes and the
    default input, save the config) and exited. Only then does it open the base station — on

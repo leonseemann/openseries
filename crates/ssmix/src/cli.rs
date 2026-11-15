@@ -22,7 +22,7 @@ pub enum Action {
     Run(RunArgs),
     /// List input devices (microphones).
     Inputs,
-    /// Feed a microphone into the virtual "StealSeries Microphone" until Ctrl-C.
+    /// Feed a microphone into the virtual "OpenSeries Microphone" until Ctrl-C.
     Mic(MicArgs),
 }
 

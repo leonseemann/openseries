@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Guidance for AI coding agents (and humans) working on **StealSeries** — a clean-room,
+Guidance for AI coding agents (and humans) working on **OpenSeries** — a clean-room,
 cross-platform Rust reimplementation of the SteelSeries GG feature set
 (device configuration, GameSense lighting, and Sonar-style AudioMix on Windows **and macOS**).
 

@@ -41,7 +41,7 @@ pub struct Snapshot {
     pub crackle: CrackleStatus,
     /// ChatMix position, −1 (game) … +1 (chat); follows the dial and the slider.
     pub chatmix_position: f32,
-    /// StealSeries may act: a base station is connected (or development mode without the
+    /// OpenSeries may act: a base station is connected (or development mode without the
     /// headset thread). When `false` everything is paused (`app.md` §8).
     pub active: bool,
     /// In-app updates (ADR 0006).
@@ -335,7 +335,7 @@ impl AppCore {
         }
     }
 
-    /// Whether StealSeries may act right now (base station connected, `app.md` §8).
+    /// Whether OpenSeries may act right now (base station connected, `app.md` §8).
     #[must_use]
     pub fn active(&self) -> bool {
         !self.gated || lock(&self.headset_state).base_station

@@ -29,7 +29,7 @@ use crate::config::{
 /// Number of bands of the headset's on-device EQ.
 pub const HEADSET_EQ_BANDS: usize = 10;
 /// `format` value of an exported preset.
-const FORMAT: &str = "stealseries-preset";
+const FORMAT: &str = "openseries-preset";
 /// Version of the export format.
 const FORMAT_VERSION: u32 = 1;
 /// Number of PEQ filters in a Sonar config (`filter1..filter10`).
@@ -127,10 +127,10 @@ pub enum ImportError {
     /// Not JSON.
     #[error("not a preset file: {0}")]
     Json(String),
-    /// JSON, but neither a StealSeries preset nor a Sonar config.
+    /// JSON, but neither a OpenSeries preset nor a Sonar config.
     #[error("unknown preset format")]
     UnknownFormat,
-    /// A StealSeries preset from a newer version.
+    /// A OpenSeries preset from a newer version.
     #[error("preset format version {0} is newer than this app supports")]
     TooNew(u32),
     /// The content does not fit its kind (e.g. a headset curve without 10 bands).
@@ -151,7 +151,7 @@ pub fn export_json(name: &str, data: &PresetData) -> Result<String, serde_json::
     })
 }
 
-/// Reads a preset file: a StealSeries export or a Sonar config object.
+/// Reads a preset file: a OpenSeries export or a Sonar config object.
 ///
 /// # Errors
 /// [`ImportError`] if the text is not one of the supported formats.
@@ -414,9 +414,9 @@ mod tests {
     fn rejects_unknown_and_invalid_files() {
         assert_eq!(import_json("{}"), Err(ImportError::UnknownFormat));
         assert!(matches!(import_json("nope"), Err(ImportError::Json(_))));
-        let short = r#"{"format":"stealseries-preset","version":1,"name":"x","kind":"headset_eq","settings":[1,2]}"#;
+        let short = r#"{"format":"openseries-preset","version":1,"name":"x","kind":"headset_eq","settings":[1,2]}"#;
         assert!(matches!(import_json(short), Err(ImportError::Invalid(_))));
-        let newer = r#"{"format":"stealseries-preset","version":99,"name":"x","kind":"headset_eq","settings":[]}"#;
+        let newer = r#"{"format":"openseries-preset","version":99,"name":"x","kind":"headset_eq","settings":[]}"#;
         assert_eq!(import_json(newer), Err(ImportError::TooNew(99)));
     }
 }

@@ -32,7 +32,7 @@ pub struct TapSpec {
 /// * Every non-Media channel with at least one app gets an `Include` tap.
 /// * Media gets one `AllExcept` tap that excludes every app assigned to another channel, so all
 ///   unassigned apps (and apps explicitly assigned to Media) land there.
-/// * `own_pid` (the StealSeries process itself) is always excluded to avoid feedback.
+/// * `own_pid` (the OpenSeries process itself) is always excluded to avoid feedback.
 ///
 /// The returned order is the order of the aggregate device's input streams.
 #[must_use]

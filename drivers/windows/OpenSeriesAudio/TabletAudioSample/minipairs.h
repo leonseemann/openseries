@@ -43,8 +43,8 @@ Abstract:
 #include "micarray2wavtable.h"
 #include "micarray3wavtable.h"
 
-// StealSeries sinks (Game/Chat/Media/Aux), see stealseriestoptable.h.
-#include "stealseriestoptable.h"
+// OpenSeries sinks (Game/Chat/Media/Aux), see openseriestoptable.h.
+#include "openseriestoptable.h"
 
 NTSTATUS
 CreateMiniportWaveRTSYSVAD
@@ -510,7 +510,7 @@ ENDPOINT_MINIPAIR MicArray3Miniports =
 // Render miniport pairs.
 //
 /*********************************************************************
-* StealSeries sinks: speaker-style topology (custom endpoint name)    *
+* OpenSeries sinks: speaker-style topology (custom endpoint name)    *
 * + the HDMI wave filter (stereo, no offload pin, loopback pin), so   *
 * every app stream goes through the audio engine mix and WASAPI       *
 * loopback capture sees it (windows-virtual-driver.md, section 2).    *
@@ -522,7 +522,7 @@ ENDPOINT_MINIPAIR MicArray3Miniports =
 *              +------+                +------+                      *
 *********************************************************************/
 static
-PHYSICALCONNECTIONTABLE StealSeriesSinkPhysicalConnections[] =
+PHYSICALCONNECTIONTABLE OpenSeriesSinkPhysicalConnections[] =
 {
     {
         KSPIN_TOPO_WAVEOUT_SOURCE,  // TopologyIn
@@ -531,7 +531,7 @@ PHYSICALCONNECTIONTABLE StealSeriesSinkPhysicalConnections[] =
     }
 };
 
-#define STEALSERIES_SINK_MINIPAIR(Channel)                                                   \
+#define OPENSERIES_SINK_MINIPAIR(Channel)                                                   \
 static                                                                                       \
 ENDPOINT_MINIPAIR Channel##Miniports =                                                       \
 {                                                                                            \
@@ -549,16 +549,16 @@ ENDPOINT_MINIPAIR Channel##Miniports =                                          
     HDMI_DEVICE_MAX_CHANNELS,                                                                \
     HdmiPinDeviceFormatsAndModes,                                                            \
     SIZEOF_ARRAY(HdmiPinDeviceFormatsAndModes),                                              \
-    StealSeriesSinkPhysicalConnections,                                                      \
-    SIZEOF_ARRAY(StealSeriesSinkPhysicalConnections),                                        \
+    OpenSeriesSinkPhysicalConnections,                                                      \
+    SIZEOF_ARRAY(OpenSeriesSinkPhysicalConnections),                                        \
     ENDPOINT_LOOPBACK_SUPPORTED,                                                             \
     NULL, 0, NULL,                                                                           \
 };
 
-STEALSERIES_SINK_MINIPAIR(Game)
-STEALSERIES_SINK_MINIPAIR(Chat)
-STEALSERIES_SINK_MINIPAIR(Media)
-STEALSERIES_SINK_MINIPAIR(Aux)
+OPENSERIES_SINK_MINIPAIR(Game)
+OPENSERIES_SINK_MINIPAIR(Chat)
+OPENSERIES_SINK_MINIPAIR(Media)
+OPENSERIES_SINK_MINIPAIR(Aux)
 
 static
 PENDPOINT_MINIPAIR  g_RenderEndpoints[] =
@@ -578,7 +578,7 @@ PENDPOINT_MINIPAIR  g_RenderEndpoints[] =
 static
 PENDPOINT_MINIPAIR  g_CaptureEndpoints[] =
 {
-    &MicInMiniports,            // "StealSeries Microphone" (name set in the INF)
+    &MicInMiniports,            // "OpenSeries Microphone" (name set in the INF)
 };
 
 #define g_cCaptureEndpoints (SIZEOF_ARRAY(g_CaptureEndpoints))

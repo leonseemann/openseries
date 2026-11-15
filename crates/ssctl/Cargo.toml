@@ -1,6 +1,6 @@
 [package]
 name = "ssctl"
-description = "Command-line control for the Arctis Nova Pro Wireless (StealSeries)."
+description = "Command-line control for the Arctis Nova Pro Wireless (OpenSeries)."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

@@ -1,10 +1,10 @@
-//! The StealSeries icons, drawn in code (no image assets; clean room, AGENTS.md).
+//! The OpenSeries icons, drawn in code (no image assets; clean room, AGENTS.md).
 //!
 //! * [`headphone_rgba`]: the plain headphone glyph for the tray / menu bar.
 //! * [`app_icon_rgba`]: the app icon (white headphone on an accent-coloured rounded square) for
 //!   the window, the `.exe`, the installer and the macOS bundle. The bundled files in
 //!   `crates/ss-app/bundle/icon/` are generated from it; a test keeps them in sync
-//!   (`STEALSERIES_WRITE_ICONS=1 cargo test -p ss-app icon` rewrites them).
+//!   (`OPENSERIES_WRITE_ICONS=1 cargo test -p ss-app icon` rewrites them).
 
 /// Accent colour of the app icon background (`ui-design.md` §3, dark accent).
 pub const ACCENT: [u8; 3] = [0x5B, 0x7C, 0xFA];
@@ -210,11 +210,8 @@ mod tests {
 
     #[test]
     fn bundled_icons_are_up_to_date() {
-        let files = [
-            ("StealSeries.ico", ico()),
-            ("AppIcon.png", png(MASTER_SIZE)),
-        ];
-        let write = std::env::var_os("STEALSERIES_WRITE_ICONS").is_some();
+        let files = [("OpenSeries.ico", ico()), ("AppIcon.png", png(MASTER_SIZE))];
+        let write = std::env::var_os("OPENSERIES_WRITE_ICONS").is_some();
         for (name, expected) in files {
             let path = icon_dir().join(name);
             if write {
@@ -224,7 +221,7 @@ mod tests {
             let actual = std::fs::read(&path).unwrap_or_default();
             assert!(
                 actual == expected,
-                "{name} is out of date: STEALSERIES_WRITE_ICONS=1 cargo test -p ss-app icon"
+                "{name} is out of date: OPENSERIES_WRITE_ICONS=1 cargo test -p ss-app icon"
             );
         }
     }

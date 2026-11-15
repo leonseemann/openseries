@@ -60,12 +60,12 @@ jobs:
         run: |
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $iscc)) { choco install innosetup --no-progress -y | Out-Null }
-          & $iscc /Qp "/DAppVersion=$env:VERSION" installer\windows\stealseries.iss
+          & $iscc /Qp "/DAppVersion=$env:VERSION" installer\windows\openseries.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Collect
         run: |
           mkdir -p dist
-          cp "target/installer/StealSeries-$VERSION-windows-x64-setup.exe" dist/
+          cp "target/installer/OpenSeries-$VERSION-windows-x64-setup.exe" dist/
       - name: Sign for in-app updates
         run: scripts/release-sign.sh dist/*.exe
       - uses: actions/upload-artifact@v4
@@ -139,7 +139,7 @@ jobs:
         run: |
           key="$RUNNER_TEMP/AuthKey.p8"
           echo "$APPLE_API_KEY" | base64 --decode > "$key"
-          ditto -c -k --keepParent target/StealSeries.app "$RUNNER_TEMP/notarize.zip"
+          ditto -c -k --keepParent target/OpenSeries.app "$RUNNER_TEMP/notarize.zip"
           xcrun notarytool submit "$RUNNER_TEMP/notarize.zip" \
             --key "$key" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER_ID" \
             --wait --timeout 30m --output-format json | tee "$RUNNER_TEMP/notary.json"
@@ -149,13 +149,13 @@ jobs:
             echo "::error::notarization status: $status (see the log above; 'xcrun notarytool log <id>' shows why)"
             exit 1
           fi
-          xcrun stapler staple target/StealSeries.app
-          spctl --assess --type execute --verbose=2 target/StealSeries.app
+          xcrun stapler staple target/OpenSeries.app
+          spctl --assess --type execute --verbose=2 target/OpenSeries.app
       - name: Package
         run: |
           mkdir -p dist
-          codesign --verify --deep --strict --verbose=2 target/StealSeries.app
-          ditto -c -k --keepParent target/StealSeries.app "dist/StealSeries-$VERSION-macos-arm64.zip"
+          codesign --verify --deep --strict --verbose=2 target/OpenSeries.app
+          ditto -c -k --keepParent target/OpenSeries.app "dist/OpenSeries-$VERSION-macos-arm64.zip"
       - name: Sign for in-app updates
         run: scripts/release-sign.sh dist/*.zip
       - uses: actions/upload-artifact@v4
@@ -184,5 +184,5 @@ jobs:
           ls -l dist
           gh release create "$GITHUB_REF_NAME" dist/* \
             --repo "$GITHUB_REPOSITORY" \
-            --title "StealSeries $VERSION" \
+            --title "OpenSeries $VERSION" \
             --generate-notes

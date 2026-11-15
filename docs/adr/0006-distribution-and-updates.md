@@ -5,7 +5,7 @@
 
 ## Context
 
-Until now StealSeries is built from source (`cargo build`, `scripts/macos/app.sh install`). The
+Until now OpenSeries is built from source (`cargo build`, `scripts/macos/app.sh install`). The
 owner switches between a Windows PC and a Mac and wants installers built by CI plus updates from
 inside the app. Hard constraints:
 
@@ -16,13 +16,13 @@ inside the app. Hard constraints:
 
 ## Decision
 
-1. **The repository becomes public**; GitHub Releases of `leonseemann/stealseries` are the update
+1. **The repository becomes public**; GitHub Releases of `leonseemann/openseries` are the update
    source (owner decision 2026-11-15). Public repos also get free CI minutes on every OS.
 2. **CI builds the packages** on a version tag `vX.Y.Z` (`.github/workflows/release.yml`):
-   - Windows: `StealSeries-X.Y.Z-windows-x64-setup.exe`, an [Inno Setup] installer (free).
-     Per-user install into `%LOCALAPPDATA%\Programs\StealSeries` — no admin rights, so updates
+   - Windows: `OpenSeries-X.Y.Z-windows-x64-setup.exe`, an [Inno Setup] installer (free).
+     Per-user install into `%LOCALAPPDATA%\Programs\OpenSeries` — no admin rights, so updates
      never show a UAC prompt. Start-menu entry and uninstaller included.
-   - macOS: `StealSeries-X.Y.Z-macos-arm64.zip` with `StealSeries.app` (Apple Silicon; the
+   - macOS: `OpenSeries-X.Y.Z-macos-arm64.zip` with `OpenSeries.app` (Apple Silicon; the
      owner's Mac), Developer ID signed and notarized (see *Update 2026-11-15* below).
    - The tag must equal the workspace version; the release is created with generated notes.
 3. **Updates are signed with our own Ed25519 key.** CI signs every package; the public key is
@@ -51,7 +51,7 @@ inside the app. Hard constraints:
   PC" (→ *More info* → *Run anyway*). Updates downloaded by the app carry no Mark-of-the-Web, so
   they install without this prompt.
 - The update check contacts `api.github.com` and `github.com` (no personal data; User-Agent
-  `StealSeries/<version>`). It can be switched off.
+  `OpenSeries/<version>`). It can be switched off.
 - Losing the signing key means existing installs cannot verify new updates; the owner then
   installs the next version manually once (with a new key compiled in). Keep the key backed up.
 - The macOS virtual-mic driver is not updated by an app update; "Install driver…" on the

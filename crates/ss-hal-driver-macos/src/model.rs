@@ -27,7 +27,7 @@ pub const FEED_STREAM_ID: u32 = 5;
 const NO_OBJECT: u32 = 0;
 
 /// Manufacturer shown for the plug-in and devices.
-pub const MANUFACTURER: &str = "StealSeries";
+pub const MANUFACTURER: &str = "OpenSeries";
 /// Clock domain shared by both devices (any non-zero value unique to this driver).
 const CLOCK_DOMAIN: u32 = sel::fourcc(b"stsm");
 
@@ -42,9 +42,9 @@ const SAMPLE_RATES: &[(f64, f64)] = &[(SAMPLE_RATE, SAMPLE_RATE)];
 /// One of the two devices.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DeviceKind {
-    /// "StealSeries Microphone": visible, input only; apps read from it.
+    /// "OpenSeries Microphone": visible, input only; apps read from it.
     Mic,
-    /// "StealSeries Microphone Feed": hidden, output only; the daemon writes into it.
+    /// "OpenSeries Microphone Feed": hidden, output only; the daemon writes into it.
     Feed,
 }
 
@@ -65,8 +65,8 @@ impl DeviceKind {
     #[must_use]
     pub const fn uid(self) -> &'static str {
         match self {
-            Self::Mic => "dev.stealseries.mic",
-            Self::Feed => "dev.stealseries.mic.feed",
+            Self::Mic => "dev.openseries.mic",
+            Self::Feed => "dev.openseries.mic.feed",
         }
     }
 
@@ -74,8 +74,8 @@ impl DeviceKind {
     #[must_use]
     pub const fn name(self) -> &'static str {
         match self {
-            Self::Mic => "StealSeries Microphone",
-            Self::Feed => "StealSeries Microphone Feed",
+            Self::Mic => "OpenSeries Microphone",
+            Self::Feed => "OpenSeries Microphone Feed",
         }
     }
 
@@ -259,7 +259,7 @@ fn device_property(
         sel::MANUFACTURER => V::String(MANUFACTURER),
         sel::OWNED_OBJECTS | sel::DEVICE_STREAMS => V::ObjectIds(streams),
         sel::DEVICE_UID => V::String(kind.uid()),
-        sel::DEVICE_MODEL_UID => V::String("dev.stealseries.mic.model"),
+        sel::DEVICE_MODEL_UID => V::String("dev.openseries.mic.model"),
         sel::DEVICE_TRANSPORT_TYPE => V::U32(sel::TRANSPORT_VIRTUAL),
         sel::DEVICE_RELATED_DEVICES => V::ObjectIds(match kind {
             DeviceKind::Mic => MIC_RELATED,
@@ -399,9 +399,9 @@ mod tests {
 
     #[test]
     fn uid_lookup_and_unknown_objects() {
-        assert_eq!(device_for_uid("dev.stealseries.mic"), Some(MIC_DEVICE_ID));
+        assert_eq!(device_for_uid("dev.openseries.mic"), Some(MIC_DEVICE_ID));
         assert_eq!(
-            device_for_uid("dev.stealseries.mic.feed"),
+            device_for_uid("dev.openseries.mic.feed"),
             Some(FEED_DEVICE_ID)
         );
         assert_eq!(device_for_uid("other"), None);

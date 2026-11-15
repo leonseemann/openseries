@@ -36,9 +36,9 @@ fn unavailable(ui: &mut egui::Ui) {
         let p = theme::palette(ui);
         ui.label(
             RichText::new(
-                "The processed \"StealSeries Microphone\" needs a virtual audio device. It is \
+                "The processed \"OpenSeries Microphone\" needs a virtual audio device. It is \
                  available on macOS. On Windows it would require a paid, signed audio driver, \
-                 and StealSeries stays free — so this page is empty here.",
+                 and OpenSeries stays free — so this page is empty here.",
             )
             .color(p.text_secondary),
         );
@@ -59,7 +59,7 @@ fn switch_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
         components::row(
             ui,
             "Virtual microphone",
-            Some("Select \"StealSeries Microphone\" as the input in your apps."),
+            Some("Select \"OpenSeries Microphone\" as the input in your apps."),
             |ui| {
                 if components::switch(ui, &mut enabled) {
                     core.update_config(|c| c.mic.enabled = enabled);
@@ -100,7 +100,7 @@ fn source_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
         components::row(
             ui,
             "Use as system input",
-            Some("Make \"StealSeries Microphone\" the default input while it runs."),
+            Some("Make \"OpenSeries Microphone\" the default input while it runs."),
             |ui| {
                 if components::switch(ui, &mut as_default) {
                     core.update_config(|c| c.mic.set_as_default_input = as_default);

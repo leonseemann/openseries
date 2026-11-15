@@ -31,7 +31,7 @@ Settings and well-made audio apps, with our own look (no SteelSeries assets or b
 
 ```text
 ┌──────────────┬───────────────────────────────────────────────┐
-│ ◉ StealSeries│  Page title                                   │
+│ ◉ OpenSeries│  Page title                                   │
 │              │  One-line description                         │
 │ ⌂ Overview   │  ┌─ Card ───────────────────────────────────┐ │
 │ 🎧 Headset   │  │ Section title                            │ │
@@ -86,5 +86,5 @@ headphone on an accent-coloured rounded square, drawn in code (`src/icon.rs`; ge
 
 `ui/theme.rs` (visuals, fonts, sizes), `ui/components.rs` (card, settings row, switch, segmented
 control, status dot, banner, battery bar), `ui/mod.rs` (sidebar + page routing). Pages use only
-these components. Development hooks for screenshots: `STEALSERIES_START_PAGE` (overview,
-headset, audiomix, mic, settings) and `STEALSERIES_THEME` (dark, light).
+these components. Development hooks for screenshots: `OPENSERIES_START_PAGE` (overview,
+headset, audiomix, mic, settings) and `OPENSERIES_THEME` (dark, light).

@@ -250,7 +250,7 @@ DRIVER_DISPATCH PnpHandler;
 // DoNotCreateDataFiles (DWORD) = 0 to override this default.
 //
 DWORD g_DoNotCreateDataFiles = 1;  // default is off.
-DWORD g_DisableToneGenerator = 1;  // StealSeries: silent until the mic loopback exists.
+DWORD g_DisableToneGenerator = 1;  // OpenSeries: silent until the mic loopback exists.
 UNICODE_STRING g_RegistryPath;      // This is used to store the registry settings path for the driver
 
 
@@ -260,7 +260,7 @@ UNICODE_STRING g_RegistryPath;      // This is used to store the registry settin
 // default. Use the registry value DisableBthScoBypass (DWORD) > 0 to override 
 // this default.
 //
-DWORD g_DisableBthScoBypass = 1;   // StealSeries: no Bluetooth endpoints.
+DWORD g_DisableBthScoBypass = 1;   // OpenSeries: no Bluetooth endpoints.
 #endif // SYSVAD_BTH_BYPASS
 
 #ifdef SYSVAD_USB_SIDEBAND
@@ -269,7 +269,7 @@ DWORD g_DisableBthScoBypass = 1;   // StealSeries: no Bluetooth endpoints.
 // default. Use the registry value DisableUsbSideband (DWORD) > 0 to override 
 // this default.
 //
-DWORD g_DisableUsbSideband = 1;   // StealSeries: no USB sideband endpoints.
+DWORD g_DisableUsbSideband = 1;   // OpenSeries: no USB sideband endpoints.
 #endif // SYSVAD_USB_SIDEBAND
 
 #ifdef SYSVAD_A2DP_SIDEBAND
@@ -278,7 +278,7 @@ DWORD g_DisableUsbSideband = 1;   // StealSeries: no USB sideband endpoints.
 // default. Use the registry value DisableA2dpSideband (DWORD) > 0 to override 
 // this default.
 //
-DWORD g_DisableA2dpSideband = 1; // StealSeries: no A2DP endpoints.
+DWORD g_DisableA2dpSideband = 1; // OpenSeries: no A2DP endpoints.
 #endif
 
 //-----------------------------------------------------------------------------

@@ -84,7 +84,7 @@ pub fn palette_for(ctx: &egui::Context) -> Palette {
     }
 }
 
-/// Installs fonts, styles and both themes; follows the OS theme unless `STEALSERIES_THEME`
+/// Installs fonts, styles and both themes; follows the OS theme unless `OPENSERIES_THEME`
 /// (dark/light, a development hook for screenshots) says otherwise.
 pub fn install(ctx: &egui::Context) {
     install_fonts(ctx);
@@ -113,7 +113,7 @@ pub fn install(ctx: &egui::Context) {
         spacing.menu_margin = Margin::same(8);
         style.interaction.tooltip_delay = 0.4;
     });
-    let preference = match std::env::var("STEALSERIES_THEME").as_deref() {
+    let preference = match std::env::var("OPENSERIES_THEME").as_deref() {
         Ok("dark") => ThemePreference::Dark,
         Ok("light") => ThemePreference::Light,
         _ => ThemePreference::System,

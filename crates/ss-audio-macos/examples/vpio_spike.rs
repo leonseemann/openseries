@@ -189,7 +189,7 @@ mod spike {
                 capture.push(samples, buffer.mNumberChannels as usize, time.mHostTime);
             },
         );
-        let queue = DispatchQueue::new("dev.stealseries.spike.raw", None);
+        let queue = DispatchQueue::new("dev.openseries.spike.raw", None);
         let mut proc_id: AudioDeviceIOProcID = None;
         // SAFETY: valid out-pointer, device, queue and block (block kept alive by the caller,
         // queue retained by CoreAudio for the IOProc's lifetime).

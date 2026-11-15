@@ -19,7 +19,7 @@ pub const LOW_BATTERY_PERCENT: u8 = 25;
 /// The low-battery warning re-arms once the level is back at or above this (or charging).
 const REARM_BATTERY_PERCENT: u8 = 50;
 /// Title of every notification.
-const APP_NAME: &str = "StealSeries";
+const APP_NAME: &str = "OpenSeries";
 
 /// Something worth a notification.
 #[derive(Debug, Clone, PartialEq, Eq)]

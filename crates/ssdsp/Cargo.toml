@@ -1,6 +1,6 @@
 [package]
 name = "ssdsp"
-description = "Offline WAV processing with the StealSeries DSP chain (listening tests)."
+description = "Offline WAV processing with the OpenSeries DSP chain (listening tests)."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

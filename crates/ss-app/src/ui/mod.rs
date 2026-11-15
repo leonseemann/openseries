@@ -81,9 +81,9 @@ impl Page {
         }
     }
 
-    /// Start page from `STEALSERIES_START_PAGE` (development hook for screenshots).
+    /// Start page from `OPENSERIES_START_PAGE` (development hook for screenshots).
     fn from_env() -> Self {
-        match std::env::var("STEALSERIES_START_PAGE").as_deref() {
+        match std::env::var("OPENSERIES_START_PAGE").as_deref() {
             Ok("headset") => Self::Headset,
             Ok("audiomix") => Self::AudioMix,
             Ok("mic") if Self::Mic.available() => Self::Mic,
@@ -170,7 +170,7 @@ impl App {
             viewport: egui::ViewportBuilder::default()
                 .with_inner_size(window_size_from_env().unwrap_or(WINDOW_SIZE))
                 .with_min_inner_size(MIN_WINDOW_SIZE)
-                .with_title("StealSeries")
+                .with_title("OpenSeries")
                 .with_icon(Arc::new(icon)),
             ..eframe::NativeOptions::default()
         }
@@ -191,7 +191,7 @@ impl App {
                     ui.add_space(8.0);
                     ui.label(RichText::new("🎧").size(18.0).color(p.accent));
                     ui.label(
-                        RichText::new("StealSeries")
+                        RichText::new("OpenSeries")
                             .text_style(egui::TextStyle::Name(theme::CARD_TITLE.into()))
                             .color(p.text),
                     );
@@ -234,8 +234,8 @@ impl App {
             components::banner(
                 ui,
                 Tone::Neutral,
-                "StealSeries is paused: no Arctis Nova Pro base station is connected. Until it \
-                 is back, StealSeries does not touch app audio, microphones or hotkeys, so other \
+                "OpenSeries is paused: no Arctis Nova Pro base station is connected. Until it \
+                 is back, OpenSeries does not touch app audio, microphones or hotkeys, so other \
                  headsets work undisturbed.",
             );
             ui.add_space(8.0);
@@ -247,7 +247,7 @@ impl App {
                 components::status(
                     ui,
                     Tone::Good,
-                    &format!("StealSeries {} is available.", update.version),
+                    &format!("OpenSeries {} is available.", update.version),
                 );
                 if ui.small_button("Install update").clicked() {
                     self.core.install_update();
@@ -340,9 +340,9 @@ fn headset_summary(snapshot: &Snapshot) -> (Tone, String) {
     }
 }
 
-/// Window size from `STEALSERIES_WINDOW_SIZE` ("1000x1400"; development hook for screenshots).
+/// Window size from `OPENSERIES_WINDOW_SIZE` ("1000x1400"; development hook for screenshots).
 fn window_size_from_env() -> Option<[f32; 2]> {
-    let value = std::env::var("STEALSERIES_WINDOW_SIZE").ok()?;
+    let value = std::env::var("OPENSERIES_WINDOW_SIZE").ok()?;
     let (width, height) = value.split_once('x')?;
     Some([width.trim().parse().ok()?, height.trim().parse().ok()?])
 }

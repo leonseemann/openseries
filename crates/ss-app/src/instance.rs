@@ -1,11 +1,11 @@
-//! One StealSeries at a time (`docs/architecture/app.md` §9): a newly started app asks the running
+//! One OpenSeries at a time (`docs/architecture/app.md` §9): a newly started app asks the running
 //! one to quit (so it restores app volumes and saves its config), then takes over. Covers a
 //! second start from the Start menu, a development build next to the installed app, and the
 //! installer starting the new version after an update.
 //!
 //! The running instance listens on a random localhost port and records `{pid, port, token}` in
 //! `instance.json` next to `config.json`. A new instance connects, checks the greeting (so a
-//! stale port now used by another program is never mistaken for StealSeries), sends
+//! stale port now used by another program is never mistaken for OpenSeries), sends
 //! `quit <token>` and waits until the connection closes, i.e. the old process has exited. Only a
 //! verified instance that does not exit in time is terminated.
 
@@ -24,7 +24,7 @@ use crate::core::AppCore;
 /// Record of the running instance, next to `config.json`.
 const FILE: &str = "instance.json";
 /// Greeting the running instance sends to every connection.
-const GREETING: &str = "stealseries";
+const GREETING: &str = "openseries";
 /// Connecting to a stale port fails fast on localhost.
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(1);
 /// How long the old instance gets for a clean shutdown before it is terminated.
@@ -52,7 +52,7 @@ pub enum Takeover {
     Terminated,
 }
 
-/// Makes a running StealSeries (same config directory) quit before this one starts.
+/// Makes a running OpenSeries (same config directory) quit before this one starts.
 #[must_use]
 pub fn replace_running(config_dir: &Path) -> Takeover {
     let Some(record) = read(config_dir).filter(|r| r.pid != std::process::id()) else {
@@ -185,7 +185,7 @@ mod tests {
     fn stale_record_and_foreign_port_are_ignored() {
         let dir = std::env::temp_dir().join(format!("ss-instance-stale-{}", random_token()));
         std::fs::create_dir_all(&dir).unwrap();
-        // A port that belongs to something that is not StealSeries: it greets differently.
+        // A port that belongs to something that is not OpenSeries: it greets differently.
         let foreign = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
         let port = foreign.local_addr().unwrap().port();
         std::thread::spawn(move || {

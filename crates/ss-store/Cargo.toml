@@ -1,6 +1,6 @@
 [package]
 name = "ss-store"
-description = "Versioned JSON configuration of the StealSeries app (docs/architecture/app.md §3)."
+description = "Versioned JSON configuration of the OpenSeries app (docs/architecture/app.md §3)."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

@@ -1,10 +1,10 @@
-//! `stealseries` — the StealSeries menu-bar app (`docs/architecture/app.md`).
+//! `openseries` — the OpenSeries menu-bar app (`docs/architecture/app.md`).
 //!
 //! Composition root: loads the config, starts the services and the UI.
 //!
 //! * `--headless` prints the state to the terminal instead of opening the window.
 //! * `--test-notification` shows one desktop notification and exits.
-//! * `STEALSERIES_NO_HEADSET=1` skips the headset thread (development runs that must not talk to
+//! * `OPENSERIES_NO_HEADSET=1` skips the headset thread (development runs that must not talk to
 //!   the base station).
 
 // Release builds on Windows are GUI programs (no console window); debug builds keep the console
@@ -39,10 +39,11 @@ use crate::notify::Notifier;
 /// How often the headless mode prints a status line.
 const STATUS_INTERVAL: Duration = Duration::from_secs(2);
 /// Environment switch that disables all headset I/O.
-const NO_HEADSET_ENV: &str = "STEALSERIES_NO_HEADSET";
+const NO_HEADSET_ENV: &str = "OPENSERIES_NO_HEADSET";
 
 fn main() -> Result<()> {
     let headless = std::env::args().any(|a| a == "--headless");
+    platform::remove_legacy_registrations();
     platform::init_notifications();
     if std::env::args().any(|a| a == "--test-notification") {
         // Self-test of the OS notification path, no services started.
@@ -51,13 +52,13 @@ fn main() -> Result<()> {
     }
     let with_headset = std::env::var_os(NO_HEADSET_ENV).is_none();
     let store = Store::per_user().context("locating the config directory")?;
-    // Only one StealSeries: a running one quits cleanly and this start replaces it (§9).
+    // Only one OpenSeries: a running one quits cleanly and this start replaces it (§9).
     let instance_scope = instance::scope(store.path());
     match instance::replace_running(&instance_scope) {
         instance::Takeover::NoneRunning => {}
-        instance::Takeover::Replaced => eprintln!("replaced the running StealSeries"),
+        instance::Takeover::Replaced => eprintln!("replaced the running OpenSeries"),
         instance::Takeover::Terminated => {
-            eprintln!("warning: the running StealSeries did not quit in time; terminated it");
+            eprintln!("warning: the running OpenSeries did not quit in time; terminated it");
         }
     }
 
@@ -98,7 +99,7 @@ fn main() -> Result<()> {
 
     let ui_core = Arc::clone(&core);
     eframe::run_native(
-        "StealSeries",
+        "OpenSeries",
         ui::App::options(),
         Box::new(move |cc| {
             let _ = egui_ctx.set(cc.egui_ctx.clone());

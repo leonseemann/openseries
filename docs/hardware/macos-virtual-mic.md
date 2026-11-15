@@ -27,7 +27,7 @@ cargo build --release -p ssmix
 ./target/release/ssmix mic --input Arctis --probe
 ```
 
-While `ssmix mic` runs, select **StealSeries Microphone** as input (System Settings → Sound →
+While `ssmix mic` runs, select **OpenSeries Microphone** as input (System Settings → Sound →
 Input, QuickTime, Discord …) and speak into the headset.
 
 ## Checklist
@@ -37,12 +37,12 @@ Run on 2026-11-14: macOS 27.2.1 (arm64), Ghostty, Nova Pro base station on USB-1
 | # | Check | Expected | Result |
 |---|-------|----------|--------|
 | 1 | Build, fmt, clippy, tests incl. the HAL-style vtable smoke test | green | ✅ Observed 2026-11-14 |
-| 2 | `hal-driver.sh install`; `coreaudiod` loads the plug-in | "StealSeries Microphone" listed under Sound → Input; no "Feed" device anywhere | ✅ Observed: listed under Sound → Input; feed device appears in neither input nor output lists |
-| 3 | `ssmix inputs` | StealSeries Microphone listed (1 ch); feed device hidden | ✅ Observed: `StealSeries Microphone 1 ch dev.stealseries.mic`; feed absent from `inputs` and `devices` |
+| 2 | `hal-driver.sh install`; `coreaudiod` loads the plug-in | "OpenSeries Microphone" listed under Sound → Input; no "Feed" device anywhere | ✅ Observed: listed under Sound → Input; feed device appears in neither input nor output lists |
+| 3 | `ssmix inputs` | OpenSeries Microphone listed (1 ch); feed device hidden | ✅ Observed: `OpenSeries Microphone 1 ch dev.openseries.mic`; feed absent from `inputs` and `devices` |
 | 4 | `coreaudiod` stability | no crash / restart loop after install (`log show --predicate 'process == "coreaudiod"' --last 5m`) | ✅ Observed: one `coreaudiod` process since the install restart, no driver errors in the log |
 | 5 | `ssmix mic --probe`: aggregate layout (**Inferred**: mic device outputs first, then feed) | feed index matches; feed peak follows the mic peak (+ gain) | ✅ Observed: inputs `[1]`, outputs `[2, 1]` (headset 2 ch, then feed 1 ch), feed = #1; feed peak identical to mic peak at 0 dB (−17…−28 dBFS while speaking); 95 callbacks/s, 512 frames |
-| 6 | IO on the **hidden** feed device (**Inferred**) | works (input level meter of StealSeries Microphone moves while speaking) | ✅ Observed: the input level meter of StealSeries Microphone in System Settings follows the voice |
-| 7 | Stop `ssmix mic` | StealSeries Microphone goes silent, no replay of old audio | ✅ Observed: meter flat for 10 s after stopping while still speaking |
-| 8 | Real app (Discord / Zoom / QuickTime recording) | voice clear, no crackles, no noticeable delay | ✅ Observed (QuickTime audio recording from StealSeries Microphone, 60 s): voice clear, no crackles or dropouts; restarting `ssmix mic` mid-recording left no audible gap. Latency not assessable from a recording; to judge in a live call later |
+| 6 | IO on the **hidden** feed device (**Inferred**) | works (input level meter of OpenSeries Microphone moves while speaking) | ✅ Observed: the input level meter of OpenSeries Microphone in System Settings follows the voice |
+| 7 | Stop `ssmix mic` | OpenSeries Microphone goes silent, no replay of old audio | ✅ Observed: meter flat for 10 s after stopping while still speaking |
+| 8 | Real app (Discord / Zoom / QuickTime recording) | voice clear, no crackles, no noticeable delay | ✅ Observed (QuickTime audio recording from OpenSeries Microphone, 60 s): voice clear, no crackles or dropouts; restarting `ssmix mic` mid-recording left no audible gap. Latency not assessable from a recording; to judge in a live call later |
 | 9 | `--gain-db 6` | louder in the app | ✅ Observed: second half (+6 dB) clearly louder in the same recording |
-| 10 | `hal-driver.sh uninstall` | device gone, other audio unaffected | ✅ Observed: bundle removed from `/Library/Audio/Plug-Ins/HAL`, StealSeries Microphone gone from `ssmix inputs`, Nova Pro and other devices unaffected, `coreaudiod` running |
+| 10 | `hal-driver.sh uninstall` | device gone, other audio unaffected | ✅ Observed: bundle removed from `/Library/Audio/Plug-Ins/HAL`, OpenSeries Microphone gone from `ssmix inputs`, Nova Pro and other devices unaffected, `coreaudiod` running |

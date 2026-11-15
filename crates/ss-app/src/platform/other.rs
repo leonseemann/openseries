@@ -38,6 +38,9 @@ pub fn reset_base_usb() -> Result<(), String> {
 /// Nothing to register on this OS.
 pub fn init_notifications() {}
 
+/// The former app name registered nothing on this OS.
+pub fn remove_legacy_registrations() {}
+
 /// Nothing per notification on this OS.
 pub fn prepare_notification(_notification: &mut notify_rust::Notification) {}
 

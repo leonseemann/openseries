@@ -1,16 +1,16 @@
 # macOS app — test guide and verification log (M5)
 
-Goal: verify `StealSeries.app` ([design](../architecture/app.md), [ADR 0005](../adr/0005-single-app-pure-rust-ui.md))
+Goal: verify `OpenSeries.app` ([design](../architecture/app.md), [ADR 0005](../adr/0005-single-app-pure-rust-ui.md))
 on the owner's Mac with the Arctis Nova Pro Wireless.
 
 ## Setup
 
 ```bash
-scripts/macos/app.sh install           # → ~/Applications/StealSeries.app, opens it
+scripts/macos/app.sh install           # → ~/Applications/OpenSeries.app, opens it
 scripts/macos/hal-driver.sh install    # only for the mic checks (normal terminal tab, sudo)
 ```
 
-The app lives in the menu bar (headphone icon); "Open StealSeries…" shows the window.
+The app lives in the menu bar (headphone icon); "Open OpenSeries…" shows the window.
 
 ## Checklist
 
@@ -20,11 +20,11 @@ The app lives in the menu bar (headphone icon); "Open StealSeries…" shows the 
 | 2 | Start from `~/Applications` | menu-bar icon, no Dock icon, window opens from the menu | ✅ Observed (first `open` after reinstall failed with −600, fixed in `app.sh`) |
 | 3 | Headset page | battery, ANC, sidetone, mic volume shown; changing ANC/sidetone works | ✅ Observed: values shown; ANC selection follows app changes and the headset button after the read-back fix (`2c0da0a`). Battery has only 9 hardware steps (12.5 %), shown as ≈ |
 | 4 | AudioMix **off** (default) | no permission prompt, nothing routed; FineTune works normally | ⏳ |
-| 5 | AudioMix **on** | macOS asks **StealSeries** (not the terminal) for audio capture; music keeps playing through the mix | ✅ Observed: the prompt named StealSeries; music played through the mix |
-| 6 | Assign an app to Game/Chat | routed; ChatMix dial affects it; assignment survives an app restart and a StealSeries restart | 🟡 Observed: Chrome on Game gets quieter with the dial towards Chat, Spotify on Media unaffected; ChatMix slider ↔ dial ↔ display stay in sync. Restart persistence not tested yet |
+| 5 | AudioMix **on** | macOS asks **OpenSeries** (not the terminal) for audio capture; music keeps playing through the mix | ✅ Observed: the prompt named OpenSeries; music played through the mix |
+| 6 | Assign an app to Game/Chat | routed; ChatMix dial affects it; assignment survives an app restart and a OpenSeries restart | 🟡 Observed: Chrome on Game gets quieter with the dial towards Chat, Spotify on Media unaffected; ChatMix slider ↔ dial ↔ display stay in sync. Restart persistence not tested yet |
 | 7 | FineTune started while AudioMix is on | AudioMix pauses with a hint; resumes after FineTune quits | ⏳ |
 | 8 | Channel fader, mute, boosts, Smart Volume, EQ | audible, no rebuild glitch | ⏳ |
-| 9 | Microphone page: feed on + processing | macOS asks StealSeries for the microphone; StealSeries Microphone works in QuickTime | ⏳ |
+| 9 | Microphone page: feed on + processing | macOS asks OpenSeries for the microphone; OpenSeries Microphone works in QuickTime | ⏳ |
 | 10 | Tray toggles AudioMix / mic with the window closed | state changes, check marks follow | ⏳ |
 | 11 | Hotkeys Ctrl+Alt+←/→, Ctrl+Alt+M | ChatMix steps; mic feed toggles | 🟡 Observed: ChatMix hotkeys step the mix, the slider and the base-station display; mic hotkey not tested yet |
 | 12 | Autostart on, log out/in | app starts in the menu bar | ⏳ |
@@ -33,12 +33,13 @@ The app lives in the menu bar (headphone icon); "Open StealSeries…" shows the 
 | 15 | Settings → **Fix crackling automatically** on; wait for a crackling episode | episode ends after ~1 s with a USB reconnect; counter increases; off = no automatic resets | ⏳ (filter verified: `log stream` with the predicate starts and stays running) |
 | 16 | AudioMix → Backup outputs: add the Mac speakers, enable "Switch to the backups while the headset is turned off"; turn the headset off, then on (SON-27/28) | mix moves to the speakers within ~2 s and back to the headset; with the option off, unplugging the base station also moves it | ⏳ (logic unit-tested on Windows; macOS run pending) |
 | 17 | Microphone → Backup microphones: add the MacBook mic; turn the headset off | virtual mic source switches to the MacBook mic and back | ⏳ |
-| 18 | Microphone → "Make StealSeries Microphone the system default input" on, feed on, then off; also quit with it on (SON-06) | System Settings → Sound → Input shows StealSeries Microphone while the feed runs and the previous input afterwards; picking another input by hand while it runs is kept | ⏳ (supervisor logic unit-tested; CoreAudio setter compile-checked for macOS only, written on Windows) |
+| 18 | Microphone → "Make OpenSeries Microphone the system default input" on, feed on, then off; also quit with it on (SON-06) | System Settings → Sound → Input shows OpenSeries Microphone while the feed runs and the previous input afterwards; picking another input by hand while it runs is kept | ⏳ (supervisor logic unit-tested; CoreAudio setter compile-checked for macOS only, written on Windows) |
 | 19 | Microphone page: toggle noise suppression, gate, stabilizer and drag the gain while recording in QuickTime | changes audible at once, no gap or click from a feed restart; "Started … times" counter of the mic does not grow | ⏳ (supervisor + no-allocation tests green; macOS feed compile-checked only) |
-| 20 | `scripts/macos/hal-driver.sh uninstall`, then `scripts/macos/app.sh install`; Getting started → **Install driver…** | admin password prompt; afterwards "StealSeries Microphone" appears under Sound → Input, step shows ✅; Cancel in the prompt shows "installation cancelled" | ⏳ (written on Windows; AppleScript generation checked standalone, Rust file not compiled for macOS) |
-| 21 | Base station unplugged, another headset (e.g. HyperX) in use, AudioMix and mic enabled in the config (`app.md` §8) | no taps, no StealSeries Microphone feed, default input untouched, hotkeys free; window shows "paused"; everything resumes when the base station is plugged back | ⏳ (gate unit-tested) |
-| 22 | First release: unpack `StealSeries-X.Y.Z-macos-arm64.zip`, move the app to Applications, open it ([release.md](../architecture/release.md) §4) | notarized: only the "downloaded from the internet" question, no Gatekeeper block; Settings → Updates → Check now says "Up to date" | ⏳ needs the first release |
+| 20 | `scripts/macos/hal-driver.sh uninstall`, then `scripts/macos/app.sh install`; Getting started → **Install driver…** | admin password prompt; afterwards "OpenSeries Microphone" appears under Sound → Input, step shows ✅; Cancel in the prompt shows "installation cancelled" | ⏳ (written on Windows; AppleScript generation checked standalone, Rust file not compiled for macOS) |
+| 21 | Base station unplugged, another headset (e.g. HyperX) in use, AudioMix and mic enabled in the config (`app.md` §8) | no taps, no OpenSeries Microphone feed, default input untouched, hotkeys free; window shows "paused"; everything resumes when the base station is plugged back | ⏳ (gate unit-tested) |
+| 22 | First release: unpack `OpenSeries-X.Y.Z-macos-arm64.zip`, move the app to Applications, open it ([release.md](../architecture/release.md) §4) | notarized: only the "downloaded from the internet" question, no Gatekeeper block; Settings → Updates → Check now says "Up to date" | ⏳ needs the first release |
 | 23 | In-app update to a newer release (Settings → Updates or menu bar → Install update) | app quits, bundle replaced, new version opens by itself; Developer ID signed: no new permission prompts | ⏳ needs two releases |
+| 24 | Rename (ADR 0007): quit and delete `StealSeries.app`, install `OpenSeries.app`, Getting started → Install driver… | settings carried over (`~/Library/Application Support/OpenSeries`); only "OpenSeries Microphone" under Sound → Input (old StealSeries driver removed); no `dev.stealseries.app` LaunchAgent left | ⏳ |
 
 ## Findings
 
@@ -50,7 +51,7 @@ The app lives in the menu bar (headphone icon); "Open StealSeries…" shows the 
   stutter gone (owner: "ist glaube ich weg"). Regression test
   `unrelated_devices_coming_and_going_do_not_interrupt_the_mix`.
 - **Crackling = USB underflows from the base station** (2026-11-14). The owner hears crackling with
-  and without StealSeries (also on Windows with the original app); "Reconnect USB" (USB reset)
+  and without OpenSeries (also on Windows with the original app); "Reconnect USB" (USB reset)
   stops it. macOS's USB audio daemon logs it (`/usr/bin/log show --predicate 'process == "usbaudiod"'`;
   note: in zsh `log` is a builtin, use the full path). **Observed** around 13:45: 13:45:09–13:45:16
   continuous `AUAInputTransferManager completeBlock USB underflow -64` (~160) with an
@@ -59,7 +60,7 @@ The app lives in the menu bar (headphone icon); "Open StealSeries…" shows the 
   updates. Same bursts at 12:30, 13:30–13:32 and 13:39. **Inferred:** the base station's USB
   audio stream intermittently delivers too little data, the HAL keeps re-timing the device clock,
   which is audible as clicks; a USB reset re-synchronises it — a device firmware/USB issue, not
-  StealSeries. Live watch: `/usr/bin/log stream --predicate 'process == "usbaudiod" AND eventMessage CONTAINS "underflow"'`.
+  OpenSeries. Live watch: `/usr/bin/log stream --predicate 'process == "usbaudiod" AND eventMessage CONTAINS "underflow"'`.
 - **A second kind of crackling leaves no trace on the Mac** (2026-11-14 ~13:56–13:58). With the
   automatic fix enabled and its `log stream` running, the owner heard crackling, but `usbaudiod`
   logged nothing after 13:55:51 (no underflows) and `coreaudiod` reported no overloads. Clicking

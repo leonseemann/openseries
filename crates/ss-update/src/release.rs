@@ -24,7 +24,7 @@ pub struct Release {
 /// One uploaded file of a release.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct Asset {
-    /// File name, e.g. `StealSeries-0.2.0-windows-x64-setup.exe`.
+    /// File name, e.g. `OpenSeries-0.2.0-windows-x64-setup.exe`.
     pub name: String,
     /// Direct download URL.
     pub browser_download_url: String,
@@ -37,7 +37,7 @@ pub struct Asset {
 pub enum Platform {
     /// Inno Setup installer for 64-bit Windows.
     WindowsX64,
-    /// Zipped `StealSeries.app` for Apple Silicon Macs.
+    /// Zipped `OpenSeries.app` for Apple Silicon Macs.
     MacosArm64,
 }
 
@@ -58,8 +58,8 @@ impl Platform {
     #[must_use]
     pub fn package_name(self, version: &Version) -> String {
         match self {
-            Self::WindowsX64 => format!("StealSeries-{version}-windows-x64-setup.exe"),
-            Self::MacosArm64 => format!("StealSeries-{version}-macos-arm64.zip"),
+            Self::WindowsX64 => format!("OpenSeries-{version}-windows-x64-setup.exe"),
+            Self::MacosArm64 => format!("OpenSeries-{version}-macos-arm64.zip"),
         }
     }
 }
@@ -152,15 +152,15 @@ mod tests {
 
     const LATEST: &str = r#"{
         "tag_name": "v0.2.0",
-        "html_url": "https://github.com/leonseemann/stealseries/releases/tag/v0.2.0",
+        "html_url": "https://github.com/leonseemann/openseries/releases/tag/v0.2.0",
         "body": "Fixes",
         "draft": false,
         "assets": [
-            {"name": "StealSeries-0.2.0-windows-x64-setup.exe", "size": 10,
+            {"name": "OpenSeries-0.2.0-windows-x64-setup.exe", "size": 10,
              "browser_download_url": "https://example.invalid/setup.exe"},
-            {"name": "StealSeries-0.2.0-windows-x64-setup.exe.sig", "size": 1,
+            {"name": "OpenSeries-0.2.0-windows-x64-setup.exe.sig", "size": 1,
              "browser_download_url": "https://example.invalid/setup.exe.sig"},
-            {"name": "StealSeries-0.2.0-macos-arm64.zip", "size": 10,
+            {"name": "OpenSeries-0.2.0-macos-arm64.zip", "size": 10,
              "browser_download_url": "https://example.invalid/app.zip"}
         ]
     }"#;
@@ -179,11 +179,11 @@ mod tests {
         assert_eq!(update.version, version("0.2.0"));
         assert_eq!(
             update.package.name,
-            "StealSeries-0.2.0-windows-x64-setup.exe"
+            "OpenSeries-0.2.0-windows-x64-setup.exe"
         );
         assert_eq!(
             update.signature.name,
-            "StealSeries-0.2.0-windows-x64-setup.exe.sig"
+            "OpenSeries-0.2.0-windows-x64-setup.exe.sig"
         );
         assert_eq!(update.notes, "Fixes");
     }
@@ -229,11 +229,11 @@ mod tests {
         let v = version("1.2.3");
         assert_eq!(
             Platform::WindowsX64.package_name(&v),
-            "StealSeries-1.2.3-windows-x64-setup.exe"
+            "OpenSeries-1.2.3-windows-x64-setup.exe"
         );
         assert_eq!(
             Platform::MacosArm64.package_name(&v),
-            "StealSeries-1.2.3-macos-arm64.zip"
+            "OpenSeries-1.2.3-macos-arm64.zip"
         );
     }
 }

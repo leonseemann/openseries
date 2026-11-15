@@ -217,7 +217,7 @@ fn device_kind(id: u32) -> Option<DeviceKind> {
 /// # Safety
 /// Called by CoreFoundation with a valid (or null) `CFUUIDRef`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn StealSeriesMic_Create(
+pub unsafe extern "C" fn OpenSeriesMic_Create(
     _allocator: *const c_void,
     requested_type: *const CFUUID,
 ) -> *mut c_void {
@@ -638,10 +638,10 @@ mod tests {
         // the factory points to the static vtable pointer.
         unsafe {
             let wrong = CFUUID::from_uuid_bytes(None, cf_bytes(IUNKNOWN_UUID)).unwrap();
-            assert!(StealSeriesMic_Create(std::ptr::null(), &raw const *wrong).is_null());
+            assert!(OpenSeriesMic_Create(std::ptr::null(), &raw const *wrong).is_null());
 
             let plugin_type = CFUUID::from_uuid_bytes(None, cf_bytes(PLUGIN_TYPE_UUID)).unwrap();
-            let driver = StealSeriesMic_Create(std::ptr::null(), &raw const *plugin_type);
+            let driver = OpenSeriesMic_Create(std::ptr::null(), &raw const *plugin_type);
             assert!(!driver.is_null());
             let vtable: &DriverInterface = *driver.cast::<&DriverInterface>();
 
@@ -702,11 +702,11 @@ mod tests {
             let string = objc2_core_foundation::CFRetained::from_raw(
                 NonNull::new(string.cast_mut()).unwrap(),
             );
-            assert_eq!(string.to_string(), "StealSeries Microphone");
+            assert_eq!(string.to_string(), "OpenSeries Microphone");
 
             // UID → device with a CFString qualifier.
             let translate = address(sel::PLUGIN_TRANSLATE_UID_TO_DEVICE, sel::SCOPE_GLOBAL);
-            let uid = objc2_core_foundation::CFString::from_str("dev.stealseries.mic.feed");
+            let uid = objc2_core_foundation::CFString::from_str("dev.openseries.mic.feed");
             let qualifier: *const objc2_core_foundation::CFString = &raw const *uid;
             let mut device = 0_u32;
             let status = (vtable.get_property_data)(

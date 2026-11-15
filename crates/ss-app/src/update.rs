@@ -38,7 +38,7 @@ const PROGRESS_STEP: u64 = 256 << 10;
 /// Download buffer size.
 const CHUNK: usize = 64 << 10;
 /// Folder under the temp directory that holds downloads.
-const DOWNLOAD_DIR: &str = "StealSeries-update";
+const DOWNLOAD_DIR: &str = "OpenSeries-update";
 
 /// What the updater is doing; rendered in Settings → Updates and the tray.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -241,7 +241,7 @@ impl Worker {
         self.notified = Some(update.version.clone());
         if self.setting(|c| c.app.notifications.enabled) == Some(true) {
             let _ = crate::alerts::show(&format!(
-                "StealSeries {} is available. Install it from the tray menu or Settings → \
+                "OpenSeries {} is available. Install it from the tray menu or Settings → \
                  Updates.",
                 update.version
             ));
@@ -365,7 +365,7 @@ fn fetch(url: &str, limit: u64) -> Result<Vec<u8>, String> {
 fn agent(timeout: Duration) -> ureq::Agent {
     ureq::Agent::config_builder()
         .timeout_global(Some(timeout))
-        .user_agent(concat!("StealSeries/", env!("CARGO_PKG_VERSION")))
+        .user_agent(concat!("OpenSeries/", env!("CARGO_PKG_VERSION")))
         .build()
         .into()
 }

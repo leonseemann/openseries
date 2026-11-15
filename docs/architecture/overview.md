@@ -15,7 +15,7 @@ features + Sonar-style AudioMix on **Windows and macOS**.
 
 ## 2. Lessons from the original (what we do differently)
 
-| Original GG (see `docs/re/`) | StealSeries |
+| Original GG (see `docs/re/`) | OpenSeries |
 |---|---|
 | 5+ processes in 3 languages (.NET, Go, C++, Electron) talking HTTPS on ephemeral ports | One daemon (Rust) + one UI process |
 | Local API without auth, leaks account data (gg-core.md) | Local API bound to 127.0.0.1, per-session bearer token, opt-in |
@@ -140,7 +140,7 @@ changes travel as small messages over an `rtrb` SPSC queue; meters travel back t
 
 ## 7. Configuration and API
 
-- Config: versioned JSON files in the OS config dir (`%APPDATA%\StealSeries`, `~/Library/Application Support/StealSeries`).
+- Config: versioned JSON files in the OS config dir (`%APPDATA%\OpenSeries`, `~/Library/Application Support/OpenSeries`).
 - Presets: import/export as JSON; a converter for Sonar's config JSON shape (sonar.md §4) is a later nicety.
 - **AudioMix master switch** (owner requirement, 2026-11-14): a persisted `audiomix.enabled` setting,
   toggled from the tray/UI and the CLI. When off, the daemon creates **no process taps and no

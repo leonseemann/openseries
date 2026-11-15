@@ -1,12 +1,12 @@
 //! Start at login via a per-user `LaunchAgent` (`docs/architecture/app.md` §2, ADR 0005).
 //!
-//! Writing or removing `~/Library/LaunchAgents/dev.stealseries.app.plist` takes effect at the
+//! Writing or removing `~/Library/LaunchAgents/dev.openseries.app.plist` takes effect at the
 //! next login; nothing is loaded into launchd immediately.
 
 use std::path::PathBuf;
 
 /// launchd label (also the plist file name).
-const LABEL: &str = "dev.stealseries.app";
+const LABEL: &str = "dev.openseries.app";
 
 /// Enables or disables starting the current executable at login.
 ///
@@ -29,11 +29,26 @@ pub fn set(enabled: bool) -> Result<(), String> {
         .map_err(|e| format!("writing {}: {e}", path.display()))
 }
 
+/// launchd label of the former app name (StealSeries, ADR 0007).
+const LEGACY_LABEL: &str = "dev.stealseries.app";
+
+/// Removes the login item of the former app name; it would start a binary that no longer exists
+/// (autostart is re-applied under the new name at start-up if it was on).
+pub fn remove_legacy() {
+    if let Ok(path) = plist_path_for(LEGACY_LABEL) {
+        let _ = std::fs::remove_file(path);
+    }
+}
+
 fn plist_path() -> Result<PathBuf, String> {
+    plist_path_for(LABEL)
+}
+
+fn plist_path_for(label: &str) -> Result<PathBuf, String> {
     let home = std::env::var_os("HOME").ok_or("no home directory")?;
     Ok(PathBuf::from(home)
         .join("Library/LaunchAgents")
-        .join(format!("{LABEL}.plist")))
+        .join(format!("{label}.plist")))
 }
 
 fn plist(executable: &str) -> String {
@@ -71,8 +86,8 @@ mod tests {
 
     #[test]
     fn plist_runs_the_executable_at_load() {
-        let text = plist("/Applications/Steal & Series.app/Contents/MacOS/stealseries");
-        assert!(text.contains("<string>dev.stealseries.app</string>"));
+        let text = plist("/Applications/Steal & Series.app/Contents/MacOS/openseries");
+        assert!(text.contains("<string>dev.openseries.app</string>"));
         assert!(text.contains("Steal &amp; Series.app"));
         assert!(text.contains("<key>RunAtLoad</key>\n\t<true/>"));
     }

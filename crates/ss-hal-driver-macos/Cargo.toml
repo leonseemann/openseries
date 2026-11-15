@@ -1,6 +1,6 @@
 [package]
 name = "ss-hal-driver-macos"
-description = "Virtual microphone for macOS: a loopback AudioServerPlugIn (StealSeries Microphone)."
+description = "Virtual microphone for macOS: a loopback AudioServerPlugIn (OpenSeries Microphone)."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,7 +8,7 @@ publish.workspace = true
 license.workspace = true
 
 [lib]
-# cdylib = the driver binary inside StealSeriesMic.driver; rlib = portable logic for tests.
+# cdylib = the driver binary inside OpenSeriesMic.driver; rlib = portable logic for tests.
 crate-type = ["cdylib", "rlib"]
 
 [target.'cfg(target_os = "macos")'.dependencies]

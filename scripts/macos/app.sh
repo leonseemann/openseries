@@ -1,7 +1,7 @@
 #!/bin/sh
-# Builds and installs StealSeries.app (docs/architecture/app.md §5).
+# Builds and installs OpenSeries.app (docs/architecture/app.md §5).
 #
-#   scripts/macos/app.sh build     # → target/StealSeries.app (ad-hoc signed)
+#   scripts/macos/app.sh build     # → target/OpenSeries.app (ad-hoc signed)
 #   scripts/macos/app.sh install   # build + copy to ~/Applications (no sudo) and open it
 #
 # Signing: ad-hoc by default (development; the signature changes with every build, so macOS may
@@ -12,7 +12,7 @@ set -eu
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 CRATE=ss-app
-BUNDLE="$ROOT/target/StealSeries.app"
+BUNDLE="$ROOT/target/OpenSeries.app"
 TARGET_DIR="$HOME/Applications"
 
 # Builds the .icns from the generated 1024 px master (crates/ss-app/src/icon.rs).
@@ -35,12 +35,12 @@ build() {
     rm -rf "$BUNDLE"
     mkdir -p "$BUNDLE/Contents/MacOS" "$BUNDLE/Contents/Resources"
     sed "s/@VERSION@/$version/g" "$ROOT/crates/$CRATE/bundle/Info.plist" > "$BUNDLE/Contents/Info.plist"
-    cp "$ROOT/target/release/stealseries" "$BUNDLE/Contents/MacOS/stealseries"
+    cp "$ROOT/target/release/openseries" "$BUNDLE/Contents/MacOS/openseries"
     app_icon "$BUNDLE/Contents/Resources/AppIcon.icns"
     # The virtual-mic driver travels inside the app so "Install driver…" can copy it
     # (app.md §2, onboarding). Signed on its own by hal-driver.sh, then sealed with the app.
     "$ROOT/scripts/macos/hal-driver.sh" build
-    cp -R "$ROOT/target/StealSeriesMic.driver" "$BUNDLE/Contents/Resources/"
+    cp -R "$ROOT/target/OpenSeriesMic.driver" "$BUNDLE/Contents/Resources/"
     if [ -n "${SIGN_IDENTITY:-}" ]; then
         codesign --force --options runtime --timestamp \
             --entitlements "$ROOT/crates/$CRATE/bundle/entitlements.plist" \
@@ -57,16 +57,16 @@ case "${1:-}" in
         ;;
     install)
         build
-        if pkill -x stealseries 2>/dev/null; then
+        if pkill -x openseries 2>/dev/null; then
             # Wait until the old instance is gone; opening too early fails with error -600.
-            while pgrep -x stealseries >/dev/null; do sleep 0.2; done
+            while pgrep -x openseries >/dev/null; do sleep 0.2; done
             sleep 1
         fi
         mkdir -p "$TARGET_DIR"
-        rm -rf "$TARGET_DIR/StealSeries.app"
+        rm -rf "$TARGET_DIR/OpenSeries.app"
         cp -R "$BUNDLE" "$TARGET_DIR/"
-        echo "installed $TARGET_DIR/StealSeries.app"
-        open "$TARGET_DIR/StealSeries.app"
+        echo "installed $TARGET_DIR/OpenSeries.app"
+        open "$TARGET_DIR/OpenSeries.app"
         ;;
     *)
         echo "usage: $0 build|install" >&2

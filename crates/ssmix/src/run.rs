@@ -80,7 +80,7 @@ fn mic(args: &MicArgs) -> Result<()> {
     let session = MicFeedSession::start(&input, chain)
         .context("starting the mic feed (grant microphone permission if macOS asked)")?;
     println!(
-        "Feeding \"{}\" into \"StealSeries Microphone\": {}. Chain latency {latency_ms:.1} ms. Ctrl-C to stop.",
+        "Feeding \"{}\" into \"OpenSeries Microphone\": {}. Chain latency {latency_ms:.1} ms. Ctrl-C to stop.",
         input.name,
         describe(&settings)
     );
