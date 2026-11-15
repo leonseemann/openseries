@@ -29,6 +29,7 @@ ss-usb-macos = { path = "crates/ss-usb-macos" }
 ss-audio-windows = { path = "crates/ss-audio-windows" }
 ss-window-windows = { path = "crates/ss-window-windows" }
 ss-update = { path = "crates/ss-update" }
+ss-device = { path = "crates/ss-device" }
 
 [workspace.lints.rust]
 unsafe_code = "deny"

@@ -3989,6 +3989,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "ss-device"
+version = "0.1.0"
+dependencies = [
+ "ss-core",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "ss-dsp"
 version = "0.1.0"
 dependencies = [

@@ -1,7 +1,6 @@
 # ADR 0008 — An extensible device platform (any device class, any transport)
 
-- **Status:** proposed (2026-11-15, revised the same day after owner feedback) — the owner decides;
-  implementation starts after acceptance
+- **Status:** accepted (2026-11-15, owner; revised the same day after owner feedback)
 - **Updates:** [ADR 0001](0001-v1-scope.md) (scope "Arctis Nova Pro Wireless only")
 - **Design:** [`docs/architecture/devices.md`](../architecture/devices.md)
 
