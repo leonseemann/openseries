@@ -14,6 +14,7 @@
 
 mod codec;
 mod command;
+pub mod device;
 mod driver;
 mod event;
 mod firmware;

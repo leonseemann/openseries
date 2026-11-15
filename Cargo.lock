@@ -4039,6 +4039,7 @@ name = "ss-nova-pro"
 version = "0.1.0"
 dependencies = [
  "ss-core",
+ "ss-device",
  "thiserror 2.0.21",
 ]
 

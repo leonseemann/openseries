@@ -36,3 +36,14 @@ pub trait HidTransport: Send {
     /// Returns [`TransportError`] if reading failed.
     fn read_timeout(&mut self, buf: &mut [u8], timeout: Duration) -> Result<usize, TransportError>;
 }
+
+/// Boxed transports (the device platform opens connections as `Box<dyn HidTransport>`).
+impl<T: HidTransport + ?Sized> HidTransport for Box<T> {
+    fn write(&mut self, report: &[u8]) -> Result<(), TransportError> {
+        (**self).write(report)
+    }
+
+    fn read_timeout(&mut self, buf: &mut [u8], timeout: Duration) -> Result<usize, TransportError> {
+        (**self).read_timeout(buf, timeout)
+    }
+}
