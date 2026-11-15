@@ -14,3 +14,6 @@
 /drivers/windows/**/*.user
 # Private reverse-engineering notes: a clone of leonseemann/openseries-re (AGENTS.md)
 /docs/re/
+# Personal Claude Code instructions (they import the private docs/re/maintainer/CLAUDE.md)
+/CLAUDE.md
+/CLAUDE.local.md

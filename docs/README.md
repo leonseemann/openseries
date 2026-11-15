@@ -2,7 +2,7 @@
 
 | Area | Document | Status |
 |------|----------|--------|
-| Contributor / agent rules | [`../AGENTS.md`](../AGENTS.md), [`../CLAUDE.md`](../CLAUDE.md) (current task) | ✅ |
+| Contributor / agent rules | [`../AGENTS.md`](../AGENTS.md) (maintainer notes are private) | ✅ |
 | Reverse-engineering notes of the original GG app (overview, core, UI, engine, Sonar, feature inventory) | `re/` — **private** repository `leonseemann/openseries-re`, cloned here by maintainers ([AGENTS.md](../AGENTS.md)) | ✅ |
 | Research: open-source prior art & licenses | [`research/prior-art.md`](research/prior-art.md) | ✅ |
 | Architecture of the Rust rewrite | [`architecture/overview.md`](architecture/overview.md) | ✅ |
