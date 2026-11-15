@@ -26,6 +26,8 @@ pub enum AudioMsg {
     HeadsetLinked(bool),
     /// A supported device is connected (`true`) or none is (`app.md` §8).
     DevicePresent(bool),
+    /// Name parts of the connected audio device's endpoints (ADR 0008).
+    HeadsetEndpoints(Vec<String>),
     /// Stop everything and end the thread.
     Shutdown,
 }
@@ -55,6 +57,7 @@ where
                     Ok(AudioMsg::ChatMix(balance)) => supervisor.on_chatmix(balance),
                     Ok(AudioMsg::HeadsetLinked(linked)) => supervisor.on_headset_link(linked),
                     Ok(AudioMsg::DevicePresent(present)) => supervisor.on_device_present(present),
+                    Ok(AudioMsg::HeadsetEndpoints(names)) => supervisor.on_headset_endpoints(names),
                     Ok(AudioMsg::Shutdown) | Err(RecvTimeoutError::Disconnected) => {
                         supervisor.shutdown();
                         publish(&supervisor, &status, &notify);

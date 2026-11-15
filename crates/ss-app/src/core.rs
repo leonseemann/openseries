@@ -390,15 +390,26 @@ fn spawn_link_forward(
         .spawn(move || {
             let mut last = None;
             let mut last_present = None;
+            let mut last_endpoints: Option<Vec<String>> = None;
             loop {
-                let (present, linked) = {
+                let (present, linked, endpoints) = {
                     let state = lock(&state);
                     let audio_device = state.with(FeatureKind::AudioEndpoint);
                     (
                         state.any(),
                         audio_device.and_then(devices::DeviceSnapshot::linked),
+                        audio_device.map(endpoint_names).unwrap_or_default(),
                     )
                 };
+                if last_endpoints.as_ref() != Some(&endpoints) {
+                    last_endpoints = Some(endpoints.clone());
+                    if audio_tx
+                        .send(AudioMsg::HeadsetEndpoints(endpoints))
+                        .is_err()
+                    {
+                        return;
+                    }
+                }
                 if last_present != Some(present) {
                     last_present = Some(present);
                     if audio_tx.send(AudioMsg::DevicePresent(present)).is_err() {
@@ -416,6 +427,24 @@ fn spawn_link_forward(
                 std::thread::sleep(LINK_POLL);
             }
         })
+}
+
+/// Name parts of a device's audio endpoints (outputs and inputs, without duplicates).
+fn endpoint_names(device: &devices::DeviceSnapshot) -> Vec<String> {
+    let Some(ss_device::Descriptor::AudioEndpoint { outputs, inputs }) = device
+        .feature(FeatureKind::AudioEndpoint)
+        .map(|f| &f.descriptor)
+    else {
+        return Vec::new();
+    };
+    let mut names: Vec<String> = outputs
+        .iter()
+        .chain(*inputs)
+        .map(|n| (*n).to_owned())
+        .collect();
+    names.sort_unstable();
+    names.dedup();
+    names
 }
 
 /// Writes config changes once the user pauses (slider drags write once); ends with the core.

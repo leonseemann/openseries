@@ -142,6 +142,8 @@ pub struct AudioSupervisor<B: AudioBackend> {
     chatmix: Option<ChatMixBalance>,
     /// Headset link as last reported (`None` = unknown); drives the "headset off" fallback.
     headset_linked: Option<bool>,
+    /// Name parts of the headset's own audio endpoints (from the device platform).
+    headset_endpoints: Vec<String>,
     /// A supported device is connected. Without one nothing runs (`app.md` §8); `false`
     /// until the headset thread has looked (fail safe).
     device_present: bool,
@@ -166,6 +168,7 @@ impl<B: AudioBackend> AudioSupervisor<B> {
             failed_mic: None,
             chatmix: None,
             headset_linked: None,
+            headset_endpoints: Vec::new(),
             device_present: false,
             default_input: DefaultInput::Untouched,
             status: AudioStatus::default(),
@@ -225,6 +228,14 @@ impl<B: AudioBackend> AudioSupervisor<B> {
         }
     }
 
+    /// The audio device's endpoint names changed (device connected, ADR 0008).
+    pub fn on_headset_endpoints(&mut self, names: Vec<String>) {
+        if self.headset_endpoints != names {
+            self.headset_endpoints = names;
+            self.reconcile();
+        }
+    }
+
     /// The headset was turned on or off (base-station link).
     pub fn on_headset_link(&mut self, linked: bool) {
         if self.headset_linked != Some(linked) {
@@ -243,9 +254,13 @@ impl<B: AudioBackend> AudioSupervisor<B> {
         }
     }
 
-    /// Whether the headset's devices count as missing right now.
-    fn headset_off(&self) -> bool {
-        self.config.audiomix.fallback_when_headset_off && self.headset_linked == Some(false)
+    /// The endpoint names that count as missing right now (the headset's, while it is off).
+    fn missing_endpoints(&self) -> Vec<String> {
+        if self.config.audiomix.fallback_when_headset_off && self.headset_linked == Some(false) {
+            self.headset_endpoints.clone()
+        } else {
+            Vec::new()
+        }
     }
 
     /// Stops everything (app quit).
@@ -336,7 +351,7 @@ impl<B: AudioBackend> AudioSupervisor<B> {
                     &self.config.audiomix.output_fallback,
                     &self.devices.outputs,
                     self.devices.default_output.as_deref(),
-                    self.headset_off(),
+                    &self.missing_endpoints(),
                 );
                 plan
             }
@@ -386,7 +401,7 @@ impl<B: AudioBackend> AudioSupervisor<B> {
                     &self.config.mic.input_fallback,
                     &self.devices.inputs,
                     self.devices.default_input.as_deref(),
-                    self.headset_off(),
+                    &self.missing_endpoints(),
                 );
                 plan
             }
@@ -672,6 +687,8 @@ mod tests {
         config.audiomix.fallback_when_headset_off = true;
         h.supervisor.on_tick();
         h.supervisor.on_config(config);
+        h.supervisor
+            .on_headset_endpoints(vec!["Arctis Nova Pro Wireless".to_owned()]);
         h.supervisor.on_headset_link(true);
         h.supervisor.on_headset_link(false);
         h.supervisor.on_headset_link(true);
