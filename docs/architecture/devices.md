@@ -1,152 +1,196 @@
-# Devices: one interface, many headsets
+# Devices: an extensible platform for any device and transport
 
-Decision: [ADR 0008](../adr/0008-multi-device-support.md) (proposed). This document describes the
-interface, how the app uses it, and the refactor plan. Status: **design, not implemented**.
+Decision: [ADR 0008](../adr/0008-multi-device-support.md) (proposed). Status: **design, not
+implemented**. Goal: adding a headset, keyboard, mouse or a new transport such as Bluetooth must
+not touch the app core.
 
-## 1. Crates and dependency direction
+## 1. Three extension axes
+
+| Axis | Question | Extension = | Touches |
+|---|---|---|---|
+| **Feature** | what can a device do? | a catalogue entry + one UI widget + docs | `ss-device`, `ss-app/ui/features/` |
+| **Transport** | how do we reach it? | `Discovery` + `Connection` impl | a `ss-transport-*` crate + registration |
+| **Driver** | which device speaks which protocol? | a crate implementing `Device` + a `DriverEntry` | `ss-<device>` + `ss-devices` |
+
+The app core (device manager, state, gate, audio, config) only knows the traits and the feature
+catalogue.
+
+## 2. Crates
 
 ```text
-ss-app ──► ss-devices (registry) ──► ss-nova-pro ──► ss-device ──► ss-core
-                                 └─► ss-<next device> ─┘
-ss-app ──► ss-device (types only)          ss-hid (HidTransport impl) ──► ss-core
+ss-app ──► ss-devices (registry) ──► ss-nova-pro, ss-<next> … ──► ss-device ──► ss-core
+   │                                                                  ▲
+   └──► ss-transport-hid (USB + Bluetooth HID, hidapi) ───────────────┤
+   └──► ss-transport-ble (BLE GATT, later) ───────────────────────────┘
 ```
 
 | Crate | Responsibility |
 |---|---|
-| `ss-core` | unchanged: value types (battery, noise control, sidetone, EQ, balance), `HidTransport` |
-| `ss-device` (new) | `DeviceInfo`, `Capabilities`, `Setting`, `DeviceState`, `Change`, trait `HeadsetDriver`; platform-free, unit-tested |
-| `ss-nova-pro` | protocol as today + `device.rs`: `NovaProDevice` implements `HeadsetDriver` |
-| `ss-devices` (new) | registry: `SUPPORTED: &[&DeviceInfo]`, `open(info, transport) -> Box<dyn HeadsetDriver>` |
-| `ss-app` | device thread, UI, gate, audio plan, all through `ss-device` types |
+| `ss-core` | value types (battery, noise control, EQ gain, balance …), unchanged |
+| `ss-device` (new) | feature catalogue, `Device` trait, `DeviceInfo`, `DriverEntry`, match rules, transport traits (`Connection`, `Discovery`), `Candidate`; platform-free, unit-tested |
+| `ss-transport-hid` (today `ss-hid`) | discovery + connection over hidapi for USB **and** Bluetooth HID (hidapi reports the bus type) |
+| `ss-transport-ble` (later) | discovery + connection for vendor GATT services (`btleplug` or `bluest`) |
+| `ss-devices` (new) | `DRIVERS: &[DriverEntry]`, `TRANSPORTS` list; the only crate that knows every driver |
+| `ss-nova-pro` | protocol as today + `device.rs` adapter |
+| `ss-app` | device manager, UI, gate, audio binding, config |
 
-## 2. The interface (`ss-device`)
+`ss-core::transport::HidTransport` becomes `ss-device::Connection` (same shape: write a report,
+read with a timeout), so existing driver code keeps working.
 
-```rust
-/// Static description of a device family (one per driver).
-pub struct DeviceInfo {
-    pub id: &'static str,                 // "arctis-nova-pro-wireless" (config key)
-    pub name: &'static str,               // "Arctis Nova Pro Wireless"
-    pub vendor_id: u16,
-    pub product_ids: &'static [u16],
-    pub interface: i32,                   // HID interface / usage pages as in ss-hid::DeviceSelector
-    pub command_usage_page: u16,
-    pub event_usage_page: u16,
-    /// Substrings of the OS audio endpoint names (output and input) of this device.
-    pub audio_endpoints: &'static [&'static str],
-    pub support: Support,                 // Verified | Experimental
-    pub has_base_station: bool,           // wording in UI/notifications ("base station" vs "dongle")
-}
+## 3. Feature catalogue (`ss-device::feature`)
 
-/// What the device can do; the UI shows exactly this.
-pub struct Capabilities {
-    pub noise_control: Option<NoiseControlCaps>, // modes + optional transparency range
-    pub sidetone: Option<LevelRange>,
-    pub mic_volume: Option<LevelRange>,
-    pub hardware_eq: Option<EqCaps>,             // band count, centre freqs (if known), gain range/step, presets
-    pub auto_off: Option<&'static [AutoOff]>,
-    pub display_brightness: Option<LevelRange>,
-    pub mic_led_brightness: Option<LevelRange>,
-    pub batteries: BatteryCaps,                  // headset, spare slot, charge state
-    pub balance: Option<BalanceCaps>,            // hardware Game/Chat dial, host-mixer hand-over
-    pub firmware_info: bool,
-    pub usb_reset: bool,                         // software re-plug supported (macOS)
-}
+Each feature kind has a **descriptor** (static parameters the device reports or declares) and a
+**value** type. A device lists `Feature { id: FeatureId, descriptor }`. `FeatureId` = kind +
+index, so a keyboard can have several lighting zones and a mouse several DPI stages.
 
-/// A device-neutral setting the app can apply.
-pub enum Setting {
-    NoiseControl(NoiseControl), Transparency(u8), Sidetone(u8), MicVolume(u8),
-    EqPreset(EqPreset), CustomEq(Vec<f32>), AutoOff(AutoOff),
-    DisplayBrightness(u8), MicLedBrightness(u8), Balance(ChatMixBalance),
-}
-
-/// Everything the UI renders; `None` = unknown or not supported.
-pub struct DeviceState {
-    pub linked: Option<bool>,                    // headset ↔ base station / dongle
-    pub batteries: Batteries,                    // headset, spare, charge state
-    pub mic_muted: Option<bool>,
-    pub values: SettingValues,                   // current value per Setting kind
-    pub balance: Option<ChatMixBalance>,
-    pub firmware: Vec<(String, String)>,         // label → version, e.g. ("Headset", "0.3.82")
-}
-
-/// Something that changed on the device (button, dial, link, battery …).
-pub enum Change {
-    State(DeviceState),          // full refresh
-    Value(Setting),              // a single setting changed on the device
-    Linked(bool),
-    Batteries(Batteries),
-    MicMuted(bool),
-    BalanceDial(ChatMixBalance), // hardware dial moved (forwarded to AudioMix)
-}
-
-pub trait HeadsetDriver: Send {
-    fn info(&self) -> &'static DeviceInfo;
-    fn capabilities(&self) -> &Capabilities;
-    /// Reads the full state (called after connecting and periodically).
-    fn refresh(&mut self) -> Result<DeviceState, DeviceError>;
-    /// Applies one setting; `Err(Unsupported)` if not in `capabilities()`.
-    fn apply(&mut self, setting: &Setting) -> Result<(), DeviceError>;
-    /// Waits up to `timeout` for the next device-initiated change.
-    fn next_change(&mut self, timeout: Duration) -> Result<Option<Change>, DeviceError>;
-    /// AudioMix took over / released the Game/Chat balance (Nova Pro: `06 49`, `06 45`, mixer LED).
-    fn set_host_mixer(&mut self, active: bool) -> Result<(), DeviceError> { Ok(()) }
-    /// Puts the device back into its normal state before the app quits.
-    fn shutdown(&mut self) -> Result<(), DeviceError> { Ok(()) }
-}
-```
+| Kind | Descriptor | Value | Now / later |
+|---|---|---|---|
+| `Battery` | slots (headset, spare, …) | level per slot + charge state | now |
+| `WirelessLink` | — | linked: bool | now |
+| `AudioEndpoint` | OS endpoint name patterns, in/out | — (used by AudioMix / mic chain) | now |
+| `NoiseControl` | modes; optional transparency range | mode, transparency | now |
+| `Sidetone`, `MicVolume`, `MicLedBrightness`, `DisplayBrightness` | `LevelRange` | level | now |
+| `MicMute` | read-only or settable | muted | now |
+| `Equalizer` | band count, centre freqs (if known), gain range/step | curve | now |
+| `EqPreset` | preset list | preset | now |
+| `BalanceDial` | hardware dial; supports host-mixer hand-over | Game/Chat balance | now |
+| `AutoOff` | options | option | now |
+| `Firmware` | — | list of (part, version), read-only | now |
+| `UsbReplug` | — | action | now (macOS) |
+| `Lighting` | zones, colour model, effects | colour/effect per zone | later (keyboards, mice) |
+| `Dpi` | stages, range, step | stage values + active stage | later |
+| `PollingRate` | rates | rate | later |
+| `ButtonMap` / `KeyMap` | buttons/keys, assignable actions | mapping | later |
+| `Macros`, `OnboardProfiles` | limits | data | later |
 
 Rules:
 
-- Value types stay in `ss-core`; ranges in `Capabilities` replace the hard-coded Nova Pro ranges
-  in the UI. Device-specific labels (e.g. "Transparency strength 1–10") come from the
-  capabilities, never from `if device == …` in the app.
-- Drivers own their protocol quirks (multi-report replies, save-to-flash, echo reports). The app
-  never sends raw opcodes.
-- `Setting::CustomEq` is checked against `EqCaps` (band count, range) before it reaches a driver.
+- A device class (`Headset`, `Keyboard`, `Mouse`, `Other`) is only a label and an icon in
+  `DeviceInfo`; code never branches on it.
+- The UI has one widget per kind (`ss-app/src/ui/features/<kind>.rs`) and lays a device page out
+  from the feature list (grouping order defined per kind). Unknown or unsupported features are
+  simply not shown.
+- Values are validated against the descriptor before they reach a driver.
 
-## 3. App changes
+## 4. The `Device` trait and driver registration
 
-| Area | Today | With the interface |
-|---|---|---|
-| Device thread (`headset.rs`) | `NovaProWireless` + Nova Pro `Command`s | scans `ss_devices::SUPPORTED` (enabled ones), opens the first match, works with `Box<dyn HeadsetDriver>` |
-| State (`HeadsetState`) | Nova Pro `Status`/`Settings`/`Display` | `DeviceState` + `&'static DeviceInfo` + `Capabilities` |
-| Headset / Overview pages | fixed cards | cards from `Capabilities`; missing capability → card or row hidden |
-| Gate (`app.md` §8) | "Nova Pro base station connected" | "a supported (and enabled) device connected"; texts use `DeviceInfo::name` |
-| Audio plan | output named "Arctis Nova Pro Wireless" | output/input matching `DeviceInfo::audio_endpoints` of the connected device |
-| Game/Chat balance hand-over | Nova Pro commands in the thread | `set_host_mixer(true/false)` |
-| macOS USB reset | Nova Pro ids | ids from `DeviceInfo`, only if `capabilities.usb_reset` |
-| Headset EQ presets (`ss-store`) | `headset_eq: name → [f32; 10]` | keyed by device id; existing entries migrate to `arctis-nova-pro-wireless` |
-| `ssctl` | Nova Pro only | unchanged for now (protocol tool); may gain `--device` later |
+```rust
+pub trait Device: Send {
+    fn info(&self) -> &DeviceInfo;                 // static info + instance (serial/address, transport)
+    fn features(&self) -> &[Feature];              // may be refined after connect (e.g. firmware-dependent)
+    /// Reads all readable feature values.
+    fn refresh(&mut self) -> Result<Vec<(FeatureId, Value)>, DeviceError>;
+    /// Writes one value; `Err(Unsupported)` if the feature is read-only or absent.
+    fn set(&mut self, id: FeatureId, value: Value) -> Result<(), DeviceError>;
+    /// Next device-initiated change (button, dial, link, battery), waiting up to `timeout`.
+    fn next_change(&mut self, timeout: Duration) -> Result<Option<Change>, DeviceError>;
+    /// The app takes over / releases a role (e.g. `Role::HostMixer` for the balance dial).
+    fn set_role(&mut self, role: Role, active: bool) -> Result<(), DeviceError> { Ok(()) }
+    /// Back to the device's normal state before the app lets go.
+    fn shutdown(&mut self) -> Result<(), DeviceError> { Ok(()) }
+}
 
-Several supported devices at once: v1 of this design uses **one** active device (the first one
-found, stable order from the registry). Choosing between several is a later UI addition.
+pub struct DriverEntry {
+    pub info: &'static DeviceInfo,                 // id, name, class, support level
+    pub matches: &'static [Match],
+    pub open: fn(Box<dyn Connection>, &Candidate) -> Result<Box<dyn Device>, DeviceError>,
+}
 
-## 4. Support levels
+pub enum Match {
+    Hid { bus: Bus, vendor_id: u16, product_ids: &'static [u16], interface: Option<i32>, usage_page: Option<u16> },
+    BleService { service_uuid: Uuid, name_prefix: Option<&'static str> },
+}
+pub enum Bus { Usb, Bluetooth, Any }
+```
 
-- **Verified:** tested on hardware by a maintainer, rows in `docs/hardware/<device>.md` pass.
-  Enabled by default.
-- **Experimental:** implemented from public protocol facts (Inferred) or tested only partly. Off
-  until the user enables Settings → "Experimental devices"; the UI shows "Experimental" next to the
-  device name. Never sends commands that are marked possibly irreversible (factory reset, firmware).
+`Change` = `Value(FeatureId, Value)` | `Refresh` (re-read everything) | `Gone` (device left).
 
-## 5. Adding a headset (after the refactor)
+## 5. Transports
 
-1. Collect protocol facts with sources in the private RE notes or in
-   `docs/hardware/<device>.md` (Observed / Inferred / Unknown); clean-room rules apply.
-2. New crate `ss-<device>`: codec + driver with unit tests against documented byte layouts, then
-   `impl HeadsetDriver` with `DeviceInfo { support: Experimental, … }` and honest `Capabilities`.
-3. Add it to `ss-devices`.
-4. Hardware test log with a tester who owns the device; switch to `Verified` when it passes.
+```rust
+pub trait Discovery: Send {
+    fn kind(&self) -> TransportKind;               // UsbHid | BluetoothHid | Ble
+    fn scan(&mut self) -> Vec<Candidate>;          // cheap, called every ~2 s (later: OS hot-plug events)
+    fn open(&mut self, candidate: &Candidate) -> Result<Box<dyn Connection>, TransportError>;
+}
+pub trait Connection: Send {
+    fn write(&mut self, frame: &[u8]) -> Result<(), TransportError>;
+    fn read(&mut self, buf: &mut [u8], timeout: Duration) -> Result<usize, TransportError>;
+    // BLE: frames go to / come from the matched characteristic(s); reports = notifications.
+}
+```
 
-## 6. Refactor plan (each step keeps the app working; the owner re-tests at the end)
+- **USB and Bluetooth HID** share `ss-transport-hid`. hidapi lists both with a bus type, so a
+  driver can match only USB, only Bluetooth or both, with different report layouts if needed.
+- **BLE GATT** (vendor services): `ss-transport-ble` on `btleplug` or `bluest`, chosen in a spike
+  when the first device needs it. macOS needs `NSBluetoothAlwaysUsageDescription` in `Info.plist`.
+- Exclusive access: some OSes open HID devices exclusively (hidapi on macOS opens the Nova Pro
+  base station exclusively). The device manager opens only matched candidates, never foreign
+  devices.
 
-1. `ss-device` crate: types, trait, unit tests (no app change).
-2. `NovaProDevice` adapter in `ss-nova-pro` + mapping tests (Nova Pro `Status`/`Settings`/`Event`
-   → `DeviceState`/`Change`).
-3. `ss-devices` registry; experimental flag in the config (`app.experimental_devices`, default off).
-4. Device thread and `HeadsetState` on the trait; gate and notifications generic.
-5. UI from `Capabilities` (Headset, Overview, tray texts).
-6. Audio plan uses `audio_endpoints`; macOS USB reset via `DeviceInfo`.
-7. `ss-store` migration of headset EQ presets to per-device keys.
-8. Docs: ADR 0008 accepted, `app.md` §1/§6/§8 updated; owner re-runs the Windows and macOS rows
-   that touch the headset (status, noise control, EQ, balance, gate).
+## 6. Device manager (app)
+
+- A discovery thread asks every transport for candidates and matches them against the enabled
+  `DriverEntry`s (Experimental only with Settings → "Experimental devices"). Each match gets one
+  **device actor thread**, which owns the `Box<dyn Device>`, polls `next_change`, refreshes
+  periodically and executes commands. A device that is unplugged sends `Gone` and the actor ends.
+- `DeviceKey` = driver id + instance id (serial, Bluetooth address or USB path).
+- `Snapshot.devices: Vec<DeviceSnapshot { key, info, features, values, error }>`.
+- UI: the sidebar lists connected devices under "Devices", and each device gets a page built from
+  its features. Overview shows the most important features of each device (battery, link, balance).
+- Notifications become feature-based (battery low, link lost/back) and name the device.
+
+### Gate and audio
+
+- **Gate:** without a connected supported and enabled device the app is passive: no audio
+  routing, no hotkeys, no device writes (`app.md` §8). Device-bound actions also need their own
+  device: the balance hand-over needs a `BalanceDial` device, and AudioMix routing needs the
+  `AudioEndpoint` of the selected output device.
+- **Audio:** AudioMix and the mic chain pick their output/input from the `AudioEndpoint`
+  features of connected devices (default: the first one; later selectable). Today's name lookup
+  "Arctis Nova Pro Wireless" becomes the Nova Pro's endpoint descriptor.
+
+## 7. Configuration and presets
+
+- `devices: { "<driver id>/<instance id>": { values to restore, … } }`, so per-instance settings
+  survive restarts and two identical devices stay separate.
+- Presets: `kind` plus the **parameters they fit** (e.g. `Equalizer { bands: 10 }`); the UI offers
+  only matching presets.
+- Migration: today's `presets.headset_eq` (10 bands) becomes `Equalizer` presets with
+  `bands: 10` and the device id `arctis-nova-pro-wireless`.
+- `app.experimental_devices: bool` (default `false`).
+
+## 8. Refactor plan (phases; the app keeps working after every step)
+
+**Phase A — platform with the Nova Pro (no new devices, no behaviour change)**
+
+1. `ss-device`: feature catalogue (the "now" kinds), `Device`, `DriverEntry`, `Match`, transport
+   traits; unit tests.
+2. `ss-hid` → `ss-transport-hid`: `Discovery` + `Connection`, bus type in candidates.
+3. `ss-nova-pro::device`: adapter + mapping tests (status/settings/events → feature values).
+4. `ss-devices` registry.
+5. App: device manager + per-device actors replace the headset thread; snapshot with device list;
+   gate and notifications generic.
+6. UI: feature widgets, device pages, "Devices" sidebar section; Overview from features.
+7. Audio from `AudioEndpoint`; macOS USB re-plug via the `UsbReplug` feature.
+8. Config: device instances, preset parameters, migration; `experimental_devices` switch.
+9. Docs (`app.md`, this file, ADR 0008 accepted) and the owner's re-test on Windows and macOS.
+
+**Phase B — Bluetooth HID:** match `Bus::Bluetooth` in the HID transport. Verified with the first
+Bluetooth device that a tester owns.
+
+**Phase C — BLE GATT:** spike `btleplug` vs `bluest`, then `ss-transport-ble` and the macOS
+Bluetooth permission. Only when a device needs it.
+
+**Phase D — keyboard/mouse features:** `Lighting`, `Dpi`, `PollingRate`, `ButtonMap` … with their
+widgets, added together with the first device that uses them.
+
+## 9. Adding a device (after Phase A)
+
+1. Collect protocol facts with sources (Observed / Inferred / Unknown) in the private RE notes or
+   `docs/hardware/<device>.md`; clean-room rules apply (AGENTS.md).
+2. New crate `ss-<device>`: codec + driver with unit tests against documented byte layouts;
+   `impl Device`; `DriverEntry { info: { support: Experimental, … }, matches, open }`.
+3. Add it to `ss-devices`. If it needs a feature kind or transport that does not exist yet, add it
+   first (axis 1 or 2).
+4. Hardware test log with a tester; switch to `Verified` when it passes.

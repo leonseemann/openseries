@@ -1,77 +1,121 @@
-# ADR 0008 — A device interface for more headsets
+# ADR 0008 — An extensible device platform (any device class, any transport)
 
-- **Status:** proposed (2026-11-15) — the owner decides; implementation starts after acceptance
+- **Status:** proposed (2026-11-15, revised the same day after owner feedback) — the owner decides;
+  implementation starts after acceptance
 - **Updates:** [ADR 0001](0001-v1-scope.md) (scope "Arctis Nova Pro Wireless only")
 - **Design:** [`docs/architecture/devices.md`](../architecture/devices.md)
 
 ## Context
 
-OpenSeries was built for one device, the owner's Arctis Nova Pro Wireless (ADR 0001). The owner
-now wants the app to be **extensible to other headsets**. A review of the code (2026-11-15) shows:
+OpenSeries was built for one device, the owner's Arctis Nova Pro Wireless, over USB (ADR 0001). The
+owner wants the app to be **as abstract and easy to extend as possible**:
 
-- **Already device-neutral:** the domain types in `ss-core` (battery, noise control, sidetone, EQ
-  presets, hardware EQ, Game/Chat balance, the `HidTransport` trait), the HID transport `ss-hid`,
-  and the whole audio side (AudioMix, DSP, mic chain in `ss-engine`, `ss-dsp`, `ss-audio-*`).
+- other headsets, and later **keyboards, mice and other peripherals**;
+- **Bluetooth** as well as USB.
+
+A review of the code (2026-11-15) shows:
+
+- **Already device-neutral:** the value types in `ss-core`, the HID transport `ss-hid`, and the
+  whole audio side (AudioMix, DSP, mic chain).
 - **Hard-wired to the Nova Pro:**
-  - the app's headset thread uses `NovaProWireless`, its `Command` / `Status` / `Settings` /
-    `Display` types and its USB ids directly;
-  - the Headset page draws fixed cards (transparency strength, OLED brightness, spare battery,
-    10-band EQ);
-  - the audio plan finds the output by the name "Arctis Nova Pro Wireless";
-  - the base-station gate (`app.md` §8), the ChatMix hand-over and the macOS USB reset use
-    Nova Pro specifics;
-  - stored headset EQ presets assume 10 bands.
+  - the app's headset thread, which uses the `NovaProWireless` types and USB ids directly;
+  - the Headset page with its fixed cards;
+  - the audio output, chosen by name;
+  - the base-station gate, the ChatMix hand-over and the macOS USB reset;
+  - 10-band EQ presets.
+- **Hard-wired to USB:** discovery only knows USB HID selectors; nothing models Bluetooth.
+- **Hard-wired to "one device":** one headset thread and one `HeadsetState`.
 
 ## Decision
 
-1. **A device interface.** A new platform-free crate `ss-device` defines what the app needs from
-   any headset:
-   - a static **`DeviceInfo`** (id, name, USB/HID selector, audio endpoint names, support level);
-   - a **`Capabilities`** description (which settings exist, their ranges, EQ band count, …);
-   - device-neutral **`Setting`**, **`DeviceState`** and **`Change`** types;
-   - the trait **`HeadsetDriver`**.
+The app becomes a small **device platform** with three independent extension axes. Adding to one
+axis never requires changes to the others or to the app core.
 
-   Details are in `devices.md`.
-2. **One crate per device family** implements the trait. `ss-nova-pro` is the first; its
-   protocol code stays as it is, and a thin adapter maps it to the interface. A registry crate
-   `ss-devices` lists all drivers, so the app depends on the registry instead of individual
-   drivers (dependency direction `app → registry → drivers → ss-device → ss-core`).
-3. **The app works only with the interface:**
-   - the device thread opens the first connected supported device;
-   - the Headset and Overview pages are built from `Capabilities` and show only what the device
-     can do;
-   - the audio output is chosen from the driver's endpoint names;
-   - headset EQ presets are stored per device id.
-4. **The gate becomes "a supported device is connected".** The owner requirement of `app.md` §8
-   is kept: with no supported device connected the app stays completely passive, so other
-   headsets are never touched.
-5. **Safety for untested devices:**
-   - each driver declares a support level, `Verified` or `Experimental`;
-   - experimental drivers are off until the user enables "Experimental devices" in Settings, and
-     the UI marks them;
-   - protocol facts taken from public sources count as **Inferred** until checked on hardware
-     (AGENTS.md rule 3), and each device gets a `docs/hardware/<device>.md` test log.
-6. **No behaviour change for the Nova Pro.** The refactor is complete only when the existing
-   Windows and macOS hardware rows still pass.
+1. **Features: what a device can do.** A device is described by a list of **features** from a
+   shared catalogue.
+   - Now: battery, wireless link, noise control, sidetone, mic volume / mute / LED, equalizer,
+     EQ presets, Game/Chat balance dial, auto-off, display brightness, firmware info, USB re-plug.
+   - Later: lighting zones, DPI stages, polling rate, button / key remapping, macros, onboard
+     profiles.
+
+   Each feature kind has typed parameters (ranges, band count, zones) and typed values.
+   The UI has **one widget per feature kind** and builds every device page from the device's
+   feature list. A new feature kind is one catalogue entry, one widget and its docs. A device
+   class (headset, keyboard, mouse, …) is only a label and an icon; it never drives code paths.
+2. **Transports: how we talk to a device.** A transport layer finds candidates and opens
+   connections, with one implementation per transport:
+   - **USB HID** (hidapi, today);
+   - **Bluetooth HID** (Classic and BLE "HID over GATT"). The OS exposes these as HID devices, so
+     hidapi reaches them on Windows and macOS (**Inferred**, verify with the first Bluetooth
+     device);
+   - **Bluetooth LE GATT** for vendor-specific services (`btleplug` or `bluest`, both free
+     licences), added when the first device needs it;
+   - room for further transports (serial, network) behind the same traits.
+
+   Drivers state which transport and which match rules (VID/PID, usage page, GATT service UUID,
+   name) they need.
+3. **Drivers: one crate per device family.** Each driver implements the `Device` trait and
+   registers a `DriverEntry` (static info, match rules, constructor). The `ss-nova-pro` protocol
+   code stays as it is; a thin adapter maps it to the trait. A registry crate `ss-devices` lists
+   all drivers. Dependencies run `app → registry → drivers → ss-device → ss-core`.
+
+   Drivers are compiled in, not loaded at run time; see the alternatives below.
+
+Around these axes:
+
+- **Device manager** in the app: it discovers continuously, opens **every** connected supported
+  device (one actor thread per device), tracks hot-plug, and routes commands by device key. The
+  UI gets a "Devices" list in the sidebar with one page per connected device.
+- **Audio stays separate.** AudioMix and the mic chain bind to the OS audio endpoints that a
+  device declares (feature "audio endpoint"), not to a device type. Keyboards and mice simply have
+  no such feature.
+- **Gate.** The app stays completely passive while **no supported and enabled device** is
+  connected (the owner requirement of `app.md` §8). Device-bound actions (Game/Chat balance,
+  AudioMix routing to the headset) need *their* device to be present. Foreign devices are never
+  opened or written to.
+- **Settings per device instance.** The key is the driver id plus the serial or address, so two
+  identical devices keep separate settings. Presets carry the device id and the feature
+  parameters they fit (e.g. EQ band count).
+- **Support levels.**
+  - `Verified`: tested on hardware.
+  - `Experimental`: based on public protocol facts, which stay **Inferred** until tested. Off
+    until the user enables "Experimental devices", and marked in the UI.
+  - Possibly irreversible commands (factory reset, firmware writes) are never sent by
+    experimental drivers.
+- **No behaviour change for the Nova Pro.** The refactor is complete only when the existing
+  Windows and macOS hardware rows still pass.
 
 ## Alternatives considered
 
-- **Keep one hard-wired device.** It is simplest, but every new headset would mean copying the
-  headset thread and the UI.
-- **Data-driven device files (YAML/JSON, as Linux-Arctis-Manager does).** Attractive for simple
-  devices, but the framing, checksums, multi-report replies and the ChatMix hand-over differ too
-  much between vendors. It may come later as one *generic driver* behind the same trait, without
-  changing the app.
-- **One generic driver with a per-device opcode table.** It would only work within one vendor
-  family and would hide real protocol differences. Rejected for now.
+- **A headset-only interface** (the first version of this ADR). Too narrow for keyboards, mice and
+  Bluetooth; it would have to be redone.
+- **Run-time plugins (shared libraries or WebAssembly).**
+  - Shared libraries: Rust has no stable ABI.
+  - Code signing and notarization: every plugin would have to be signed and notarized on macOS.
+  - Security: drivers write to hardware, so third-party code would run with full device access.
+  - Compiled-in drivers keep all of that simple; WebAssembly drivers stay a later option behind
+    the same trait.
+- **Data-driven device files only (YAML, as Linux-Arctis-Manager does).** Framing, checksums,
+  multi-report replies and hand-over logic differ too much between vendors. A generic driver for
+  simple devices may still come later behind the same trait.
+- **Device-class traits (`Headset`, `Keyboard`, `Mouse`).** Real devices mix classes (headsets
+  with lighting, mice with batteries, keyboards with volume dials). Features compose; class traits
+  do not.
 
 ## Consequences
 
-- The work is a refactor, roughly 1–2 sessions, with no new features for the owner's device.
-  Afterwards a second headset is "one crate + one registry entry + one hardware test log".
-- Only the Nova Pro can be tested by the owner; other devices need testers with the hardware. Until
-  then they ship as Experimental (off by default) or not at all.
-- The config format gains a device id for headset EQ presets (migration: existing curves belong to
-  `arctis-nova-pro-wireless`).
-- ADR 0001 stays valid for *which* device is supported and verified today; this ADR only removes
-  the architectural limit.
+- The work is a refactor in phases (see `devices.md` §8): about 2–3 sessions for the platform with
+  the Nova Pro on it, then one session per new transport or feature kind when a real device needs
+  it.
+- After the refactor, a new device that uses existing features and transports means one crate,
+  one registry entry and one hardware test log.
+- Only the Nova Pro can be tested by the owner. Other devices need testers with the hardware;
+  until then they ship as Experimental (off by default) or not at all.
+- **Bluetooth:**
+  - BLE GATT on macOS needs `NSBluetoothAlwaysUsageDescription` and a permission prompt;
+  - on Windows, Bluetooth HID devices may expose other report layouts than over USB, so drivers
+    match per transport.
+- The config format changes: there are device instances, and presets carry a device id and
+  feature parameters. Migration: existing headset EQ curves belong to `arctis-nova-pro-wireless`.
+- ADR 0001 stays valid for *which* device is supported and verified today; this ADR removes the
+  architectural limits.
