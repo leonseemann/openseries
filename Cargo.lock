@@ -3997,6 +3997,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ss-devices"
+version = "0.1.0"
+dependencies = [
+ "ss-device",
+ "ss-hid",
+ "ss-nova-pro",
+]
+
+[[package]]
 name = "ss-dsp"
 version = "0.1.0"
 dependencies = [

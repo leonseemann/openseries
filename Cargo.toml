@@ -30,6 +30,7 @@ ss-audio-windows = { path = "crates/ss-audio-windows" }
 ss-window-windows = { path = "crates/ss-window-windows" }
 ss-update = { path = "crates/ss-update" }
 ss-device = { path = "crates/ss-device" }
+ss-devices = { path = "crates/ss-devices" }
 
 [workspace.lints.rust]
 unsafe_code = "deny"
