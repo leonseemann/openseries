@@ -5,6 +5,10 @@
 //! collection is a separate device path, so [`HidapiTransport`] opens both and reads
 //! from both. On Linux (hidraw) both collections share one path.
 
+mod discovery;
+
+pub use discovery::HidDiscovery;
+
 use std::time::{Duration, Instant};
 
 use hidapi::{DeviceInfo, HidApi, HidDevice};
@@ -111,6 +115,24 @@ impl HidapiTransport {
         Ok(Self {
             command: command_info.open_device(api)?,
             events: event_info.map(|info| info.open_device(api)).transpose()?,
+        })
+    }
+
+    /// Opens the command collection at `command` and, if given, a separate event collection.
+    ///
+    /// # Errors
+    /// [`OpenError::Hid`] if a path cannot be opened.
+    pub fn open_paths(
+        api: &HidApi,
+        command: &str,
+        events: Option<&str>,
+    ) -> Result<Self, OpenError> {
+        let open = |path: &str| -> Result<HidDevice, OpenError> {
+            Ok(api.open_path(&discovery::c_path(path)?)?)
+        };
+        Ok(Self {
+            command: open(command)?,
+            events: events.map(open).transpose()?,
         })
     }
 

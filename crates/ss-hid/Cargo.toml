@@ -9,6 +9,7 @@ license.workspace = true
 
 [dependencies]
 ss-core.workspace = true
+ss-device.workspace = true
 hidapi.workspace = true
 thiserror.workspace = true
 
