@@ -37,8 +37,8 @@ The app lives in the menu bar (headphone icon); "Open StealSeries…" shows the 
 | 19 | Microphone page: toggle noise suppression, gate, stabilizer and drag the gain while recording in QuickTime | changes audible at once, no gap or click from a feed restart; "Started … times" counter of the mic does not grow | ⏳ (supervisor + no-allocation tests green; macOS feed compile-checked only) |
 | 20 | `scripts/macos/hal-driver.sh uninstall`, then `scripts/macos/app.sh install`; Getting started → **Install driver…** | admin password prompt; afterwards "StealSeries Microphone" appears under Sound → Input, step shows ✅; Cancel in the prompt shows "installation cancelled" | ⏳ (written on Windows; AppleScript generation checked standalone, Rust file not compiled for macOS) |
 | 21 | Base station unplugged, another headset (e.g. HyperX) in use, AudioMix and mic enabled in the config (`app.md` §8) | no taps, no StealSeries Microphone feed, default input untouched, hotkeys free; window shows "paused"; everything resumes when the base station is plugged back | ⏳ (gate unit-tested) |
-| 22 | First release: unpack `StealSeries-X.Y.Z-macos-arm64.zip`, move the app to Applications, right-click → Open ([release.md](../architecture/release.md) §4) | app opens after the Gatekeeper confirmation; Settings → Updates → Check now says "Up to date" | ⏳ needs the first release |
-| 23 | In-app update to a newer release (Settings → Updates or menu bar → Install update) | app quits, bundle replaced, new version opens by itself; with the self-signed certificate no new permission prompts | ⏳ needs two releases |
+| 22 | First release: unpack `StealSeries-X.Y.Z-macos-arm64.zip`, move the app to Applications, open it ([release.md](../architecture/release.md) §4) | notarized: only the "downloaded from the internet" question, no Gatekeeper block; Settings → Updates → Check now says "Up to date" | ⏳ needs the first release |
+| 23 | In-app update to a newer release (Settings → Updates or menu bar → Install update) | app quits, bundle replaced, new version opens by itself; Developer ID signed: no new permission prompts | ⏳ needs two releases |
 
 ## Findings
 

@@ -155,8 +155,8 @@ and unit-tested without CoreAudio; the CoreAudio calls sit behind a small trait 
 
 `StealSeries.app/Contents/{Info.plist, MacOS/stealseries, Resources/}`; `LSUIElement = true`,
 `NSAudioCaptureUsageDescription`, `NSMicrophoneUsageDescription`, `LSMinimumSystemVersion 14.4`,
-ad-hoc signed for development; release builds optionally with a free self-signed identity
-([release.md](release.md) §3; no paid Developer ID, ADR 0006). Built and installed to
+ad-hoc signed for development; release builds are Developer ID signed (hardened runtime) and
+notarized in CI ([release.md](release.md) §3, ADR 0006). Built and installed to
 `~/Applications` by `scripts/macos/app.sh build|install`. Ad-hoc signatures change with each build,
 so macOS may ask for permissions again after an update (**Inferred**). Later: install the
 virtual-mic driver from the app (admin password via the system dialog).

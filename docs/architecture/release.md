@@ -32,31 +32,43 @@ without publishing anything — useful to try the installer before tagging.
   `PUBLIC_KEY`, the file content into the secret. Existing installs must then install the next
   version manually once.
 
-## 3. macOS signing identity (optional, free)
+## 3. macOS: Developer ID signing and notarization
 
-Without a certificate CI signs ad-hoc; the signature then changes with every build and macOS asks
-again for microphone / audio-capture permission after each update (**Inferred**: TCC keys
-permissions to the code signature's designated requirement). A free self-signed certificate gives
-a stable identity:
+The owner has an Apple Developer account (2026-11-15), so release builds are signed with the
+team's **Developer ID Application** certificate, use the hardened runtime
+([`entitlements.plist`](../../crates/ss-app/bundle/entitlements.plist): microphone only) and are
+**notarized** and stapled. Gatekeeper then opens the app without warnings, and the stable identity
+keeps the microphone / audio-capture permissions across updates. The bundled virtual-mic driver is
+signed the same way (`hal-driver.sh`).
 
-1. On the Mac: *Keychain Access → Certificate Assistant → Create a Certificate…*, name
-   `StealSeries Self-Signed`, identity type *Self-Signed Root*, certificate type *Code Signing*.
-2. Export it with its private key as `.p12` with a password.
-3. Repository secrets: `MACOS_CERTIFICATE` = `base64 -i cert.p12`, `MACOS_CERTIFICATE_PASSWORD` =
-   the export password.
+Repository secrets (a tag build fails if one is missing; a manual run falls back to ad-hoc):
 
-This does not replace Apple notarization: Gatekeeper still blocks the first manual open (see §4).
+| Secret | Content |
+|---|---|
+| `MACOS_CERTIFICATE` | base64 of the `.p12` export of the "Developer ID Application" certificate **with its private key** |
+| `MACOS_CERTIFICATE_PASSWORD` | the `.p12` export password |
+| `APPLE_API_KEY` | base64 of the App Store Connect API key file `AuthKey_XXXX.p8` (role Developer) |
+| `APPLE_API_KEY_ID` | its key ID |
+| `APPLE_API_ISSUER_ID` | the issuer ID shown above the key list |
 
-## 4. First install (unsigned for the OS)
+CI imports the certificate into a temporary keychain, sets `SIGN_IDENTITY` for
+`scripts/macos/app.sh build`, submits the app with `xcrun notarytool submit --wait`, staples the
+ticket and checks it with `spctl`. Locally the same works with
+`SIGN_IDENTITY="Developer ID Application: … (TEAMID)" scripts/macos/app.sh build`.
+
+The Developer ID certificate is valid for 5 years; renew it before it expires and replace the
+secret. Already notarized releases keep working after expiry (secure timestamp).
+
+## 4. First install
 
 - **Windows:** download the `setup.exe` from the release page and run it. SmartScreen shows
-  "Windows protected your PC" → *More info* → *Run anyway*. No admin rights needed.
-- **macOS:** download the zip, unpack, move `StealSeries.app` to `Applications` (or
-  `~/Applications`), then right-click → *Open* → *Open* (or System Settings → Privacy & Security →
-  *Open anyway*). Install the virtual-mic driver from the Getting-started window.
+  "Windows protected your PC" (no paid Authenticode certificate) → *More info* → *Run anyway*.
+  No admin rights needed.
+- **macOS:** download the zip, open it, move `StealSeries.app` to *Applications*, open it
+  normally (notarized: macOS only asks "downloaded from the internet – open?"). Allow microphone
+  and audio capture; install the virtual-mic driver from the Getting-started window.
 
-Later updates come through the app and skip these prompts (the app's own downloads carry no
-quarantine flag / Mark-of-the-Web).
+Later updates come through the app (Settings → Updates or the tray / menu bar).
 
 ## 5. In-app update flow
 

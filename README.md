@@ -10,9 +10,10 @@ feature set in Rust — with a working Sonar-style **AudioMix** on macOS.
 
 Download the latest installer from [Releases](https://github.com/leonseemann/stealseries/releases):
 `StealSeries-…-windows-x64-setup.exe` (Windows 10/11) or `StealSeries-…-macos-arm64.zip`
-(Apple Silicon, macOS 14.4+). The builds are free and not signed by a paid certificate, so the OS
-asks once before the first start; see [docs/architecture/release.md](docs/architecture/release.md)
-§4. Afterwards the app updates itself on request (Settings → Updates).
+(Apple Silicon, macOS 14.4+, signed and notarized). Free of charge. Windows shows a SmartScreen
+prompt once (no paid Authenticode certificate); see
+[docs/architecture/release.md](docs/architecture/release.md) §4. Afterwards the app updates itself
+on request (Settings → Updates).
 
 ## Layout
 - `docs/re/` — reverse-engineering findings with evidence (what GG does, how)

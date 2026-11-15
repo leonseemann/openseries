@@ -22,7 +22,12 @@ build() {
     mkdir -p "$BUNDLE/Contents/MacOS"
     sed "s/@VERSION@/$version/g" "$ROOT/crates/$CRATE/bundle/Info.plist" > "$BUNDLE/Contents/Info.plist"
     cp "$ROOT/target/release/libss_hal_driver_macos.dylib" "$BUNDLE/Contents/MacOS/$NAME"
-    codesign --force --sign - "$BUNDLE"
+    # Release builds: Developer ID with hardened runtime (SIGN_IDENTITY, see app.sh).
+    if [ -n "${SIGN_IDENTITY:-}" ]; then
+        codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$BUNDLE"
+    else
+        codesign --force --sign - "$BUNDLE"
+    fi
     echo "built $BUNDLE"
 }
 
