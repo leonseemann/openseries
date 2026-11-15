@@ -5,11 +5,13 @@ use std::collections::BTreeMap;
 
 use eframe::egui::{self, RichText};
 use ss_core::eq::{BandGain, ParametricEqSettings, PeqBand};
-use ss_store::config::{BandConfig, Channel, ChannelConfig, EqConfig, Loudness};
+use ss_store::config::{AudioMixConfig, BandConfig, Channel, ChannelConfig, EqConfig, Loudness};
 use ss_store::presets::{PresetData, apply_playback};
 
 use super::components::{self, Tone};
 use super::{presets, theme, widgets};
+use crate::audio::catalogue::{Source, classify};
+use crate::audio::plan::ProcessInfo;
 use crate::core::{AppCore, Snapshot};
 
 const CHANNELS: [(Channel, &str); 4] = [
@@ -445,7 +447,9 @@ fn apps_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, show_idle: 
         }
         for (key, playing, is_running) in rows {
             components::divider(ui);
-            let current = assignments.get(&key).copied().unwrap_or(Channel::Media);
+            let process = representative(snapshot, &key);
+            let (current, source) = effective(&snapshot.config.audiomix, &process);
+            let automatic = automatic(&snapshot.config.audiomix, &process);
             ui.horizontal(|ui| {
                 ui.vertical(|ui| {
                     ui.set_width((ui.available_width() * 0.4).max(160.0));
@@ -460,7 +464,15 @@ fn apps_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, show_idle: 
                         ui.label(RichText::new(display_name(&key)).color(p.text));
                         components::status(ui, tone, word);
                     });
-                    ui.label(RichText::new(&key).small().color(p.text_secondary));
+                    let origin = source.map_or_else(
+                        || "not assigned — plays on Media".to_owned(),
+                        |s| s.label().to_owned(),
+                    );
+                    ui.label(
+                        RichText::new(format!("{key} · {origin}"))
+                            .small()
+                            .color(p.text_secondary),
+                    );
                 });
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if let Some(selected) = components::segmented(
@@ -473,8 +485,10 @@ fn apps_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, show_idle: 
                             (Channel::Game, "Game"),
                         ],
                     ) {
+                        // Picking the automatic channel removes the own assignment; anything else
+                        // (also Media) is stored as the user's choice.
                         core.update_config(|c| {
-                            if selected == Channel::Media {
+                            if selected == automatic {
                                 c.audiomix.assignments.remove(&key);
                             } else {
                                 c.audiomix.assignments.insert(key.clone(), selected);
@@ -485,6 +499,45 @@ fn apps_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, show_idle: 
             });
         }
     });
+}
+
+/// A process standing for the app `key` (its path and category drive game detection).
+fn representative(snapshot: &Snapshot, key: &str) -> ProcessInfo {
+    snapshot
+        .audio
+        .processes
+        .iter()
+        .find(|p| p.bundle_id.as_deref().is_some_and(|id| app_key(id) == key))
+        .cloned()
+        .map_or_else(
+            || ProcessInfo {
+                pid: 0,
+                bundle_id: Some(key.to_owned()),
+                playing: false,
+                path: None,
+                category: None,
+            },
+            |mut p| {
+                p.bundle_id = Some(key.to_owned());
+                p
+            },
+        )
+}
+
+/// The channel the app plays on and where that comes from (`None` = not assigned).
+fn effective(config: &AudioMixConfig, process: &ProcessInfo) -> (Channel, Option<Source>) {
+    classify(config, process).map_or((Channel::Media, None), |(channel, source)| {
+        (Channel::from(channel), Some(source))
+    })
+}
+
+/// The channel without the user's own assignment (catalogue or detection, else Media).
+fn automatic(config: &AudioMixConfig, process: &ProcessInfo) -> Channel {
+    let without_own = AudioMixConfig {
+        assignments: std::collections::BTreeMap::new(),
+        ..config.clone()
+    };
+    effective(&without_own, process).0
 }
 
 /// Folds helper processes into their app: `com.google.Chrome.helper` → `com.google.Chrome`,
@@ -500,6 +553,9 @@ fn app_key(bundle_id: &str) -> String {
 /// A readable name for an app key: `chrome.exe` → "Chrome", `com.google.Chrome` → "Chrome",
 /// `com.spotify.client` → "Spotify".
 fn display_name(key: &str) -> String {
+    if let Some(name) = crate::audio::catalogue::display_name(key) {
+        return name.to_owned();
+    }
     let stem = key
         .strip_suffix(".exe")
         .or_else(|| key.strip_suffix(".EXE"))
@@ -540,11 +596,14 @@ mod tests {
 
     #[test]
     fn app_names_are_readable() {
-        assert_eq!(display_name("chrome.exe"), "Chrome");
-        assert_eq!(display_name("com.google.Chrome"), "Chrome");
+        // Catalogue names first …
+        assert_eq!(display_name("chrome.exe"), "Google Chrome");
         assert_eq!(display_name("com.spotify.client"), "Spotify");
         assert_eq!(display_name("us.zoom.xos"), "Zoom");
         assert_eq!(display_name("discord.exe"), "Discord");
+        // … otherwise derived from the id.
+        assert_eq!(display_name("com.acme.Mixer"), "Mixer");
+        assert_eq!(display_name("tool.exe"), "Tool");
     }
 
     #[test]

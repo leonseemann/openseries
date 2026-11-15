@@ -11,6 +11,9 @@ use windows::Win32::System::Com::{CLSCTX_ALL, CoTaskMemFree};
 use windows::Win32::System::Diagnostics::ToolHelp::{
     CreateToolhelp32Snapshot, PROCESSENTRY32W, Process32FirstW, Process32NextW, TH32CS_SNAPPROCESS,
 };
+use windows::Win32::System::Threading::{
+    OpenProcess, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION, QueryFullProcessImageNameW,
+};
 use windows::core::{Interface, PWSTR};
 
 use crate::AudioError;
@@ -74,6 +77,8 @@ pub struct SessionInfo {
     pub pid: u32,
     /// Lower-case executable name, e.g. `chrome.exe` (empty if unknown).
     pub exe: String,
+    /// Full executable path, if the process allows querying it (game detection).
+    pub path: Option<String>,
     /// Session identifier: stable per app and endpoint, also across restarts.
     pub identifier: String,
     /// Session instance identifier: unique per running session.
@@ -159,12 +164,42 @@ fn session_info(
         Some(SessionInfo {
             pid,
             exe: names.get(&pid).cloned().unwrap_or_default(),
+            path: exe_path(pid),
             identifier: take_string(control2.GetSessionIdentifier().ok()?),
             instance: take_string(control2.GetSessionInstanceIdentifier().ok()?),
             active: control.GetState().ok()? == AudioSessionStateActive,
             volume: control.cast().ok()?,
         })
     }
+}
+
+/// Maximum path length read from `QueryFullProcessImageNameW` (long paths enabled).
+const MAX_PATH_CHARS: usize = 32_768;
+
+/// Full executable path of `pid` (`None` for protected or vanished processes).
+fn exe_path(pid: u32) -> Option<String> {
+    if pid == 0 {
+        return None;
+    }
+    // SAFETY: OpenProcess with a limited query right; the handle is closed below.
+    let process = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid) }.ok()?;
+    let mut buffer = vec![0_u16; MAX_PATH_CHARS];
+    let mut length = u32::try_from(buffer.len()).ok()?;
+    // SAFETY: `buffer` holds `length` UTF-16 units; the call writes at most that many and
+    // updates `length` to the written count.
+    let result = unsafe {
+        QueryFullProcessImageNameW(
+            process,
+            PROCESS_NAME_WIN32,
+            PWSTR(buffer.as_mut_ptr()),
+            &raw mut length,
+        )
+    };
+    // SAFETY: the handle came from OpenProcess above and is closed exactly once.
+    let _ = unsafe { CloseHandle(process) };
+    result.ok()?;
+    buffer.truncate(usize::try_from(length).ok()?);
+    Some(String::from_utf16_lossy(&buffer))
 }
 
 /// Copies and frees a COM-allocated string.
@@ -211,4 +246,20 @@ fn exe_names() -> HashMap<u32, String> {
         let _ = CloseHandle(snapshot);
     }
     names
+}
+
+#[cfg(test)]
+mod live_tests {
+    use super::*;
+
+    /// Lists the current audio sessions with executable paths (read-only):
+    /// `cargo test -p ss-audio-windows -- --ignored --nocapture sessions_with_paths`.
+    #[test]
+    #[ignore = "needs the local audio sessions"]
+    fn sessions_with_paths() {
+        init_com().unwrap();
+        for s in list_sessions().unwrap() {
+            println!("{:>6} {:<28} {:?}", s.pid, s.exe, s.path);
+        }
+    }
 }

@@ -1,0 +1,228 @@
+# Built-in AudioMix channel suggestions (docs/architecture/app.md §3.2).
+#
+# One [[app]] block per program:
+#   name    = what the user sees
+#   channel = "game" | "chat" | "media" | "aux"
+#   macos   = bundle-id prefixes (a prefix also covers helpers, e.g. "com.google.Chrome")
+#   windows = executable names, case-insensitive
+#
+# Own assignments in the AudioMix list always win. Games are mostly recognised without this list
+# (game library folders on Windows, the games category on macOS); list only games installed
+# elsewhere. Ids are public program identifiers; a wrong or outdated id only means "no match".
+# A test checks this file (valid channels, no id twice) — run `cargo test -p ss-app catalogue`.
+
+# ── Chat ──────────────────────────────────────────────────────────────────────────────────────
+
+[[app]]
+name = "Discord"
+channel = "chat"
+macos = ["com.hnc.Discord"]
+windows = ["discord.exe", "discordptb.exe", "discordcanary.exe"]
+
+[[app]]
+name = "TeamSpeak"
+channel = "chat"
+macos = ["com.teamspeak."]
+windows = ["ts3client_win64.exe", "ts3client_win32.exe", "teamspeak.exe"]
+
+[[app]]
+name = "Microsoft Teams"
+channel = "chat"
+macos = ["com.microsoft.teams"]
+windows = ["ms-teams.exe", "teams.exe"]
+
+[[app]]
+name = "Zoom"
+channel = "chat"
+macos = ["us.zoom.xos"]
+windows = ["zoom.exe"]
+
+[[app]]
+name = "Slack"
+channel = "chat"
+macos = ["com.tinyspeck.slackmacgap"]
+windows = ["slack.exe"]
+
+[[app]]
+name = "Skype"
+channel = "chat"
+macos = ["com.skype.skype"]
+windows = ["skype.exe"]
+
+[[app]]
+name = "Mumble"
+channel = "chat"
+windows = ["mumble.exe"]
+
+[[app]]
+name = "WhatsApp"
+channel = "chat"
+macos = ["net.whatsapp.WhatsApp"]
+windows = ["whatsapp.exe", "whatsapp.root.exe"]
+
+[[app]]
+name = "Signal"
+channel = "chat"
+macos = ["org.whispersystems.signal-desktop"]
+windows = ["signal.exe"]
+
+[[app]]
+name = "Telegram"
+channel = "chat"
+macos = ["ru.keepcoder.Telegram", "org.telegram.desktop"]
+windows = ["telegram.exe"]
+
+[[app]]
+name = "Element"
+channel = "chat"
+macos = ["im.riot.app"]
+windows = ["element.exe"]
+
+[[app]]
+name = "FaceTime"
+channel = "chat"
+macos = ["com.apple.FaceTime"]
+
+# ── Media ─────────────────────────────────────────────────────────────────────────────────────
+# Unassigned apps play on Media anyway; listing them shows the source in the AudioMix list.
+
+[[app]]
+name = "Spotify"
+channel = "media"
+macos = ["com.spotify.client"]
+windows = ["spotify.exe"]
+
+[[app]]
+name = "Apple Music"
+channel = "media"
+macos = ["com.apple.Music"]
+windows = ["applemusic.exe"]
+
+[[app]]
+name = "iTunes"
+channel = "media"
+macos = ["com.apple.iTunes"]
+windows = ["itunes.exe"]
+
+[[app]]
+name = "Apple TV"
+channel = "media"
+macos = ["com.apple.TV"]
+
+[[app]]
+name = "Podcasts"
+channel = "media"
+macos = ["com.apple.podcasts"]
+
+[[app]]
+name = "QuickTime Player"
+channel = "media"
+macos = ["com.apple.QuickTimePlayerX"]
+
+[[app]]
+name = "VLC"
+channel = "media"
+macos = ["org.videolan.vlc"]
+windows = ["vlc.exe"]
+
+[[app]]
+name = "IINA"
+channel = "media"
+macos = ["com.colliderli.iina"]
+
+[[app]]
+name = "foobar2000"
+channel = "media"
+macos = ["com.foobar2000.mac"]
+windows = ["foobar2000.exe"]
+
+[[app]]
+name = "MPC-HC"
+channel = "media"
+windows = ["mpc-hc64.exe", "mpc-hc.exe"]
+
+[[app]]
+name = "TIDAL"
+channel = "media"
+macos = ["com.tidal.desktop"]
+windows = ["tidal.exe"]
+
+[[app]]
+name = "Deezer"
+channel = "media"
+macos = ["com.deezer.deezer-desktop"]
+windows = ["deezer.exe"]
+
+[[app]]
+name = "Safari"
+channel = "media"
+macos = ["com.apple.Safari", "com.apple.WebKit"]
+
+[[app]]
+name = "Google Chrome"
+channel = "media"
+macos = ["com.google.Chrome"]
+windows = ["chrome.exe"]
+
+[[app]]
+name = "Firefox"
+channel = "media"
+macos = ["org.mozilla.firefox"]
+windows = ["firefox.exe"]
+
+[[app]]
+name = "Microsoft Edge"
+channel = "media"
+macos = ["com.microsoft.edgemac"]
+windows = ["msedge.exe"]
+
+[[app]]
+name = "Brave"
+channel = "media"
+macos = ["com.brave.Browser"]
+windows = ["brave.exe"]
+
+[[app]]
+name = "Opera"
+channel = "media"
+macos = ["com.operasoftware.Opera"]
+windows = ["opera.exe"]
+
+[[app]]
+name = "Arc"
+channel = "media"
+macos = ["company.thebrowser.Browser"]
+windows = ["arc.exe"]
+
+# ── Games installed outside the game library folders ──────────────────────────────────────────
+
+[[app]]
+name = "Overwatch"
+channel = "game"
+windows = ["overwatch.exe"]
+
+[[app]]
+name = "World of Warcraft"
+channel = "game"
+windows = ["wow.exe", "wowclassic.exe"]
+
+[[app]]
+name = "Diablo IV"
+channel = "game"
+windows = ["diablo iv.exe"]
+
+[[app]]
+name = "Hearthstone"
+channel = "game"
+windows = ["hearthstone.exe"]
+
+[[app]]
+name = "Minecraft (Bedrock)"
+channel = "game"
+windows = ["minecraft.windows.exe"]
+
+[[app]]
+name = "Roblox"
+channel = "game"
+macos = ["com.roblox.RobloxPlayer"]
+windows = ["robloxplayerbeta.exe"]

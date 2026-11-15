@@ -1,10 +1,12 @@
 //! macOS implementations of the platform surface.
 
+mod app_info;
 mod autostart;
 mod driver;
 mod underflow;
 mod update;
 
+pub use app_info::AppInfoCache;
 pub use autostart::set as set_autostart;
 
 /// Removes what the former app name (StealSeries) registered: its login item. Its virtual-mic
@@ -23,7 +25,7 @@ pub type AudioBackend = crate::audio::macos::MacAudioBackend;
 /// Creates the audio backend (called on the audio-control thread).
 #[must_use]
 pub fn audio_backend() -> AudioBackend {
-    crate::audio::macos::MacAudioBackend
+    crate::audio::macos::MacAudioBackend::default()
 }
 
 /// The HAL driver provides "OpenSeries Microphone".

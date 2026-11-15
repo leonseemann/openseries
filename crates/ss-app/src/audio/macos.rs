@@ -24,8 +24,11 @@ fn is_own_device(uid: &str) -> bool {
 /// Sample rate of the mic chain and the virtual microphone (`virtual-mic-driver.md` §3).
 const MIC_SAMPLE_RATE: f32 = 48_000.0;
 
-/// The macOS backend (stateless; sessions live in the handles).
-pub struct MacAudioBackend;
+/// The macOS backend (sessions live in the handles; it only caches per-process app info).
+#[derive(Default)]
+pub struct MacAudioBackend {
+    app_info: crate::platform::AppInfoCache,
+}
 
 struct MixSession {
     // Field order = drop order: stop the engine control before the session.
@@ -50,12 +53,19 @@ impl MicHandle for MicSession {
 impl AudioBackend for MacAudioBackend {
     fn processes(&mut self) -> Result<Vec<ProcessInfo>, String> {
         let processes = list_audio_processes().map_err(|e| e.to_string())?;
+        let alive: Vec<i32> = processes.iter().map(|p| p.pid).collect();
+        self.app_info.retain(&alive);
         Ok(processes
             .into_iter()
-            .map(|p| ProcessInfo {
-                pid: p.pid,
-                bundle_id: p.bundle_id,
-                playing: p.is_playing,
+            .map(|p| {
+                let (path, category) = self.app_info.lookup(p.pid);
+                ProcessInfo {
+                    pid: p.pid,
+                    bundle_id: p.bundle_id,
+                    playing: p.is_playing,
+                    path,
+                    category,
+                }
             })
             .collect())
     }

@@ -639,6 +639,8 @@ mod tests {
             pid,
             bundle_id: Some(bundle.to_owned()),
             playing: false,
+            path: None,
+            category: None,
         }
     }
 

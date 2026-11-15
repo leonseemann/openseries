@@ -131,7 +131,7 @@ names are unique per kind and sorted):
 
 | Kind | Content | Applied by | Where in the UI |
 |---|---|---|---|
-| Headset EQ | 10 band gains (dB) | `06 33` + re-select Custom | Headset page, under the custom EQ (shown when "Custom" is active) |
+| Device EQ | band gains (dB), **per device id** (`presets.device_eq`, ADR 0008) | the device's `Equalizer` feature (Nova Pro: `06 33` + re-select Custom) | the device's page, under the custom EQ |
 | Playback | one channel's EQ, boosts, Smart Volume, volume boost — **not** the fader | replaces the channel strip, fader kept | AudioMix page, per channel (macOS; hidden on Windows until M4b) |
 | Microphone | mic chain (denoise, gate, stabilizer, EQ, gain) — **not** the switch or source device | replaces the chain, switch and source kept | Microphone page |
 
@@ -143,6 +143,31 @@ best effort, a **Sonar config object** (`docs/re/sonar.md` §4.2): `virtualAudio
 Volume, general gain, noise cancelling / gate / stabilizer are mapped. Whether GG's own export file
 is exactly that object is **Inferred**; virtual surround and AEC have no counterpart yet and are
 dropped. An imported preset of another kind lands in that kind's list.
+
+### 3.2 Automatic channel assignment (owner request 2026-11-15)
+
+Which AudioMix channel an app plays on, in this order (the first that answers wins):
+
+1. **Own assignment** — `audiomix.assignments` (app id prefix → channel), set in the AudioMix list.
+2. **Built-in catalogue** — [`crates/ss-app/data/app-catalogue.toml`](../../crates/ss-app/data/app-catalogue.toml),
+   compiled into the app. One entry per program with its ids **for both systems**: macOS bundle-id
+   prefixes (`macos = ["com.hnc.Discord"]`) and Windows executable names (`windows =
+   ["discord.exe"]`, case-insensitive). Ids are public facts (bundle ids, file names), no data
+   from SteelSeries GG. Extending it = one `[[app]]` block (pull requests welcome); a test checks
+   the file (known channels, no id listed twice).
+3. **Game detection** — no list needed:
+   - Windows: the executable lies in a game library folder (`steamapps\common`, `Epic Games`,
+     `GOG Galaxy\Games`, `EA Games`, `Ubisoft Game Launcher\games`, `XboxGames`, `Riot Games`).
+   - macOS: the app declares a games category in its `Info.plist` (`LSApplicationCategoryType`
+     `public.app-category.games` or `…-games`), or lies in `steamapps/common`.
+4. Otherwise **Media** (as before: unassigned apps are not routed).
+
+The AudioMix list shows where an assignment comes from ("catalogue", "game library", "games
+category") and lets the user override it, which stores an own assignment.
+
+Process details: Windows reads the full executable path (`QueryFullProcessImageNameW`,
+`ss-audio-windows`); macOS reads it with `ps -o comm=` and the category with
+`/usr/libexec/PlistBuddy` from the app bundle's `Info.plist`, cached per process.
 
 ## 4. Crates
 

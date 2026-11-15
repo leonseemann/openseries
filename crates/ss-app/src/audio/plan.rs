@@ -17,6 +17,10 @@ pub struct ProcessInfo {
     pub bundle_id: Option<String>,
     /// Currently producing audio.
     pub playing: bool,
+    /// Full path of the executable, if known (game detection, `app.md` §3.2).
+    pub path: Option<String>,
+    /// macOS app category (`LSApplicationCategoryType`), if known.
+    pub category: Option<String>,
 }
 
 /// An audio device offered in the UI.
@@ -92,8 +96,7 @@ pub fn mix_decision(config: &AudioMixConfig, processes: &[ProcessInfo]) -> MixDe
     let routes = processes
         .iter()
         .filter_map(|process| {
-            let bundle_id = process.bundle_id.as_deref()?;
-            let channel = assigned_channel(config, bundle_id)?;
+            let (channel, _) = super::catalogue::classify(config, process)?;
             (channel != ChannelId::Media).then_some((process.pid, channel))
         })
         .collect();
@@ -101,17 +104,6 @@ pub fn mix_decision(config: &AudioMixConfig, processes: &[ProcessInfo]) -> MixDe
         output_uid: config.output_device_uid.clone(),
         routes,
     })
-}
-
-/// Channel of the longest assignment that is a prefix of `bundle_id` (helper processes such as
-/// `com.google.Chrome.helper` follow their app).
-fn assigned_channel(config: &AudioMixConfig, bundle_id: &str) -> Option<ChannelId> {
-    config
-        .assignments
-        .iter()
-        .filter(|(prefix, _)| bundle_id.starts_with(prefix.as_str()))
-        .max_by_key(|(prefix, _)| prefix.len())
-        .map(|(_, &channel)| channel.into())
 }
 
 /// Picks the device a session should use (SON-27/28): the selected one (`None` = system
@@ -187,6 +179,8 @@ mod tests {
             pid,
             bundle_id: Some(bundle.to_owned()),
             playing: false,
+            path: None,
+            category: None,
         }
     }
 
@@ -217,14 +211,20 @@ mod tests {
             process(10, "com.google.Chrome.helper"),
             process(11, "com.google.Chrome.helper"),
             process(20, "com.spotify.client"),
-            process(30, "us.zoom.xos"),
+            process(30, "com.example.tool"),
+            // Not assigned by the user, but in the built-in catalogue (app.md §3.2).
+            process(40, "us.zoom.xos"),
         ];
         let MixDecision::Run(plan) = mix_decision(&config, &processes) else {
             panic!("expected a plan");
         };
         assert_eq!(
             plan.routes,
-            BTreeMap::from([(10, ChannelId::Game), (11, ChannelId::Game)])
+            BTreeMap::from([
+                (10, ChannelId::Game),
+                (11, ChannelId::Game),
+                (40, ChannelId::Chat)
+            ])
         );
     }
 

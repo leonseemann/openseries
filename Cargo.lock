@@ -3941,6 +3941,7 @@ dependencies = [
  "ss-update",
  "ss-usb-macos",
  "ss-window-windows",
+ "toml 1.2.1+spec-1.1.0",
  "tray-icon",
  "ureq",
  "winresource",

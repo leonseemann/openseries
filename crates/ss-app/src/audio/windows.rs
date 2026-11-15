@@ -79,6 +79,8 @@ impl AudioBackend for WinAudioBackend {
                     pid: i32::try_from(s.pid).ok()?,
                     bundle_id: Some(s.exe),
                     playing: s.active,
+                    path: s.path,
+                    category: None,
                 })
             })
             .collect())
