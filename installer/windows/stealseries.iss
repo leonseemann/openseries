@@ -36,6 +36,7 @@ Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
 UninstallDisplayIcon={app}\stealseries.exe
+SetupIconFile=..\..\crates\ss-app\bundle\icon\StealSeries.ico
 UninstallDisplayName=StealSeries
 ; The app quits itself before an update; close it if it still runs (manual installs).
 CloseApplications=force
@@ -50,12 +51,15 @@ Source: "..\..\LICENSE-MIT"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\LICENSE-APACHE"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{userprograms}\StealSeries"; Filename: "{app}\stealseries.exe"
+; The AppUserModelID makes toasts show "StealSeries" (platform::init_notifications).
+Name: "{userprograms}\StealSeries"; Filename: "{app}\stealseries.exe"; AppUserModelID: "StealSeries.App"
 Name: "{userdesktop}\StealSeries"; Filename: "{app}\stealseries.exe"; Tasks: desktopicon
 
 [Registry]
 ; "Start at login" is written by the app; remove it together with the app.
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueName: "StealSeries"; ValueType: none; Flags: uninsdeletevalue dontcreatekey
+; Toast sender registration written by the app.
+Root: HKCU; Subkey: "Software\Classes\AppUserModelId\StealSeries.App"; ValueType: none; Flags: uninsdeletekey dontcreatekey
 
 [Run]
 ; Interactive install: offer to start the app on the last page.

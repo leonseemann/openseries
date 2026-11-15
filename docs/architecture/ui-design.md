@@ -68,8 +68,9 @@ Follows the OS light/dark setting (egui `ThemePreference::System`). Accent: indi
 Type scale (system UI font: Segoe UI on Windows, the egui default elsewhere): page title 20,
 card title 14.5 (strong), body 13.5, secondary 12. Sidebar icons come from the emoji font, whose
 metrics differ from the text font; they are centred on their glyph shape at the optical middle of
-the label (measured on "H"), not on the line height. The window icon is the same headphone glyph as
-the tray icon.
+the label (measured on "H"), not on the line height. The app icon (window, `.exe`, installer, macOS bundle) is a white
+headphone on an accent-coloured rounded square, drawn in code (`src/icon.rs`; generated files in
+`bundle/icon/`, kept in sync by a test); the tray uses the plain glyph.
 
 ## 4. Pages
 

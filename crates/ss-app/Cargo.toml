@@ -44,5 +44,13 @@ ss-window-windows.workspace = true
 ss-audio-windows.workspace = true
 raw-window-handle = "0.6"
 
+[dev-dependencies]
+# Encodes the bundled icon files in the icon test (MIT OR Apache-2.0).
+png = "0.18"
+
+[build-dependencies]
+# Embeds the app icon and version info into stealseries.exe (MIT).
+winresource = "0.1"
+
 [lints]
 workspace = true

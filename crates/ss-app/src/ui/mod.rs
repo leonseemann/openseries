@@ -162,7 +162,7 @@ impl App {
     /// Native window options.
     pub fn options() -> eframe::NativeOptions {
         let icon = egui::IconData {
-            rgba: crate::tray::headphone_rgba(WINDOW_ICON_SIZE, [0x5B, 0x7C, 0xFA]),
+            rgba: crate::icon::app_icon_rgba(WINDOW_ICON_SIZE),
             width: WINDOW_ICON_SIZE,
             height: WINDOW_ICON_SIZE,
         };

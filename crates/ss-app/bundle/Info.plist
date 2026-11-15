@@ -9,6 +9,8 @@
 	<string>StealSeries</string>
 	<key>CFBundleExecutable</key>
 	<string>stealseries</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>dev.stealseries.app</string>
 	<key>CFBundleInfoDictionaryVersion</key>

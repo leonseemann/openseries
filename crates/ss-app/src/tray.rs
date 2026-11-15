@@ -156,38 +156,14 @@ impl Tray {
 const TRAY_COLOR: [u8; 3] = if cfg!(target_os = "macos") {
     [0, 0, 0]
 } else {
-    [0x5B, 0x7C, 0xFA]
+    crate::icon::ACCENT
 };
 
 /// The tray icon.
 fn template_icon() -> Result<Icon, tray_icon::BadIcon> {
-    Icon::from_rgba(headphone_rgba(ICON_SIZE, TRAY_COLOR), ICON_SIZE, ICON_SIZE)
-}
-
-/// A simple headphone glyph (RGBA, `size`×`size`, transparent background) in `color`; used for
-/// the tray and the window icon.
-#[must_use]
-pub fn headphone_rgba(size: u32, color: [u8; 3]) -> Vec<u8> {
-    let mut rgba = vec![0_u8; (size * size * 4) as usize];
-    #[allow(clippy::cast_precision_loss)] // small icon sizes
-    let extent = size as f32;
-    let (centre, outer, inner) = (extent / 2.0, extent * 0.42, extent * 0.32);
-    for y in 0..size {
-        for x in 0..size {
-            #[allow(clippy::cast_precision_loss)]
-            let (fx, fy) = (x as f32 + 0.5, y as f32 + 0.5);
-            let distance = ((fx - centre).powi(2) + (fy - centre).powi(2)).sqrt();
-            let headband = fy <= centre && distance <= outer && distance >= inner;
-            let cups = fy >= centre - extent * 0.05
-                && fy <= extent * 0.9
-                && ((fx - (centre - outer)).abs() <= extent * 0.09
-                    || (fx - (centre + outer)).abs() <= extent * 0.09);
-            if headband || cups {
-                let index = ((y * size + x) * 4) as usize;
-                rgba[index..index + 3].copy_from_slice(&color);
-                rgba[index + 3] = 255;
-            }
-        }
-    }
-    rgba
+    Icon::from_rgba(
+        crate::icon::headphone_rgba(ICON_SIZE, TRAY_COLOR),
+        ICON_SIZE,
+        ICON_SIZE,
+    )
 }

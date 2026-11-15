@@ -15,6 +15,20 @@ CRATE=ss-app
 BUNDLE="$ROOT/target/StealSeries.app"
 TARGET_DIR="$HOME/Applications"
 
+# Builds the .icns from the generated 1024 px master (crates/ss-app/src/icon.rs).
+app_icon() {
+    master="$ROOT/crates/$CRATE/bundle/icon/AppIcon.png"
+    iconset="$ROOT/target/AppIcon.iconset"
+    rm -rf "$iconset"
+    mkdir -p "$iconset"
+    for size in 16 32 128 256 512; do
+        sips -z "$size" "$size" "$master" --out "$iconset/icon_${size}x${size}.png" >/dev/null
+        double=$((size * 2))
+        sips -z "$double" "$double" "$master" --out "$iconset/icon_${size}x${size}@2x.png" >/dev/null
+    done
+    iconutil -c icns "$iconset" -o "$1"
+}
+
 build() {
     cargo build --release -p "$CRATE" --manifest-path "$ROOT/Cargo.toml"
     version=$(cargo pkgid -p "$CRATE" --manifest-path "$ROOT/Cargo.toml" | sed 's/.*[#@]//')
@@ -22,6 +36,7 @@ build() {
     mkdir -p "$BUNDLE/Contents/MacOS" "$BUNDLE/Contents/Resources"
     sed "s/@VERSION@/$version/g" "$ROOT/crates/$CRATE/bundle/Info.plist" > "$BUNDLE/Contents/Info.plist"
     cp "$ROOT/target/release/stealseries" "$BUNDLE/Contents/MacOS/stealseries"
+    app_icon "$BUNDLE/Contents/Resources/AppIcon.icns"
     # The virtual-mic driver travels inside the app so "Install driver…" can copy it
     # (app.md §2, onboarding). Signed on its own by hal-driver.sh, then sealed with the app.
     "$ROOT/scripts/macos/hal-driver.sh" build

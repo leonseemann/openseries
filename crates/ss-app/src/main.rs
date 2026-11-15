@@ -17,6 +17,7 @@ mod core;
 mod crackle;
 mod headset;
 mod hotkeys;
+mod icon;
 mod instance;
 mod notify;
 mod platform;
@@ -42,6 +43,7 @@ const NO_HEADSET_ENV: &str = "STEALSERIES_NO_HEADSET";
 
 fn main() -> Result<()> {
     let headless = std::env::args().any(|a| a == "--headless");
+    platform::init_notifications();
     if std::env::args().any(|a| a == "--test-notification") {
         // Self-test of the OS notification path, no services started.
         alerts::show("Test notification").map_err(|e| anyhow!("notification: {e}"))?;

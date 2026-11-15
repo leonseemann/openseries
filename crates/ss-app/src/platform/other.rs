@@ -35,6 +35,12 @@ pub fn reset_base_usb() -> Result<(), String> {
     Err("Reconnect USB is not available on this OS".to_owned())
 }
 
+/// Nothing to register on this OS.
+pub fn init_notifications() {}
+
+/// Nothing per notification on this OS.
+pub fn prepare_notification(_notification: &mut notify_rust::Notification) {}
+
 /// Ends a process that did not quit when asked (single instance, `app.md` §9).
 pub fn terminate_process(pid: u32) {
     let _ = std::process::Command::new("kill")

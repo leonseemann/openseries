@@ -176,6 +176,8 @@ The app crate is shared by macOS and Windows (ADR 0005). Everything OS-specific 
 | Autostart | LaunchAgent | `HKCU\…\Run` via `reg.exe` (verified 2026-11-14) |
 | Reconnect USB | IOUSBHost re-enumeration | not yet (button hidden) |
 | Fix crackling automatically | `usbaudiod` underflow log stream | not yet (option disabled) |
+| Notification sender | `set_application(dev.stealseries.app)` | AUMID `StealSeries.App` registered under `HKCU\Software\Classes\AppUserModelId` (name + icon) and on the Start-menu shortcut; without it toasts show "PowerShell" (Observed 2026-11-15) |
+| App icon | `AppIcon.icns` built by `app.sh` (`sips`, `iconutil`) | embedded in `stealseries.exe` by `build.rs` (`winresource`), installer icon |
 | Install an update (ADR 0006) | swap the `.app` bundle after quitting | silent Inno Setup installer |
 | Show the hidden window from the tray | `ViewportCommand::Visible` | Win32 `ShowWindow` via `ss-window-windows` (see below) |
 

@@ -160,7 +160,9 @@ impl AlertTracker {
 /// # Errors
 /// A message if the OS refused it.
 pub fn show(text: &str) -> Result<(), String> {
-    notify_rust::Notification::new()
+    let mut notification = notify_rust::Notification::new();
+    crate::platform::prepare_notification(&mut notification);
+    notification
         .summary(APP_NAME)
         .body(text)
         .show()

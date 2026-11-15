@@ -138,6 +138,42 @@ pub fn install_mic_driver() -> Result<(), String> {
     Err("no virtual-mic driver for this operating system yet".to_owned())
 }
 
+/// Toast sender ID (AUMID). The installer's Start-menu shortcut carries the same ID
+/// (`installer/windows/stealseries.iss`); [`init_notifications`] registers it for all runs.
+const NOTIFICATION_APP_ID: &str = "StealSeries.App";
+/// Per-user registration of [`NOTIFICATION_APP_ID`] (name and icon shown on toasts).
+const AUMID_KEY: &str = r"HKCU\Software\Classes\AppUserModelId\StealSeries.App";
+/// Toast icon, written next to `config.json`.
+const NOTIFICATION_ICON: &[u8] = include_bytes!("../../bundle/icon/AppIcon.png");
+
+/// Registers "StealSeries" with its icon as the sender of our notifications; without it Windows
+/// shows them as coming from PowerShell (notify-rust's default ID).
+pub fn init_notifications() {
+    let Ok(store) = ss_store::Store::per_user() else {
+        return;
+    };
+    let icon = store.path().with_file_name("notification-icon.png");
+    if std::fs::write(&icon, NOTIFICATION_ICON).is_err() {
+        return;
+    }
+    for (name, value) in [
+        ("DisplayName", "StealSeries".to_owned()),
+        ("IconUri", icon.display().to_string()),
+    ] {
+        let _ = Command::new("reg")
+            .args([
+                "add", AUMID_KEY, "/v", name, "/t", "REG_SZ", "/d", &value, "/f",
+            ])
+            .creation_flags(CREATE_NO_WINDOW)
+            .status();
+    }
+}
+
+/// Sends a notification as StealSeries (see [`init_notifications`]).
+pub fn prepare_notification(notification: &mut notify_rust::Notification) {
+    notification.app_id(NOTIFICATION_APP_ID);
+}
+
 /// Ends a process that did not quit when asked (single instance, `app.md` §9).
 pub fn terminate_process(pid: u32) {
     let _ = Command::new("taskkill")
