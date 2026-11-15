@@ -77,7 +77,7 @@ headphone on an accent-coloured rounded square, drawn in code (`src/icon.rs`; ge
 | Page | Cards |
 |---|---|
 | Overview | Headset (status, battery bar, spare battery, charging) · Quick controls (noise control segments, AudioMix switch, mic mute state) · ChatMix · Headset EQ preset |
-| Headset | Noise control (mode, transparency strength) · Microphone (volume, sidetone, mute LED) · Equalizer (preset, custom curve, presets) · Power & display (auto-off, OLED brightness) · Device (firmware, USB, reconnect) |
+| Device (one per connected device, ADR 0008) | Built from the device's features: Battery · Noise control · Microphone · Equalizer · Power and display · Device (firmware, USB/Bluetooth identity, reconnect) · More (unknown feature kinds). For the Nova Pro this is the former Headset page |
 | AudioMix | AudioMix switch + status · Output (device, backups) · ChatMix · Channels (one card per channel) · Apps (assignment list) |
 | Microphone | Virtual microphone switch + status · Source (device, backups, default input) · Processing (noise suppression, gate, stabilizer, EQ, gain) · Presets |
 | Settings | General (start at login, notifications) · Hotkeys · Crackling · Updates (automatic check, status, install) · About (version, licences, getting started, reset, quit) |

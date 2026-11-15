@@ -1,7 +1,8 @@
 # Devices: an extensible platform for any device and transport
 
-Decision: [ADR 0008](../adr/0008-multi-device-support.md) (proposed). Status: **design, not
-implemented**. Goal: adding a headset, keyboard, mouse or a new transport such as Bluetooth must
+Decision: [ADR 0008](../adr/0008-multi-device-support.md) (accepted). Status: **Phase A
+implemented 2026-11-15** (Nova Pro on the platform; owner re-test pending). Differences from the
+plan below are listed in §10. Goal: adding a headset, keyboard, mouse or a new transport such as Bluetooth must
 not touch the app core.
 
 ## 1. Three extension axes
@@ -194,3 +195,23 @@ widgets, added together with the first device that uses them.
 3. Add it to `ss-devices`. If it needs a feature kind or transport that does not exist yet, add it
    first (axis 1 or 2).
 4. Hardware test log with a tester; switch to `Verified` when it passes.
+
+## 10. Implementation notes (Phase A, 2026-11-15)
+
+- The HID transport stayed in the crate `ss-hid` (`HidDiscovery`); renaming it to
+  `ss-transport-hid` brought nothing.
+- `Connection` is `ss-core`'s `HidTransport` re-exported; `Box<dyn HidTransport>` implements the
+  trait, so drivers stay generic.
+- Device settings live on the devices themselves; the config does **not** restore values per
+  instance. The config has `devices.experimental` and per-device EQ presets
+  (`presets.device_eq: device id → name → curve`; older `presets.headset_eq` curves move to
+  `arctis-nova-pro-wireless` on load, the export kind stays `headset_eq`).
+- The UI: `ui/device.rs` (presentation table + shape-based controls, "More" card for unknown
+  kinds), the sidebar lists connected devices, Overview shows one card per device plus the quick
+  controls of the first device that has them.
+- Alerts are tracked per device instance and name the device (`alerts.rs`).
+- The audio "headset off" fallback uses the connected device's `AudioEndpoint` names instead of
+  the fixed "Arctis Nova Pro Wireless".
+- Live check without sending commands: `cargo test -p ss-hid -- --ignored --nocapture scan` lists
+  the HID candidates with bus type (2026-11-15: the Nova Pro appears as USB interface 4 with the
+  `FFC0`/`FF00` collections; other vendors' keyboards and receivers are listed and never opened).

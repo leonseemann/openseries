@@ -16,22 +16,26 @@ flowchart LR
     CMD["command senders"]
     SNAP["state snapshot (Mutex, copied out)"]
   end
-  HS["headset thread<br/>single HID owner"]
+  DM["device manager<br/>discovery + one actor thread per device"]
   AU["audio-control thread<br/>owns AudioMixSession + MicFeedSession"]
   CA["CoreAudio IO threads<br/>(real time)"]
   STORE[("config.json")]
   UI & TRAY --> CMD
   UI & TRAY --> SNAP
-  CMD --> HS & AU
-  HS -->|state| SNAP
+  CMD --> DM & AU
+  DM -->|state| SNAP
   AU -->|state| SNAP
-  HS -->|ChatMix dial| AU
+  DM -->|balance dial| AU
   AU -->|EngineController, rtrb| CA
   AU <--> STORE
 ```
 
-- **Headset thread** — the only owner of the HID device (engine.md §10 lesson). Polls events,
-  executes commands, reconnects on hot-plug, forwards dial events to the audio thread.
+- **Device manager** (`src/devices.rs`, ADR 0008, [devices.md](devices.md)) — scans every
+  transport every 2 s, opens only candidates an enabled driver recognises and gives each device
+  its own **actor thread**, the only owner of that device (engine.md §10 lesson). Actors poll
+  events, execute feature writes, re-read after host changes, take over the Game/Chat dial while
+  AudioMix runs (`Role::HostMixer`) and forward dial moves to the audio thread. Hot-plug and
+  several devices at once are supported; the snapshot holds a device-neutral `DevicesState`.
 - **Audio-control thread** — CoreAudio sessions hold non-`Send` blocks, so one thread creates,
   updates and drops them. Live parameter changes go through `EngineController` (no rebuild);
   routing changes rebuild the taps. Every 2 s it re-scans audio processes and devices: an
@@ -197,7 +201,10 @@ Off by default (`app.auto_fix_crackling`). macOS: `/usr/bin/log stream` filtered
 ≥ 20 underflows arrive within 3 s, at most once per 30 s (observed crackling episodes produce
 20–50 per second; normal operation none). The Settings page shows how often it fixed crackling.
 
-## 8. Base-station gate (owner requirement 2026-11-15)
+## 8. Device gate (owner requirement 2026-11-15)
+
+Since ADR 0008 the gate is "a **supported and enabled device** is connected" (it was "a Nova Pro
+base station is connected"); the behaviour below is unchanged for the Nova Pro.
 
 OpenSeries only acts while an **Arctis Nova Pro Wireless base station is connected**. Without it
 the app is completely passive, so it never interferes with other headsets on the same computer
