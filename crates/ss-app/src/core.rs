@@ -9,19 +9,19 @@ use std::sync::{Arc, Mutex, MutexGuard, OnceLock, PoisonError};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime};
 
-use ss_nova_pro::Command;
+use ss_device::{FeatureId, FeatureKind, Value};
 use ss_store::{Config, Store};
 
 use crate::audio::service::{self, AudioMsg};
 use crate::audio::supervisor::{AudioBackend, AudioStatus};
 use crate::crackle::{BurstDetector, CrackleStatus};
-use crate::headset::{self, HeadsetMsg, HeadsetState};
+use crate::devices::{self, DeviceMsg, DevicesState};
 use crate::notify::Notifier;
 use crate::update::{UpdateState, Updater};
 
 /// Quiet time before a changed config is written (slider drags write once).
 const SAVE_DEBOUNCE: Duration = Duration::from_millis(500);
-/// How often the headset link is checked for the "headset off" device fallback.
+/// How often device presence and the headset link are checked (gate, "headset off" fallback).
 const LINK_POLL: Duration = Duration::from_millis(500);
 
 /// Everything the UI needs to render one frame.
@@ -31,8 +31,8 @@ pub struct Snapshot {
     pub config: Config,
     /// Audio services.
     pub audio: AudioStatus,
-    /// Headset.
-    pub headset: HeadsetState,
+    /// Connected devices (ADR 0008).
+    pub devices: DevicesState,
     /// Problem with the config file at start-up (shown once in the UI).
     pub config_warning: Option<String>,
     /// Problem while saving the config.
@@ -41,8 +41,8 @@ pub struct Snapshot {
     pub crackle: CrackleStatus,
     /// ChatMix position, −1 (game) … +1 (chat); follows the dial and the slider.
     pub chatmix_position: f32,
-    /// OpenSeries may act: a base station is connected (or development mode without the
-    /// headset thread). When `false` everything is paused (`app.md` §8).
+    /// OpenSeries may act: a supported device is connected (or development mode without the
+    /// device manager). When `false` everything is paused (`app.md` §8).
     pub active: bool,
     /// In-app updates (ADR 0006).
     pub update: UpdateState,
@@ -55,27 +55,27 @@ pub struct AppCore {
     config_warning: Option<String>,
     save_error: Arc<Mutex<Option<String>>>,
     audio_status: Arc<Mutex<AudioStatus>>,
-    headset_state: Arc<Mutex<HeadsetState>>,
+    devices_state: Arc<Mutex<DevicesState>>,
     audio_tx: Sender<AudioMsg>,
-    headset_tx: Sender<HeadsetMsg>,
+    device_tx: Sender<DeviceMsg>,
     save_tx: Sender<Config>,
     threads: Mutex<Vec<JoinHandle<()>>>,
-    /// The first `service_threads` handles are the audio (and headset) threads.
+    /// The first `service_threads` handles are the audio thread and the device manager.
     service_threads: usize,
     /// Software ChatMix position for hotkeys, −1 (game) … +1 (chat).
     chatmix_position: Arc<Mutex<f32>>,
     crackle_status: Arc<Mutex<CrackleStatus>>,
     crackle_watch: Mutex<Option<crate::platform::UnderflowWatch>>,
     notify: Notifier,
-    /// `false` in development runs without the headset thread: the base-station gate is skipped.
+    /// `false` in development runs without the device manager: the device gate is skipped.
     gated: bool,
     /// The update checker, attached once after start ([`AppCore::attach_updater`]).
     updater: OnceLock<Updater>,
 }
 
 impl AppCore {
-    /// Loads the config and starts the audio and saver threads, and the headset thread unless
-    /// `with_headset` is `false` (development runs that must not talk to the device).
+    /// Loads the config and starts the audio and saver threads, and the device manager unless
+    /// `with_headset` is `false` (development runs that must not talk to any device).
     ///
     /// # Errors
     /// If a thread cannot be spawned.
@@ -92,11 +92,11 @@ impl AppCore {
         let loaded = store.load();
         let config = loaded.config;
         let audio_status = Arc::new(Mutex::new(AudioStatus::default()));
-        let headset_state = Arc::new(Mutex::new(HeadsetState::default()));
+        let devices_state = Arc::new(Mutex::new(DevicesState::default()));
         let save_error = Arc::new(Mutex::new(None));
 
         let (audio_tx, audio_rx) = mpsc::channel();
-        let (headset_tx, headset_rx) = mpsc::channel();
+        let (device_tx, device_rx) = mpsc::channel();
         let (chatmix_tx, chatmix_rx) = mpsc::channel();
         let (save_tx, save_rx) = mpsc::channel::<Config>();
 
@@ -108,26 +108,27 @@ impl AppCore {
             make_backend,
         )?];
         if with_headset {
-            threads.push(headset::spawn(
-                headset_rx,
-                Arc::clone(&headset_state),
+            threads.push(devices::spawn(
+                device_rx,
+                Arc::clone(&devices_state),
                 chatmix_tx,
                 Arc::clone(notify),
                 config.audiomix.enabled,
+                config.devices.experimental,
             )?);
         } else {
-            drop((headset_rx, chatmix_tx));
+            drop((device_rx, chatmix_tx));
         }
         let service_threads = threads.len();
 
         if with_headset {
             threads.push(spawn_link_forward(
-                Arc::clone(&headset_state),
+                Arc::clone(&devices_state),
                 audio_tx.clone(),
             )?);
         } else {
-            // Development runs without the headset thread skip the base-station gate (§8).
-            let _ = audio_tx.send(AudioMsg::BaseStation(true));
+            // Development runs without the device manager skip the device gate (§8).
+            let _ = audio_tx.send(AudioMsg::DevicePresent(true));
         }
 
         // Dial events go from the headset thread to the audio thread; the software slider
@@ -150,31 +151,12 @@ impl AppCore {
                 })?,
         );
 
-        let saver_store = store.clone();
-        let error_slot = Arc::clone(&save_error);
-        let saver_notify = Arc::clone(notify);
-        threads.push(
-            std::thread::Builder::new()
-                .name("config-saver".to_owned())
-                .spawn(move || {
-                    while let Ok(mut latest) = save_rx.recv() {
-                        // Keep taking newer versions until the user pauses.
-                        loop {
-                            match save_rx.recv_timeout(SAVE_DEBOUNCE) {
-                                Ok(newer) => latest = newer,
-                                Err(RecvTimeoutError::Timeout) => break,
-                                Err(RecvTimeoutError::Disconnected) => {
-                                    let _ = saver_store.save(&latest);
-                                    return;
-                                }
-                            }
-                        }
-                        let result = saver_store.save(&latest).err().map(|e| e.to_string());
-                        *lock(&error_slot) = result;
-                        saver_notify();
-                    }
-                })?,
-        );
+        threads.push(spawn_saver(
+            store.clone(),
+            save_rx,
+            Arc::clone(&save_error),
+            Arc::clone(notify),
+        )?);
 
         let core = Arc::new(Self {
             config: Mutex::new(config),
@@ -182,9 +164,9 @@ impl AppCore {
             config_warning: loaded.warning,
             save_error,
             audio_status,
-            headset_state,
+            devices_state,
             audio_tx,
-            headset_tx,
+            device_tx,
             save_tx,
             threads: Mutex::new(threads),
             service_threads,
@@ -233,8 +215,13 @@ impl AppCore {
         }
         if audiomix_toggled {
             let _ = self
-                .headset_tx
-                .send(HeadsetMsg::AudioMixEnabled(new.audiomix.enabled));
+                .device_tx
+                .send(DeviceMsg::HostMixer(new.audiomix.enabled));
+        }
+        if new.devices.experimental != before.devices.experimental {
+            let _ = self
+                .device_tx
+                .send(DeviceMsg::Experimental(new.devices.experimental));
         }
         let _ = self.audio_tx.send(AudioMsg::Config(Box::new(new.clone())));
         let _ = self.save_tx.send(new);
@@ -250,17 +237,17 @@ impl AppCore {
         if !enabled {
             return;
         }
-        let headset_tx = self.headset_tx.clone();
-        let gate_state = Arc::clone(&self.headset_state);
+        let device_tx = self.device_tx.clone();
+        let gate_state = Arc::clone(&self.devices_state);
         let gated = self.gated;
         let crackle_status = Arc::clone(&self.crackle_status);
         let detector = Mutex::new(BurstDetector::default());
         let notify = Arc::clone(&self.notify);
         let started = crate::platform::watch_usb_underflows(move || {
-            // Never reset USB devices while no Nova Pro base station is connected (§8).
-            let base_station = !gated || lock(&gate_state).base_station;
-            if base_station && lock(&detector).record(Instant::now()) {
-                let _ = headset_tx.send(HeadsetMsg::ResetUsb);
+            // Never reset USB devices while no supported device is connected (§8).
+            let present = !gated || lock(&gate_state).any();
+            if present && lock(&detector).record(Instant::now()) {
+                let _ = device_tx.send(DeviceMsg::ReplugUsb { key: None });
                 let mut status = lock(&crackle_status);
                 status.fixes = status.fixes.saturating_add(1);
                 status.last_fix = Some(SystemTime::now());
@@ -293,27 +280,36 @@ impl AppCore {
         let _ = self.audio_tx.send(AudioMsg::ChatMix(balance));
     }
 
-    /// Sends the current ChatMix position to the base station (`06 45`), so its display and dial
-    /// continue from there. Only while AudioMix owns the dial; call it when a change is finished
+    /// Sends the current Game/Chat position to the device's balance dial, so its display and
+    /// dial continue from there. Only while AudioMix owns the dial; call it when a change is finished
     /// (slider released), not for every drag step.
     pub fn sync_chatmix_to_headset(&self) {
         if !lock(&self.config).audiomix.enabled {
             return;
         }
         let balance = ss_dsp::balance_from_slider(*lock(&self.chatmix_position));
-        let _ = self
-            .headset_tx
-            .send(HeadsetMsg::Send(ss_nova_pro::Command::SetChatMix(balance)));
+        self.set_feature(
+            None,
+            FeatureId::of(FeatureKind::BalanceDial),
+            Value::Balance(balance),
+        );
     }
 
-    /// Resets the base station's USB connection (software re-plug) and reconnects.
-    pub fn reset_headset_usb(&self) {
-        let _ = self.headset_tx.send(HeadsetMsg::ResetUsb);
+    /// Resets a device's USB connection (software re-plug) and reconnects; `key: None` = the
+    /// first device that supports it.
+    pub fn reconnect_usb(&self, key: Option<&str>) {
+        let _ = self.device_tx.send(DeviceMsg::ReplugUsb {
+            key: key.map(str::to_owned),
+        });
     }
 
-    /// Sends a setting to the headset.
-    pub fn headset(&self, command: Command) {
-        let _ = self.headset_tx.send(HeadsetMsg::Send(command));
+    /// Writes a device setting; `key: None` = the first device that has the feature.
+    pub fn set_feature(&self, key: Option<&str>, id: FeatureId, value: Value) {
+        let _ = self.device_tx.send(DeviceMsg::Set {
+            key: key.map(str::to_owned),
+            id,
+            value,
+        });
     }
 
     /// Connects the update checker (it needs the finished core, so it starts afterwards).
@@ -335,23 +331,23 @@ impl AppCore {
         }
     }
 
-    /// Whether OpenSeries may act right now (base station connected, `app.md` §8).
+    /// Whether OpenSeries may act right now (a supported device connected, `app.md` §8).
     #[must_use]
     pub fn active(&self) -> bool {
-        !self.gated || lock(&self.headset_state).base_station
+        !self.gated || lock(&self.devices_state).any()
     }
 
     /// Everything the UI renders.
     #[must_use]
     pub fn snapshot(&self) -> Snapshot {
-        // Copy the headset state in its own statement: a guard temporary inside the struct
+        // Copy the device state in its own statement: a guard temporary inside the struct
         // literal would live until its end and `active` would deadlock on the same mutex.
-        let headset = lock(&self.headset_state).clone();
-        let active = !self.gated || headset.base_station;
+        let devices = lock(&self.devices_state).clone();
+        let active = !self.gated || devices.any();
         Snapshot {
             config: self.config(),
             audio: lock(&self.audio_status).clone(),
-            headset,
+            devices,
             config_warning: self.config_warning.clone(),
             save_error: lock(&self.save_error).clone(),
             crackle: lock(&self.crackle_status).clone(),
@@ -367,7 +363,7 @@ impl AppCore {
     /// Stops the services (restoring the base station) and writes pending config changes.
     pub fn shutdown(&self) {
         *lock(&self.crackle_watch) = None;
-        let _ = self.headset_tx.send(HeadsetMsg::Shutdown);
+        let _ = self.device_tx.send(DeviceMsg::Shutdown);
         let _ = self.audio_tx.send(AudioMsg::Shutdown);
         let threads = std::mem::take(&mut *lock(&self.threads));
         for thread in threads.into_iter().take(self.service_threads) {
@@ -382,26 +378,30 @@ impl AppCore {
     }
 }
 
-/// Base station present/absent (gate, `app.md` §8) and headset on/off (device fallback, SON-28)
-/// → audio thread. Polling keeps the headset thread unaware of the audio side. Ends once the
-/// audio thread is gone.
+/// Device present/absent (gate, `app.md` §8) and the audio device's wireless link (device
+/// fallback, SON-28) → audio thread. Polling keeps the device manager unaware of the audio side.
+/// Ends once the audio thread is gone.
 fn spawn_link_forward(
-    state: Arc<Mutex<HeadsetState>>,
+    state: Arc<Mutex<DevicesState>>,
     audio_tx: Sender<AudioMsg>,
 ) -> std::io::Result<JoinHandle<()>> {
     std::thread::Builder::new()
-        .name("headset-link-forward".to_owned())
+        .name("device-link-forward".to_owned())
         .spawn(move || {
             let mut last = None;
-            let mut last_base = None;
+            let mut last_present = None;
             loop {
-                let (base, linked) = {
+                let (present, linked) = {
                     let state = lock(&state);
-                    (state.base_station, state.status.map(|s| s.connected))
+                    let audio_device = state.with(FeatureKind::AudioEndpoint);
+                    (
+                        state.any(),
+                        audio_device.and_then(devices::DeviceSnapshot::linked),
+                    )
                 };
-                if last_base != Some(base) {
-                    last_base = Some(base);
-                    if audio_tx.send(AudioMsg::BaseStation(base)).is_err() {
+                if last_present != Some(present) {
+                    last_present = Some(present);
+                    if audio_tx.send(AudioMsg::DevicePresent(present)).is_err() {
                         return;
                     }
                 }
@@ -414,6 +414,35 @@ fn spawn_link_forward(
                     }
                 }
                 std::thread::sleep(LINK_POLL);
+            }
+        })
+}
+
+/// Writes config changes once the user pauses (slider drags write once); ends with the core.
+fn spawn_saver(
+    store: Store,
+    save_rx: mpsc::Receiver<Config>,
+    error_slot: Arc<Mutex<Option<String>>>,
+    notify: Notifier,
+) -> std::io::Result<JoinHandle<()>> {
+    std::thread::Builder::new()
+        .name("config-saver".to_owned())
+        .spawn(move || {
+            while let Ok(mut latest) = save_rx.recv() {
+                // Keep taking newer versions until the user pauses.
+                loop {
+                    match save_rx.recv_timeout(SAVE_DEBOUNCE) {
+                        Ok(newer) => latest = newer,
+                        Err(RecvTimeoutError::Timeout) => break,
+                        Err(RecvTimeoutError::Disconnected) => {
+                            let _ = store.save(&latest);
+                            return;
+                        }
+                    }
+                }
+                let result = store.save(&latest).err().map(|e| e.to_string());
+                *lock(&error_slot) = result;
+                notify();
             }
         })
 }

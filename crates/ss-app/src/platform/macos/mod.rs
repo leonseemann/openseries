@@ -17,8 +17,6 @@ pub use driver::{install_mic_driver, mic_driver_installed};
 pub use underflow::{UnderflowWatch, watch_usb_underflows};
 pub use update::{install_update, update_install_target};
 
-use ss_nova_pro::ids;
-
 /// The CoreAudio backend.
 pub type AudioBackend = crate::audio::macos::MacAudioBackend;
 
@@ -32,7 +30,7 @@ pub fn audio_backend() -> AudioBackend {
 pub const VIRTUAL_MIC_SUPPORTED: bool = true;
 /// Channel DSP runs in `ss-engine` on the tapped audio.
 pub const CHANNEL_DSP_SUPPORTED: bool = true;
-/// Whether [`reset_base_usb`] can work on this OS.
+/// Whether [`reset_usb`] can work on this OS.
 pub const USB_RESET_SUPPORTED: bool = true;
 /// Whether [`watch_usb_underflows`] can work on this OS.
 pub const UNDERFLOW_WATCH_SUPPORTED: bool = true;
@@ -55,12 +53,12 @@ pub fn terminate_process(pid: u32) {
         .status();
 }
 
-/// Software re-plug of the Nova Pro base station.
+/// Software re-plug of a USB device (the device platform's `UsbReplug` feature).
 ///
 /// # Errors
 /// A user-facing message.
-pub fn reset_base_usb() -> Result<(), String> {
-    ss_usb_macos::reenumerate(ids::VENDOR_ID, &ids::PRODUCT_IDS).map_err(|e| e.to_string())
+pub fn reset_usb(vendor_id: u16, product_id: u16) -> Result<(), String> {
+    ss_usb_macos::reenumerate(vendor_id, &[product_id]).map_err(|e| e.to_string())
 }
 
 /// Not needed on this OS: eframe's `ViewportCommand::Visible` works on hidden windows here.

@@ -15,7 +15,7 @@ mod alerts;
 mod audio;
 mod core;
 mod crackle;
-mod headset;
+mod devices;
 mod hotkeys;
 mod icon;
 mod instance;
@@ -127,17 +127,29 @@ fn run_headless(core: &Arc<AppCore>) -> Result<()> {
     let mut last = String::new();
     while running.load(Ordering::SeqCst) {
         let snapshot = core.snapshot();
-        let headset = &snapshot.headset;
+        let devices: Vec<String> = snapshot
+            .devices
+            .devices
+            .iter()
+            .map(|d| {
+                format!(
+                    "{} link={:?} battery={:?} balance={:?}",
+                    d.info.name,
+                    d.linked(),
+                    d.main_battery()
+                        .map(ss_core::battery::BatteryLevel::percent),
+                    d.balance().map(|c| (c.game.get(), c.chat.get())),
+                )
+            })
+            .collect();
         let line = format!(
-            "audiomix {:?} ({} apps routed) | mic {:?} | headset base={} link={} battery={:?} chatmix={:?}{}",
+            "audiomix {:?} ({} apps routed) | mic {:?} | devices [{}]{}",
             snapshot.audio.mix,
             snapshot.audio.routed_apps,
             snapshot.audio.mic,
-            headset.base_station,
-            headset.status.is_some_and(|s| s.connected),
-            headset.status.and_then(|s| s.headset_battery),
-            headset.chatmix.map(|c| (c.game.get(), c.chat.get())),
-            headset
+            devices.join("; "),
+            snapshot
+                .devices
                 .error
                 .as_ref()
                 .map_or(String::new(), |e| format!(" | {e}")),

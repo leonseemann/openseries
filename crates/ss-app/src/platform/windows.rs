@@ -30,7 +30,7 @@ pub const VIRTUAL_MIC_SUPPORTED: bool = false;
 /// No per-channel DSP on Windows: it would need a signed virtual audio driver (ADR 0004).
 pub const CHANNEL_DSP_SUPPORTED: bool = false;
 
-/// Whether [`reset_base_usb`] can work on this OS.
+/// Whether [`reset_usb`] can work on this OS.
 pub const USB_RESET_SUPPORTED: bool = false;
 /// Whether [`watch_usb_underflows`] can work on this OS.
 pub const UNDERFLOW_WATCH_SUPPORTED: bool = false;
@@ -106,7 +106,7 @@ pub fn set_autostart(enabled: bool) -> Result<(), String> {
 ///
 /// # Errors
 /// Always.
-pub fn reset_base_usb() -> Result<(), String> {
+pub fn reset_usb(_vendor_id: u16, _product_id: u16) -> Result<(), String> {
     Err("Reconnect USB is not available on Windows yet".to_owned())
 }
 

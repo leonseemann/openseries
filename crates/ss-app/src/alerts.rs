@@ -1,9 +1,10 @@
 //! Desktop notifications (CORE-15, NTU-02; `docs/architecture/app.md` §2).
 //!
-//! [`AlertTracker`] turns successive state snapshots into notable changes (pure, unit-tested);
-//! [`spawn`] polls the app state on a background thread, so alerts also appear while the window
-//! is hidden, and shows them as OS notifications when enabled in the settings.
+//! [`AlertTracker`] turns successive state snapshots into notable changes per device (pure,
+//! unit-tested); [`spawn`] polls the app state on a background thread, so alerts also appear while
+//! the window is hidden, and shows them as OS notifications when enabled in the settings.
 
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Weak;
 use std::time::Duration;
 
@@ -14,7 +15,7 @@ use crate::core::{AppCore, Snapshot};
 
 /// How often the state is checked.
 const POLL_INTERVAL: Duration = Duration::from_secs(1);
-/// Headset battery at or below this level (percent) while discharging triggers a warning.
+/// Battery level at or below this (percent) while discharging triggers a warning.
 pub const LOW_BATTERY_PERCENT: u8 = 25;
 /// The low-battery warning re-arms once the level is back at or above this (or charging).
 const REARM_BATTERY_PERCENT: u8 = 50;
@@ -24,16 +25,37 @@ const APP_NAME: &str = "OpenSeries";
 /// Something worth a notification.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Alert {
-    /// The headset linked to the base station.
-    HeadsetConnected,
-    /// The headset is off or out of range.
-    HeadsetDisconnected,
-    /// The base station vanished (unplugged, or its input switched to another computer).
-    BaseStationGone,
-    /// The base station is back.
-    BaseStationBack,
-    /// Headset battery low.
-    BatteryLow(u8),
+    /// The wireless part of a device linked (e.g. headset to base station).
+    Linked {
+        /// Device name.
+        device: &'static str,
+    },
+    /// The wireless part is off or out of range.
+    Unlinked {
+        /// Device name.
+        device: &'static str,
+    },
+    /// A device vanished (unplugged, or its input switched to another computer).
+    Gone {
+        /// Device name.
+        device: &'static str,
+        /// What the computer is plugged into ("base station", "dongle", "device").
+        hub: &'static str,
+    },
+    /// A device is back.
+    Back {
+        /// Device name.
+        device: &'static str,
+        /// What the computer is plugged into.
+        hub: &'static str,
+    },
+    /// Battery low.
+    BatteryLow {
+        /// Device name.
+        device: &'static str,
+        /// Level in percent.
+        percent: u8,
+    },
     /// An audio service failed to start.
     ServiceFailed {
         /// "AudioMix" or "Virtual microphone".
@@ -48,46 +70,67 @@ impl Alert {
     #[must_use]
     pub fn text(&self) -> String {
         match self {
-            Self::HeadsetConnected => "Headset connected".to_owned(),
-            Self::HeadsetDisconnected => "Headset disconnected (off or out of range)".to_owned(),
-            Self::BaseStationGone => {
-                "Base station disconnected — unplugged or switched to another computer".to_owned()
+            Self::Linked { device } => format!("{device} connected"),
+            Self::Unlinked { device } => format!("{device} disconnected (off or out of range)"),
+            Self::Gone { device, hub } => {
+                format!("{device}: {hub} disconnected — unplugged or switched to another computer")
             }
-            Self::BaseStationBack => "Base station connected".to_owned(),
-            Self::BatteryLow(percent) => format!("Headset battery low (≈{percent} %)"),
+            Self::Back { device, hub } => format!("{device}: {hub} connected"),
+            Self::BatteryLow { device, percent } => {
+                format!("{device}: battery low (≈{percent} %)")
+            }
             Self::ServiceFailed { service, message } => format!("{service} stopped: {message}"),
         }
     }
 }
 
+/// The parts of one device's state alerts depend on.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct DeviceObserved {
+    name: &'static str,
+    hub: &'static str,
+    /// `None` for wired devices or before the first read.
+    linked: Option<bool>,
+    battery: Option<u8>,
+    charging: bool,
+}
+
 /// The parts of the state alerts depend on.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Observed {
-    base_station: bool,
-    /// `None` until the base station reported a status.
-    headset_linked: Option<bool>,
-    battery: Option<u8>,
-    charging: bool,
+    devices: BTreeMap<String, DeviceObserved>,
     mix: ServiceStatus,
     mic: ServiceStatus,
 }
 
 impl Observed {
     fn of(snapshot: &Snapshot) -> Self {
-        let status = snapshot.headset.status;
-        Self {
-            base_station: snapshot.headset.base_station,
-            headset_linked: status.map(|s| s.connected),
-            battery: status
-                .filter(|s| s.connected)
-                .and_then(|s| s.headset_battery)
-                .map(ss_core::battery::BatteryLevel::percent),
-            charging: status.is_some_and(|s| {
-                matches!(
-                    s.charge_state,
-                    ChargeState::Charging | ChargeState::PluggedNotCharging
+        let devices = snapshot
+            .devices
+            .devices
+            .iter()
+            .filter(|d| d.ready)
+            .map(|d| {
+                let charge = d.batteries().map(|(_, charge)| charge);
+                (
+                    d.key().to_owned(),
+                    DeviceObserved {
+                        name: d.info.name,
+                        hub: d.hub(),
+                        linked: d.linked(),
+                        battery: d
+                            .main_battery()
+                            .map(ss_core::battery::BatteryLevel::percent),
+                        charging: matches!(
+                            charge,
+                            Some(ChargeState::Charging | ChargeState::PluggedNotCharging)
+                        ),
+                    },
                 )
-            }),
+            })
+            .collect();
+        Self {
+            devices,
             mix: snapshot.audio.mix.clone(),
             mic: snapshot.audio.mic.clone(),
         }
@@ -98,7 +141,8 @@ impl Observed {
 #[derive(Debug, Default)]
 pub struct AlertTracker {
     last: Option<Observed>,
-    battery_warned: bool,
+    /// Devices whose low-battery warning was already shown.
+    battery_warned: BTreeSet<String>,
 }
 
 impl AlertTracker {
@@ -107,25 +151,43 @@ impl AlertTracker {
     pub fn observe(&mut self, snapshot: &Snapshot) -> Vec<Alert> {
         let now = Observed::of(snapshot);
         let Some(last) = self.last.replace(now.clone()) else {
-            self.battery_warned = now.battery.is_some_and(|b| b <= LOW_BATTERY_PERCENT);
+            for (key, device) in &now.devices {
+                if device.battery.is_some_and(|b| b <= LOW_BATTERY_PERCENT) {
+                    self.battery_warned.insert(key.clone());
+                }
+            }
             return Vec::new();
         };
         let mut alerts = Vec::new();
-        match (last.base_station, now.base_station) {
-            (true, false) => alerts.push(Alert::BaseStationGone),
-            (false, true) => alerts.push(Alert::BaseStationBack),
-            _ => {}
-        }
-        // Link changes only count while the base station stays connected (its own alert
-        // covers the rest).
-        if last.base_station && now.base_station {
-            match (last.headset_linked, now.headset_linked) {
-                (Some(false), Some(true)) => alerts.push(Alert::HeadsetConnected),
-                (Some(true), Some(false)) => alerts.push(Alert::HeadsetDisconnected),
-                _ => {}
+        for (key, device) in &last.devices {
+            if !now.devices.contains_key(key) {
+                alerts.push(Alert::Gone {
+                    device: device.name,
+                    hub: device.hub,
+                });
             }
         }
-        self.battery(&now, &mut alerts);
+        for (key, device) in &now.devices {
+            let Some(before) = last.devices.get(key) else {
+                alerts.push(Alert::Back {
+                    device: device.name,
+                    hub: device.hub,
+                });
+                continue;
+            };
+            // Link changes only count while the device stays connected (its own alert covers
+            // the rest).
+            match (before.linked, device.linked) {
+                (Some(false), Some(true)) => alerts.push(Alert::Linked {
+                    device: device.name,
+                }),
+                (Some(true), Some(false)) => alerts.push(Alert::Unlinked {
+                    device: device.name,
+                }),
+                _ => {}
+            }
+            self.battery(key, device, &mut alerts);
+        }
         for (service, before, after) in [
             ("AudioMix", &last.mix, &now.mix),
             ("Virtual microphone", &last.mic, &now.mic),
@@ -142,15 +204,17 @@ impl AlertTracker {
         alerts
     }
 
-    fn battery(&mut self, now: &Observed, alerts: &mut Vec<Alert>) {
-        let Some(percent) = now.battery else {
+    fn battery(&mut self, key: &str, device: &DeviceObserved, alerts: &mut Vec<Alert>) {
+        let Some(percent) = device.battery else {
             return;
         };
-        if now.charging || percent >= REARM_BATTERY_PERCENT {
-            self.battery_warned = false;
-        } else if percent <= LOW_BATTERY_PERCENT && !self.battery_warned {
-            self.battery_warned = true;
-            alerts.push(Alert::BatteryLow(percent));
+        if device.charging || percent >= REARM_BATTERY_PERCENT {
+            self.battery_warned.remove(key);
+        } else if percent <= LOW_BATTERY_PERCENT && self.battery_warned.insert(key.to_owned()) {
+            alerts.push(Alert::BatteryLow {
+                device: device.name,
+                percent,
+            });
         }
     }
 }
@@ -196,27 +260,62 @@ pub fn spawn(core: Weak<AppCore>) -> std::io::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use ss_core::battery::BatteryLevel;
-    use ss_nova_pro::Status;
+    use std::collections::BTreeMap;
 
-    fn snapshot(base: bool, linked: Option<bool>, battery: u8, charging: bool) -> Snapshot {
+    use super::*;
+    use crate::devices::DeviceSnapshot;
+    use ss_core::battery::BatteryLevel;
+    use ss_device::{
+        Bus, DeviceClass, DeviceInfo, FeatureId, FeatureKind, Instance, Support, Value,
+    };
+
+    static INFO: DeviceInfo = DeviceInfo {
+        id: "test",
+        name: "Test headset",
+        class: DeviceClass::Headset,
+        support: Support::Verified,
+        hub_name: Some("base station"),
+    };
+    const NAME: &str = "Test headset";
+    const HUB: &str = "base station";
+
+    /// `present = false` → no device; otherwise a device with link state and battery.
+    fn snapshot(present: bool, linked: Option<bool>, battery: u8, charging: bool) -> Snapshot {
         let mut snapshot = Snapshot::default();
-        snapshot.headset.base_station = base;
-        snapshot.headset.status = linked.map(|connected| Status {
-            connected,
-            headset_battery: BatteryLevel::from_percent(battery).ok(),
-            charge_state: if charging {
-                ChargeState::Charging
-            } else {
-                ChargeState::Discharging
+        if !present {
+            return snapshot;
+        }
+        let mut values = BTreeMap::new();
+        if let Some(linked) = linked {
+            values.insert(
+                FeatureId::of(FeatureKind::WirelessLink),
+                Value::Bool(linked),
+            );
+        }
+        values.insert(
+            FeatureId::of(FeatureKind::Battery),
+            Value::Battery {
+                levels: vec![BatteryLevel::from_percent(battery).ok()],
+                charge: if charging {
+                    ChargeState::Charging
+                } else {
+                    ChargeState::Discharging
+                },
             },
-            spare_battery: None,
-            noise_control: None,
-            transparency: None,
-            mic_muted: false,
-            auto_off: None,
-            mic_led: None,
+        );
+        snapshot.devices.devices.push(DeviceSnapshot {
+            info: &INFO,
+            instance: Instance {
+                key: "test/1".to_owned(),
+                bus: Bus::Usb,
+                vendor_id: 1,
+                product_id: 2,
+                release: None,
+                serial: None,
+            },
+            features: Vec::new(),
+            values,
+            ready: true,
         });
         snapshot
     }
@@ -236,24 +335,30 @@ mod tests {
     }
 
     #[test]
-    fn link_and_base_station_changes() {
+    fn link_and_device_changes() {
         let mut tracker = AlertTracker::default();
         tracker.observe(&snapshot(true, Some(true), 100, false));
         assert_eq!(
             tracker.observe(&snapshot(true, Some(false), 100, false)),
-            vec![Alert::HeadsetDisconnected]
+            vec![Alert::Unlinked { device: NAME }]
         );
         assert_eq!(
             tracker.observe(&snapshot(true, Some(true), 100, false)),
-            vec![Alert::HeadsetConnected]
+            vec![Alert::Linked { device: NAME }]
         );
         assert_eq!(
             tracker.observe(&snapshot(false, None, 100, false)),
-            vec![Alert::BaseStationGone]
+            vec![Alert::Gone {
+                device: NAME,
+                hub: HUB
+            }]
         );
         assert_eq!(
             tracker.observe(&snapshot(true, Some(true), 100, false)),
-            vec![Alert::BaseStationBack]
+            vec![Alert::Back {
+                device: NAME,
+                hub: HUB
+            }]
         );
     }
 
@@ -266,14 +371,14 @@ mod tests {
             Vec::<Alert>::new()
         );
         let low = tracker.observe(&snapshot(true, Some(true), 25, false));
-        assert!(matches!(low.as_slice(), [Alert::BatteryLow(_)]));
+        assert!(matches!(low.as_slice(), [Alert::BatteryLow { .. }]));
         assert_eq!(
             tracker.observe(&snapshot(true, Some(true), 12, false)),
             Vec::<Alert>::new()
         );
         tracker.observe(&snapshot(true, Some(true), 12, true)); // charging re-arms
         let again = tracker.observe(&snapshot(true, Some(true), 12, false));
-        assert!(matches!(again.as_slice(), [Alert::BatteryLow(_)]));
+        assert!(matches!(again.as_slice(), [Alert::BatteryLow { .. }]));
     }
 
     #[test]
@@ -284,5 +389,17 @@ mod tests {
         s.audio.mix = ServiceStatus::Failed("no permission".to_owned());
         assert_eq!(tracker.observe(&s).len(), 1);
         assert_eq!(tracker.observe(&s), Vec::<Alert>::new());
+    }
+
+    #[test]
+    fn texts_name_the_device() {
+        assert_eq!(
+            Alert::Gone {
+                device: NAME,
+                hub: HUB
+            }
+            .text(),
+            "Test headset: base station disconnected — unplugged or switched to another computer"
+        );
     }
 }

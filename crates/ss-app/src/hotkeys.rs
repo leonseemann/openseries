@@ -86,7 +86,7 @@ impl HotkeyAction {
             Self::ChatMixGame => core.nudge_chatmix(-CHATMIX_STEP),
             Self::ChatMixChat => core.nudge_chatmix(CHATMIX_STEP),
             Self::MicMute => core.update_config(|c| c.mic.enabled = !c.mic.enabled),
-            Self::ReconnectUsb => core.reset_headset_usb(),
+            Self::ReconnectUsb => core.reconnect_usb(None),
         }
     }
 }

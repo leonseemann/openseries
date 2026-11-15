@@ -151,6 +151,21 @@ fn general_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
             },
         );
         components::divider(ui);
+        let mut experimental = snapshot.config.devices.experimental;
+        components::row(
+            ui,
+            "Experimental devices",
+            Some(
+                "Also use drivers that were not tested on hardware yet. They may not work as \
+                 described.",
+            ),
+            |ui| {
+                if components::switch(ui, &mut experimental) {
+                    core.update_config(|c| c.devices.experimental = experimental);
+                }
+            },
+        );
+        components::divider(ui);
         let mut notifications = snapshot.config.app.notifications.enabled;
         let test_id = ui.id().with("notification-test");
         components::row(

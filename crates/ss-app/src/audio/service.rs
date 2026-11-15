@@ -24,8 +24,8 @@ pub enum AudioMsg {
     ChatMix(ChatMixBalance),
     /// The headset was turned on (`true`) or off.
     HeadsetLinked(bool),
-    /// The base station was connected (`true`) or disconnected (`app.md` §8).
-    BaseStation(bool),
+    /// A supported device is connected (`true`) or none is (`app.md` §8).
+    DevicePresent(bool),
     /// Stop everything and end the thread.
     Shutdown,
 }
@@ -54,7 +54,7 @@ where
                     Ok(AudioMsg::Config(config)) => supervisor.on_config(*config),
                     Ok(AudioMsg::ChatMix(balance)) => supervisor.on_chatmix(balance),
                     Ok(AudioMsg::HeadsetLinked(linked)) => supervisor.on_headset_link(linked),
-                    Ok(AudioMsg::BaseStation(present)) => supervisor.on_base_station(present),
+                    Ok(AudioMsg::DevicePresent(present)) => supervisor.on_device_present(present),
                     Ok(AudioMsg::Shutdown) | Err(RecvTimeoutError::Disconnected) => {
                         supervisor.shutdown();
                         publish(&supervisor, &status, &notify);

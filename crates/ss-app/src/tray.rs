@@ -87,7 +87,7 @@ impl Tray {
             } else if *id == mic_id {
                 core.update_config(|c| c.mic.enabled = !c.mic.enabled);
             } else if *id == reconnect_id {
-                core.reset_headset_usb();
+                core.reconnect_usb(None);
             } else if *id == update_id {
                 // The item reads "Install update …" while one is on offer (see `sync`).
                 if core.snapshot().update.update().is_some() {
@@ -122,13 +122,15 @@ impl Tray {
     pub fn sync(&mut self, snapshot: &Snapshot) {
         self.audiomix.set_checked(snapshot.config.audiomix.enabled);
         self.mic.set_checked(snapshot.config.mic.enabled);
-        let text = match snapshot.headset.status {
-            _ if !snapshot.active => "Paused · base station not connected".to_owned(),
-            Some(status) if status.connected => status.headset_battery.map_or_else(
-                || "Headset connected".to_owned(),
-                |b| format!("Headset · ≈{} %", b.percent()),
+        let primary = snapshot.devices.primary();
+        let text = match primary {
+            _ if !snapshot.active => "Paused · no supported device connected".to_owned(),
+            None => "No device connected".to_owned(),
+            Some(d) if d.linked() == Some(false) => format!("{} · off", d.info.name),
+            Some(d) => d.main_battery().map_or_else(
+                || format!("{} connected", d.info.name),
+                |b| format!("{} · ≈{} %", d.info.name, b.percent()),
             ),
-            _ => "Headset not connected".to_owned(),
         };
         self.status.set_text(text);
         let state = &snapshot.update;

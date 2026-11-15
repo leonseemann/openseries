@@ -4,7 +4,7 @@
 
 mod audiomix;
 mod components;
-mod headset;
+mod device;
 mod mic;
 mod onboarding;
 mod overview;
@@ -41,20 +41,16 @@ const WINDOW_ICON_SIZE: u32 = 64;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Page {
     Overview,
-    Headset,
+    /// The page of the connected device at this index (ADR 0008).
+    Device(usize),
     AudioMix,
     Mic,
     Settings,
 }
 
 impl Page {
-    const ALL: [Self; 5] = [
-        Self::Overview,
-        Self::Headset,
-        Self::AudioMix,
-        Self::Mic,
-        Self::Settings,
-    ];
+    /// Fixed pages after the device list.
+    const TOOLS: [Self; 3] = [Self::AudioMix, Self::Mic, Self::Settings];
 
     /// Whether the page has anything to offer on this OS (no virtual mic on Windows).
     const fn available(self) -> bool {
@@ -64,7 +60,7 @@ impl Page {
     const fn icon(self) -> &'static str {
         match self {
             Self::Overview => "🏠",
-            Self::Headset => "🎧",
+            Self::Device(_) => "🎧",
             Self::AudioMix => "🔊",
             Self::Mic => "🎤",
             Self::Settings => "⚙",
@@ -74,7 +70,7 @@ impl Page {
     const fn label(self) -> &'static str {
         match self {
             Self::Overview => "Overview",
-            Self::Headset => "Headset",
+            Self::Device(_) => "Device",
             Self::AudioMix => "AudioMix",
             Self::Mic => "Microphone",
             Self::Settings => "Settings",
@@ -84,7 +80,7 @@ impl Page {
     /// Start page from `OPENSERIES_START_PAGE` (development hook for screenshots).
     fn from_env() -> Self {
         match std::env::var("OPENSERIES_START_PAGE").as_deref() {
-            Ok("headset") => Self::Headset,
+            Ok("headset" | "device") => Self::Device(0),
             Ok("audiomix") => Self::AudioMix,
             Ok("mic") if Self::Mic.available() => Self::Mic,
             Ok("settings") => Self::Settings,
@@ -198,7 +194,46 @@ impl App {
                 });
                 ui.add_space(12.0);
                 ui.spacing_mut().item_spacing.y = 2.0;
-                for page in Page::ALL.into_iter().filter(|p| p.available()) {
+                if components::nav_item(
+                    ui,
+                    Page::Overview.icon(),
+                    Page::Overview.label(),
+                    self.page == Page::Overview,
+                )
+                .clicked()
+                {
+                    self.page = Page::Overview;
+                }
+                ui.add_space(8.0);
+                ui.horizontal(|ui| {
+                    ui.add_space(8.0);
+                    ui.label(RichText::new("DEVICES").small().color(p.text_secondary));
+                });
+                if snapshot.devices.devices.is_empty() {
+                    ui.horizontal(|ui| {
+                        ui.add_space(8.0);
+                        ui.label(
+                            RichText::new("None connected")
+                                .small()
+                                .color(p.text_secondary),
+                        );
+                    });
+                }
+                for (index, d) in snapshot.devices.devices.iter().enumerate() {
+                    let page = Page::Device(index);
+                    if components::nav_item(
+                        ui,
+                        device::class_icon(d.info.class),
+                        d.info.name,
+                        self.page == page,
+                    )
+                    .clicked()
+                    {
+                        self.page = page;
+                    }
+                }
+                ui.add_space(8.0);
+                for page in Page::TOOLS.into_iter().filter(|p| p.available()) {
                     if components::nav_item(ui, page.icon(), page.label(), self.page == page)
                         .clicked()
                     {
@@ -214,8 +249,13 @@ impl App {
                     }
                     let (tone, word) = service_tone(&snapshot.audio.mix);
                     sidebar_status(ui, tone, &format!("AudioMix · {word}"));
-                    let (tone, text) = headset_summary(snapshot);
-                    sidebar_status(ui, tone, &text);
+                    for d in snapshot.devices.devices.iter().rev() {
+                        let (tone, text) = device_summary(d);
+                        sidebar_status(ui, tone, &text);
+                    }
+                    if snapshot.devices.devices.is_empty() {
+                        sidebar_status(ui, Tone::Error, "No device connected");
+                    }
                 });
             });
     }
@@ -234,9 +274,9 @@ impl App {
             components::banner(
                 ui,
                 Tone::Neutral,
-                "OpenSeries is paused: no Arctis Nova Pro base station is connected. Until it \
-                 is back, OpenSeries does not touch app audio, microphones or hotkeys, so other \
-                 headsets work undisturbed.",
+                "OpenSeries is paused: no supported device is connected. Until one is back, \
+                 OpenSeries does not touch app audio, microphones or hotkeys, so other devices \
+                 work undisturbed.",
             );
             ui.add_space(8.0);
         }
@@ -260,7 +300,7 @@ impl App {
         }
         match self.page {
             Page::Overview => overview::show(ui, &self.core, snapshot, &mut self.page),
-            Page::Headset => headset::show(ui, &self.core, snapshot),
+            Page::Device(index) => device::show(ui, &self.core, snapshot, index),
             Page::AudioMix => {
                 audiomix::show(ui, &self.core, snapshot, &mut self.show_idle_apps);
             }
@@ -318,25 +358,24 @@ fn sidebar_status(ui: &mut egui::Ui, tone: Tone, text: &str) {
     });
 }
 
-/// Tone and text of the headset line in the sidebar.
-fn headset_summary(snapshot: &Snapshot) -> (Tone, String) {
-    let headset = &snapshot.headset;
-    match headset.status {
-        Some(status) if status.connected => match status.headset_battery {
-            Some(battery) => {
-                let percent = battery.percent();
-                let tone = if percent <= crate::alerts::LOW_BATTERY_PERCENT {
-                    Tone::Warning
-                } else {
-                    Tone::Good
-                };
-                (tone, format!("Headset · {percent} %"))
-            }
-            None => (Tone::Good, "Headset · connected".to_owned()),
-        },
-        Some(_) => (Tone::Neutral, "Headset · off".to_owned()),
-        None if headset.base_station => (Tone::Neutral, "Headset · reading…".to_owned()),
-        None => (Tone::Error, "Base station not found".to_owned()),
+/// Tone and text of a device's line in the sidebar.
+fn device_summary(d: &crate::devices::DeviceSnapshot) -> (Tone, String) {
+    let word = device::class_word(d.info.class);
+    if !d.ready {
+        return (Tone::Neutral, format!("{word} · reading…"));
+    }
+    match (d.linked(), d.main_battery()) {
+        (Some(false), _) => (Tone::Neutral, format!("{word} · off")),
+        (_, Some(battery)) => {
+            let percent = battery.percent();
+            let tone = if percent <= crate::alerts::LOW_BATTERY_PERCENT {
+                Tone::Warning
+            } else {
+                Tone::Good
+            };
+            (tone, format!("{word} · {percent} %"))
+        }
+        _ => (Tone::Good, format!("{word} · connected")),
     }
 }
 

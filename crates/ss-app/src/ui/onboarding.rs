@@ -30,7 +30,7 @@ pub enum Step {
 impl Step {
     const fn title(self) -> &'static str {
         match self {
-            Self::BaseStation => "Connect the base station",
+            Self::BaseStation => "Connect your device",
             Self::Headset => "Turn the headset on",
             Self::AudioMix => "Turn on AudioMix",
             Self::MicDriver => "Install the microphone driver",
@@ -42,7 +42,8 @@ impl Step {
     const fn hint(self) -> &'static str {
         match self {
             Self::BaseStation => {
-                "Plug the base station into this computer by USB (on macOS the USB-1 port)."
+                "Plug it into this computer. The Arctis Nova Pro Wireless connects with its base \
+                 station by USB (on macOS the USB-1 port)."
             }
             Self::Headset => "Switch the headset on; it links to the base station by itself.",
             Self::AudioMix => {
@@ -74,19 +75,20 @@ pub fn steps(
     virtual_mic: bool,
     driver_installed: Option<bool>,
 ) -> Vec<(Step, bool)> {
-    let headset = &snapshot.headset;
+    let devices = &snapshot.devices;
     let config = &snapshot.config;
-    let mut list = vec![
-        (Step::BaseStation, headset.base_station),
-        (
+    let mut list = vec![(Step::BaseStation, devices.any())];
+    // Only devices with a wireless part need to be switched on separately.
+    if devices.devices.is_empty() || devices.devices.iter().any(|d| d.linked().is_some()) {
+        list.push((
             Step::Headset,
-            headset.status.is_some_and(|status| status.connected),
-        ),
-        (
-            Step::AudioMix,
-            config.audiomix.enabled && snapshot.audio.mix == ServiceStatus::Running,
-        ),
-    ];
+            devices.devices.iter().any(|d| d.linked() == Some(true)),
+        ));
+    }
+    list.extend([(
+        Step::AudioMix,
+        config.audiomix.enabled && snapshot.audio.mix == ServiceStatus::Running,
+    )]);
     if virtual_mic {
         list.push((Step::MicDriver, driver_installed == Some(true)));
         list.push((

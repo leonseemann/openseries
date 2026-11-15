@@ -22,6 +22,8 @@ pub struct Config {
     pub mic: MicConfig,
     /// App-level settings.
     pub app: AppConfig,
+    /// Device platform settings (ADR 0008).
+    pub devices: DevicesConfig,
     /// Saved sound presets.
     pub presets: crate::presets::PresetsConfig,
 }
@@ -45,6 +47,7 @@ impl Default for Config {
             audiomix: AudioMixConfig::default(),
             mic: MicConfig::default(),
             app: AppConfig::default(),
+            devices: DevicesConfig::default(),
             presets: crate::presets::PresetsConfig::default(),
         }
     }
@@ -269,6 +272,14 @@ pub struct AppConfig {
     pub onboarding_done: bool,
     /// In-app updates (ADR 0006).
     pub updates: UpdatesConfig,
+}
+
+/// Device platform settings (ADR 0008).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct DevicesConfig {
+    /// Also use drivers marked experimental (untested devices). Off by default.
+    pub experimental: bool,
 }
 
 /// In-app updates (ADR 0006).

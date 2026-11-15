@@ -14,7 +14,7 @@ pub fn audio_backend() -> AudioBackend {
 pub const VIRTUAL_MIC_SUPPORTED: bool = false;
 /// No audio backend, so no channel DSP.
 pub const CHANNEL_DSP_SUPPORTED: bool = false;
-/// Whether [`reset_base_usb`] can work on this OS.
+/// Whether [`reset_usb`] can work on this OS.
 pub const USB_RESET_SUPPORTED: bool = false;
 /// Whether [`watch_usb_underflows`] can work on this OS.
 pub const UNDERFLOW_WATCH_SUPPORTED: bool = false;
@@ -31,7 +31,7 @@ pub fn set_autostart(_enabled: bool) -> Result<(), String> {
 ///
 /// # Errors
 /// Always.
-pub fn reset_base_usb() -> Result<(), String> {
+pub fn reset_usb(_vendor_id: u16, _product_id: u16) -> Result<(), String> {
     Err("Reconnect USB is not available on this OS".to_owned())
 }
 

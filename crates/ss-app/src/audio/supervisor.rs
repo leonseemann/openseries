@@ -113,7 +113,7 @@ enum DefaultInput {
 }
 
 /// Shown for an enabled service while the base station is missing.
-pub const PAUSED_REASON: &str = "the Arctis Nova Pro base station is not connected";
+pub const PAUSED_REASON: &str = "no supported device is connected";
 
 /// Status of a service while the base station is missing: off stays off, on is paused.
 fn paused_status(enabled: bool) -> ServiceStatus {
@@ -142,9 +142,9 @@ pub struct AudioSupervisor<B: AudioBackend> {
     chatmix: Option<ChatMixBalance>,
     /// Headset link as last reported (`None` = unknown); drives the "headset off" fallback.
     headset_linked: Option<bool>,
-    /// A Nova Pro base station is connected. Without it nothing runs (`app.md` §8); `false`
+    /// A supported device is connected. Without one nothing runs (`app.md` §8); `false`
     /// until the headset thread has looked (fail safe).
-    base_station: bool,
+    device_present: bool,
     /// Whether we made the virtual mic the default input (SON-06).
     default_input: DefaultInput,
     status: AudioStatus,
@@ -166,7 +166,7 @@ impl<B: AudioBackend> AudioSupervisor<B> {
             failed_mic: None,
             chatmix: None,
             headset_linked: None,
-            base_station: false,
+            device_present: false,
             default_input: DefaultInput::Untouched,
             status: AudioStatus::default(),
         }
@@ -233,12 +233,12 @@ impl<B: AudioBackend> AudioSupervisor<B> {
         }
     }
 
-    /// The Nova Pro base station appeared or disappeared. Without it AudioMix, the mic feed and
+    /// The last supported device disappeared, or one appeared. Without one AudioMix, the mic feed and
     /// the default-input switch stop (and restore what they changed), so OpenSeries never
     /// interferes with other headsets (`docs/architecture/app.md` §8).
-    pub fn on_base_station(&mut self, present: bool) {
-        if self.base_station != present {
-            self.base_station = present;
+    pub fn on_device_present(&mut self, present: bool) {
+        if self.device_present != present {
+            self.device_present = present;
             self.reconcile();
         }
     }
@@ -307,7 +307,7 @@ impl<B: AudioBackend> AudioSupervisor<B> {
     }
 
     fn reconcile_mix(&mut self) {
-        if !self.base_station {
+        if !self.device_present {
             self.mix = None;
             self.failed_mix = None;
             self.status.routed_apps = 0;
@@ -367,7 +367,7 @@ impl<B: AudioBackend> AudioSupervisor<B> {
     }
 
     fn reconcile_mic(&mut self) {
-        if !self.base_station {
+        if !self.device_present {
             self.mic = None;
             self.failed_mic = None;
             self.status.mic = paused_status(self.config.mic.enabled);
@@ -564,7 +564,7 @@ mod tests {
         };
         let mut supervisor = AudioSupervisor::new(backend, Config::default());
         // Most tests assume the base station is connected; the gate has its own tests.
-        supervisor.on_base_station(true);
+        supervisor.on_device_present(true);
         Harness {
             supervisor,
             log,
@@ -574,9 +574,9 @@ mod tests {
     }
 
     #[test]
-    fn nothing_starts_before_the_base_station_is_seen() {
+    fn nothing_starts_before_the_device_present_is_seen() {
         let mut h = harness(false);
-        h.supervisor.on_base_station(false);
+        h.supervisor.on_device_present(false);
         let mut config = enabled_with(&[]);
         config.mic.enabled = true;
         h.supervisor.on_tick();
@@ -590,7 +590,7 @@ mod tests {
     }
 
     #[test]
-    fn unplugging_the_base_station_stops_everything_and_restores_the_default_input() {
+    fn unplugging_the_device_present_stops_everything_and_restores_the_default_input() {
         let mut h = harness(false);
         h.devices.borrow_mut().default_input = Some("hs-mic".to_owned());
         h.supervisor.on_tick();
@@ -600,12 +600,12 @@ mod tests {
         h.supervisor.on_config(config);
         assert_eq!(h.log.borrow().live_mixes, 1);
 
-        h.supervisor.on_base_station(false);
+        h.supervisor.on_device_present(false);
         assert_eq!(h.log.borrow().live_mixes, 0, "mix handle dropped");
         assert_eq!(h.log.borrow().default_inputs, vec!["vmic", "hs-mic"]);
         assert_eq!(h.supervisor.status().routed_apps, 0);
 
-        h.supervisor.on_base_station(true);
+        h.supervisor.on_device_present(true);
         assert_eq!(h.log.borrow().live_mixes, 1, "resumes on its own");
         assert_eq!(h.log.borrow().mix_starts.len(), 2);
     }
@@ -613,7 +613,7 @@ mod tests {
     #[test]
     fn disabled_services_stay_off_while_paused() {
         let mut h = harness(false);
-        h.supervisor.on_base_station(false);
+        h.supervisor.on_device_present(false);
         h.supervisor.on_config(Config::default());
         assert_eq!(h.supervisor.status().mix, ServiceStatus::Off);
         assert_eq!(h.supervisor.status().mic, ServiceStatus::Off);

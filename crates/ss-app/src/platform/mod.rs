@@ -4,7 +4,7 @@
 //! |---|---|---|
 //! | [`audio_backend`] | process taps + virtual mic (`ss-audio-macos`) | session mixer, no mic (`ss-audio-windows`, M4a) |
 //! | [`set_autostart`] | per-user `LaunchAgent` | `HKCU\…\Run` registry value |
-//! | [`reset_base_usb`] | `IOUSBHost` re-enumeration (`ss-usb-macos`) | not yet |
+//! | [`reset_usb`] | `IOUSBHost` re-enumeration (`ss-usb-macos`) | not yet |
 //! | [`watch_usb_underflows`] | `usbaudiod` log stream | not yet |
 //! | [`install_mic_driver`] | copies the bundled HAL driver with an admin prompt | not available (ADR 0004) |
 //! | [`install_update`] | swaps the `.app` bundle after quitting (ADR 0006) | runs the Inno Setup installer silently |
