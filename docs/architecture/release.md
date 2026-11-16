@@ -11,6 +11,10 @@ Decision: [ADR 0006](../adr/0006-distribution-and-updates.md). Workflow:
 3. CI builds both packages, signs them, checks the signatures against the key built into the app
    and publishes the release `v0.2.0` with generated notes. Installed apps see it within 6 hours
    (or at once via Settings → Updates → Check now).
+4. Update the Homebrew cask in [`leonseemann/homebrew-tap`](https://github.com/leonseemann/homebrew-tap):
+   `brew bump-cask-pr --version X.Y.Z leonseemann/tap/openseries`, or set `version` and `sha256`
+   in `Casks/openseries.rb` by hand. Users who installed with Homebrew still get updates through
+   the app (`auto_updates true`); the cask only matters for new installs.
 
 A manual run (Actions → Release → Run workflow) builds the same packages as workflow artifacts
 without publishing anything — useful to try the installer before tagging.
@@ -67,6 +71,8 @@ secret. Already notarized releases keep working after expiry (secure timestamp).
 - **macOS:** download the zip, open it, move `OpenSeries.app` to *Applications*, open it
   normally (notarized: macOS only asks "downloaded from the internet – open?"). Allow microphone
   and audio capture; install the virtual-mic driver from the Getting-started window.
+  Alternatively `brew install --cask leonseemann/tap/openseries`; `brew uninstall` also removes
+  the virtual-mic driver and the login item, `--zap` the settings folder.
 
 Later updates come through the app (Settings → Updates or the tray / menu bar).
 

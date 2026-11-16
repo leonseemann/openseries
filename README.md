@@ -16,6 +16,12 @@ prompt once (no paid Authenticode certificate); see
 [docs/architecture/release.md](docs/architecture/release.md) §4. Afterwards the app updates itself
 on request (Settings → Updates).
 
+On macOS also via [Homebrew](https://github.com/leonseemann/homebrew-tap):
+
+```bash
+brew install --cask leonseemann/tap/openseries
+```
+
 ## Layout
 - `docs/re/` — reverse-engineering notes; kept in a private repository (see AGENTS.md)
 - `docs/architecture/` — design of the Rust rewrite
