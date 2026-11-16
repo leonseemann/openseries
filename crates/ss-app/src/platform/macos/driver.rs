@@ -9,13 +9,12 @@ use std::process::Command;
 
 /// Bundle name of the driver (`scripts/macos/hal-driver.sh`).
 const DRIVER_BUNDLE: &str = "OpenSeriesMic.driver";
-/// Driver bundle of the former app name (StealSeries "StealSeries Microphone", ADR 0007).
-const LEGACY_DRIVER_BUNDLE: &str = "StealSeriesMic.driver";
 /// Where CoreAudio loads HAL plug-ins from.
 const HAL_DIR: &str = "/Library/Audio/Plug-Ins/HAL";
 
 /// Whether the driver bundle is installed.
 #[must_use]
+#[allow(clippy::unnecessary_wraps, reason = "same signature on every platform")]
 pub fn mic_driver_installed() -> Option<bool> {
     Some(Path::new(HAL_DIR).join(DRIVER_BUNDLE).exists())
 }
@@ -43,13 +42,10 @@ pub fn install_mic_driver() -> Result<(), String> {
     })?;
     let source = applescript_string(&source.to_string_lossy());
     let target = applescript_string(&format!("{HAL_DIR}/{DRIVER_BUNDLE}"));
-    // The driver of the former app name (ADR 0007) goes in the same step, so only one virtual
-    // microphone remains.
-    let legacy = applescript_string(&format!("{HAL_DIR}/{LEGACY_DRIVER_BUNDLE}"));
     let hal_dir = applescript_string(HAL_DIR);
     let script = format!(
-        "do shell script \"rm -rf \" & quoted form of {target} & \" \" & quoted form of {legacy} \
-         & \" && cp -R \" & quoted form of {source} & \" \" & quoted form of {hal_dir} & \" && \
+        "do shell script \"rm -rf \" & quoted form of {target} & \" && cp -R \" \
+         & quoted form of {source} & \" \" & quoted form of {hal_dir} & \" && \
          killall coreaudiod\" with administrator privileges"
     );
     let output = Command::new("/usr/bin/osascript")
@@ -68,7 +64,7 @@ pub fn install_mic_driver() -> Result<(), String> {
     }
 }
 
-/// An AppleScript string literal (quotes and backslashes escaped).
+/// An `AppleScript` string literal (quotes and backslashes escaped).
 fn applescript_string(text: &str) -> String {
     let escaped = text.replace('\\', "\\\\").replace('"', "\\\"");
     format!("\"{escaped}\"")

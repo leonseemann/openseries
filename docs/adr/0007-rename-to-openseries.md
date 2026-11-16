@@ -27,6 +27,10 @@ OpenRazer and OpenLogi (independent open-source tools for a vendor's hardware).
 
 ## Migration from StealSeries builds
 
+**Removed again on 2026-11-16:** StealSeries never had a public release, so the only installs
+were the owner's test builds, which were migrated by hand. The migration code below is gone from
+the app; the table records what it did.
+
 | Item | What happens |
 |---|---|
 | Settings and presets | `ss-store` moves the `StealSeries` config folder to `OpenSeries` on first start (only if the new one does not exist yet). |

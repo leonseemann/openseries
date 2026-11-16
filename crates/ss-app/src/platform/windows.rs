@@ -46,27 +46,6 @@ const SILENT_INSTALL_ARGS: [&str; 4] = ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NO
 const RUN_KEY: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
 /// Value name under [`RUN_KEY`].
 const RUN_VALUE: &str = "OpenSeries";
-/// Run value of the former app name (StealSeries, ADR 0007).
-const LEGACY_RUN_VALUE: &str = "StealSeries";
-/// Toast registration of the former app name (ADR 0007).
-const LEGACY_AUMID_KEY: &str = r"HKCU\Software\Classes\AppUserModelId\StealSeries.App";
-
-/// Removes what the former app name (StealSeries) registered: its "start at login" value and its
-/// toast sender. Settings move with `ss-store`; autostart is re-applied under the new name at
-/// start-up if it was on.
-pub fn remove_legacy_registrations() {
-    for args in [
-        vec!["delete", RUN_KEY, "/v", LEGACY_RUN_VALUE, "/f"],
-        vec!["delete", LEGACY_AUMID_KEY, "/f"],
-    ] {
-        // Fails harmlessly when nothing is there.
-        let _ = Command::new("reg")
-            .args(args)
-            .creation_flags(CREATE_NO_WINDOW)
-            .output();
-    }
-}
-
 /// Starts the app at login via the per-user `Run` registry value (verified on Windows 11, 2026-11-14).
 ///
 /// # Errors

@@ -8,13 +8,6 @@ mod update;
 
 pub use app_info::AppInfoCache;
 pub use autostart::set as set_autostart;
-
-/// Removes what the former app name (StealSeries) registered: its login item. Its virtual-mic
-/// driver is replaced by "Install driver…" ([`install_mic_driver`]); settings move with
-/// `ss-store` (ADR 0007).
-pub fn remove_legacy_registrations() {
-    autostart::remove_legacy();
-}
 pub use driver::{install_mic_driver, mic_driver_installed};
 pub use underflow::{UnderflowWatch, watch_usb_underflows};
 pub use update::{install_update, update_install_target};
@@ -74,5 +67,6 @@ impl NativeWindow {
     }
 
     /// No-op.
+    #[allow(clippy::unused_self, reason = "same signature on every platform")]
     pub fn show(self) {}
 }

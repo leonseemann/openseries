@@ -38,9 +38,6 @@ pub fn reset_usb(_vendor_id: u16, _product_id: u16) -> Result<(), String> {
 /// Nothing to register on this OS.
 pub fn init_notifications() {}
 
-/// The former app name registered nothing on this OS.
-pub fn remove_legacy_registrations() {}
-
 /// Nothing per notification on this OS.
 pub fn prepare_notification(_notification: &mut notify_rust::Notification) {}
 

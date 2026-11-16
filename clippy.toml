@@ -1,4 +1,4 @@
 allow-unwrap-in-tests = true
 allow-expect-in-tests = true
 allow-panic-in-tests = true
-doc-valid-idents = ["OpenSeries", "StealSeries", "AudioMix", "IOProc", "CoreFoundation", "SteelSeries", "ChatMix", "CoreAudio", "WASAPI", "RNNoise", "ClearCast", "DeepFilterNet", "FineTune", ".."]
+doc-valid-idents = ["OpenSeries", "AudioMix", "IOProc", "CoreFoundation", "SteelSeries", "ChatMix", "CoreAudio", "WASAPI", "RNNoise", "ClearCast", "DeepFilterNet", "FineTune", ".."]

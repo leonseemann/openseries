@@ -16,9 +16,6 @@ use crate::config::{CONFIG_VERSION, Config};
 
 /// Folder name below the OS config directory.
 const APP_DIR: &str = "OpenSeries";
-/// Folder of the app's former name (StealSeries, renamed 2026-11-15, ADR 0007); moved to
-/// [`APP_DIR`] on first start so settings and presets carry over.
-const LEGACY_APP_DIR: &str = "StealSeries";
 /// File name of the configuration.
 const FILE_NAME: &str = "config.json";
 
@@ -74,7 +71,6 @@ impl Store {
             path: PathBuf::new(),
             source: io::Error::new(io::ErrorKind::NotFound, "no home directory"),
         })?;
-        adopt_legacy_dir(&base);
         Ok(Self::at(base.join(APP_DIR).join(FILE_NAME)))
     }
 
@@ -169,15 +165,6 @@ impl Store {
     }
 }
 
-/// Moves the folder of the former app name to the new one if only the old one exists.
-fn adopt_legacy_dir(base: &Path) {
-    let (legacy, current) = (base.join(LEGACY_APP_DIR), base.join(APP_DIR));
-    if legacy.is_dir() && !current.exists() {
-        // Best effort: on failure the app starts with defaults and the old folder stays intact.
-        let _ = fs::rename(&legacy, &current);
-    }
-}
-
 /// The OS-specific per-user configuration directory.
 fn config_base_dir() -> Option<PathBuf> {
     if cfg!(target_os = "windows") {
@@ -195,22 +182,6 @@ fn config_base_dir() -> Option<PathBuf> {
 mod tests {
     use super::*;
     use crate::config::Channel;
-
-    #[test]
-    fn settings_of_the_former_name_are_adopted_once() {
-        let base = std::env::temp_dir().join(format!("ss-store-legacy-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&base);
-        fs::create_dir_all(base.join(LEGACY_APP_DIR)).unwrap();
-        fs::write(base.join(LEGACY_APP_DIR).join(FILE_NAME), "{}").unwrap();
-        adopt_legacy_dir(&base);
-        assert!(base.join(APP_DIR).join(FILE_NAME).exists());
-        assert!(!base.join(LEGACY_APP_DIR).exists());
-        // An existing new folder is never replaced.
-        fs::create_dir_all(base.join(LEGACY_APP_DIR)).unwrap();
-        adopt_legacy_dir(&base);
-        assert!(base.join(LEGACY_APP_DIR).exists());
-        let _ = fs::remove_dir_all(&base);
-    }
 
     /// A fresh directory below the system temp dir, removed on drop.
     struct TempDir(PathBuf);

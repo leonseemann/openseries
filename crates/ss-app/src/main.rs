@@ -43,7 +43,6 @@ const NO_HEADSET_ENV: &str = "OPENSERIES_NO_HEADSET";
 
 fn main() -> Result<()> {
     let headless = std::env::args().any(|a| a == "--headless");
-    platform::remove_legacy_registrations();
     platform::init_notifications();
     if std::env::args().any(|a| a == "--test-notification") {
         // Self-test of the OS notification path, no services started.
