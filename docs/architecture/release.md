@@ -11,10 +11,13 @@ Decision: [ADR 0006](../adr/0006-distribution-and-updates.md). Workflow:
 3. CI builds both packages, signs them, checks the signatures against the key built into the app
    and publishes the release `v0.2.0` with generated notes. Installed apps see it within 6 hours
    (or at once via Settings → Updates → Check now).
-4. Update the Homebrew cask in [`leonseemann/homebrew-tap`](https://github.com/leonseemann/homebrew-tap):
-   `brew bump-cask-pr --version X.Y.Z leonseemann/tap/openseries`, or set `version` and `sha256`
-   in `Casks/openseries.rb` by hand. Users who installed with Homebrew still get updates through
-   the app (`auto_updates true`); the cask only matters for new installs.
+4. The `homebrew` job then sets `version` and `sha256` in `Casks/openseries.rb` of
+   [`leonseemann/homebrew-tap`](https://github.com/leonseemann/homebrew-tap) and pushes the change,
+   using the deploy key in the secret `HOMEBREW_TAP_DEPLOY_KEY` (write access to the tap only).
+   Without the secret it only warns; then bump by hand:
+   `brew bump-cask-pr --version X.Y.Z leonseemann/tap/openseries`. Users who installed with
+   Homebrew get updates through the app anyway (`auto_updates true`); the cask only matters for
+   new installs.
 
 A manual run (Actions → Release → Run workflow) builds the same packages as workflow artifacts
 without publishing anything — useful to try the installer before tagging.

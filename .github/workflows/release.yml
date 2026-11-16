@@ -186,3 +186,54 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --title "OpenSeries $VERSION" \
             --generate-notes
+
+  homebrew:
+    name: Homebrew cask
+    # Points leonseemann/homebrew-tap at the new release (release.md §1). Without the deploy key
+    # the release still succeeds and the cask is bumped by hand.
+    if: github.ref_type == 'tag'
+    needs: [version, publish]
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      TAP_DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+    steps:
+      - id: key
+        name: Deploy key present
+        run: |
+          if [ -n "$TAP_DEPLOY_KEY" ]; then
+            echo "present=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::HOMEBREW_TAP_DEPLOY_KEY missing; bump the cask by hand (release.md §1)"
+          fi
+      # The zip of this run: the same bytes as the release asset.
+      - uses: actions/download-artifact@v8
+        if: steps.key.outputs.present == '1'
+        with:
+          name: macos
+          path: dist
+      - uses: actions/checkout@v5
+        if: steps.key.outputs.present == '1'
+        with:
+          repository: leonseemann/homebrew-tap
+          ssh-key: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+          path: tap
+      - name: Bump version and checksum
+        if: steps.key.outputs.present == '1'
+        run: |
+          sha=$(sha256sum "dist/OpenSeries-$VERSION-macos-arm64.zip" | cut -d' ' -f1)
+          cask=tap/Casks/openseries.rb
+          sed -i -E "s/^  version \".*\"/  version \"$VERSION\"/; s/^  sha256 \".*\"/  sha256 \"$sha\"/" "$cask"
+          grep -q "^  version \"$VERSION\"" "$cask" && grep -q "^  sha256 \"$sha\"" "$cask" || {
+            echo "::error::could not update $cask"
+            exit 1
+          }
+          cd tap
+          if git diff --quiet; then
+            echo "cask already at $VERSION"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "feat: openseries $VERSION"
+          git push
