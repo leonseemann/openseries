@@ -20,11 +20,7 @@ const THIRD_PARTY_LICENSES: &str = include_str!("../../THIRD_PARTY_LICENSES.md")
 const LICENSE_VIEW_HEIGHT: f32 = 260.0;
 
 pub fn show(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, capture: &mut HotkeyCapture) {
-    components::page_header(
-        ui,
-        "Settings",
-        "How OpenSeries starts, notifies and reacts to keys.",
-    );
+    components::page_header(ui, &tr!("settings-title"), &tr!("settings-subtitle"));
     general_card(ui, core, snapshot);
     hotkeys_card(ui, core, snapshot, capture);
     if platform::UNDERFLOW_WATCH_SUPPORTED {
@@ -75,13 +71,13 @@ fn updates_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
     if snapshot.update == UpdateState::Unsupported {
         return;
     }
-    components::card(ui, Some("Updates"), |ui| {
+    components::card(ui, Some(&tr!("settings-updates")), |ui| {
         let p = theme::palette(ui);
         let mut automatic = snapshot.config.app.updates.check_automatically;
         components::row(
             ui,
-            "Check for updates automatically",
-            Some("Looks for a new version on GitHub after start and every 6 hours."),
+            &tr!("settings-updates-automatic"),
+            Some(&tr!("settings-updates-automatic-hint")),
             |ui| {
                 if components::switch(ui, &mut automatic) {
                     core.update_config(|c| c.app.updates.check_automatically = automatic);
@@ -91,13 +87,13 @@ fn updates_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
         components::divider(ui);
         let state = &snapshot.update;
         let (tone, text) = update_status(state);
-        components::row(ui, "Status", None, |ui| {
+        components::row(ui, &tr!("settings-updates-status"), None, |ui| {
             match state {
                 UpdateState::Available(_)
                 | UpdateState::Failed {
                     update: Some(_), ..
                 } => {
-                    if ui.button("Install update").clicked() {
+                    if ui.button(tr!("settings-updates-install")).clicked() {
                         core.install_update();
                     }
                 }
@@ -105,7 +101,7 @@ fn updates_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
                     ui.spinner();
                 }
                 _ => {
-                    if ui.button("Check now").clicked() {
+                    if ui.button(tr!("settings-updates-check-now")).clicked() {
                         core.check_for_updates();
                     }
                 }
@@ -115,14 +111,12 @@ fn updates_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
         if let Some(update) = state.update() {
             ui.horizontal_wrapped(|ui| {
                 ui.label(
-                    RichText::new(
-                        "Installing quits OpenSeries for a moment; it starts again by itself.",
-                    )
-                    .small()
-                    .color(p.text_secondary),
+                    RichText::new(tr!("settings-updates-install-hint"))
+                        .small()
+                        .color(p.text_secondary),
                 );
                 ui.hyperlink_to(
-                    RichText::new("What's new").small(),
+                    RichText::new(tr!("settings-updates-whats-new")).small(),
                     update.page_url.as_str(),
                 );
             });
@@ -137,11 +131,14 @@ fn updates_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
 /// Tone and status text of the update row.
 fn update_status(state: &UpdateState) -> (Tone, String) {
     match state {
-        UpdateState::Idle => (Tone::Neutral, "Not checked yet".to_owned()),
-        UpdateState::Checking => (Tone::Neutral, "Checking…".to_owned()),
+        UpdateState::Idle => (Tone::Neutral, tr!("settings-updates-not-checked")),
+        UpdateState::Checking => (Tone::Neutral, tr!("settings-updates-checking")),
         UpdateState::UpToDate { .. } => (
             Tone::Good,
-            format!("Up to date ({})", env!("CARGO_PKG_VERSION")),
+            tr!(
+                "settings-updates-up-to-date",
+                version = env!("CARGO_PKG_VERSION")
+            ),
         ),
         UpdateState::Available(update)
         | UpdateState::Failed {
@@ -149,7 +146,10 @@ fn update_status(state: &UpdateState) -> (Tone, String) {
             ..
         } => (
             Tone::Warning,
-            format!("Version {} is available", update.version),
+            tr!(
+                "settings-updates-available",
+                version = update.version.to_string()
+            ),
         ),
         UpdateState::Downloading { update, received } => {
             let percent = (received * 100)
@@ -157,12 +157,21 @@ fn update_status(state: &UpdateState) -> (Tone, String) {
                 .unwrap_or(0);
             (
                 Tone::Neutral,
-                format!("Downloading {} … {percent} %", update.version),
+                tr!(
+                    "settings-updates-downloading",
+                    version = update.version.to_string(),
+                    percent = percent
+                ),
             )
         }
-        UpdateState::Installing(version) => (Tone::Neutral, format!("Installing {version}…")),
-        UpdateState::Failed { update: None, .. } => (Tone::Error, "Check failed".to_owned()),
-        UpdateState::Unsupported => (Tone::Neutral, "Not available".to_owned()),
+        UpdateState::Installing(version) => (
+            Tone::Neutral,
+            tr!("settings-updates-installing", version = version.to_string()),
+        ),
+        UpdateState::Failed { update: None, .. } => {
+            (Tone::Error, tr!("settings-updates-check-failed"))
+        }
+        UpdateState::Unsupported => (Tone::Neutral, tr!("settings-updates-unavailable")),
     }
 }
 
@@ -175,14 +184,14 @@ fn capitalise(text: &str) -> String {
 }
 
 fn general_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
-    components::card(ui, Some("General"), |ui| {
+    components::card(ui, Some(&tr!("settings-general")), |ui| {
         language_row(ui, core, snapshot);
         components::divider(ui);
         let mut autostart = snapshot.config.app.autostart;
         components::row(
             ui,
-            "Start at login",
-            Some("OpenSeries waits in the menu bar / tray."),
+            &tr!("settings-autostart"),
+            Some(&tr!("settings-autostart-hint")),
             |ui| {
                 if components::switch(ui, &mut autostart) {
                     core.update_config(|c| c.app.autostart = autostart);
@@ -193,11 +202,8 @@ fn general_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
         let mut experimental = snapshot.config.devices.experimental;
         components::row(
             ui,
-            "Experimental devices",
-            Some(
-                "Also use drivers that were not tested on hardware yet. They may not work as \
-                 described.",
-            ),
+            &tr!("settings-experimental"),
+            Some(&tr!("settings-experimental-hint")),
             |ui| {
                 if components::switch(ui, &mut experimental) {
                     core.update_config(|c| c.devices.experimental = experimental);
@@ -209,15 +215,21 @@ fn general_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
         let test_id = ui.id().with("notification-test");
         components::row(
             ui,
-            "Notifications",
-            Some("Headset connected or disconnected, low battery, audio errors."),
+            &tr!("settings-notifications"),
+            Some(&tr!("settings-notifications-hint")),
             |ui| {
                 if components::switch(ui, &mut notifications) {
                     core.update_config(|c| c.app.notifications.enabled = notifications);
                 }
-                if ui.small_button("Send test").clicked() {
-                    let result = crate::alerts::show("Test notification")
-                        .map_or_else(|e| format!("Could not send: {e}"), |()| "Sent".to_owned());
+                if ui
+                    .small_button(tr!("settings-notifications-test"))
+                    .clicked()
+                {
+                    let result = crate::alerts::show(&tr!("settings-notifications-test-text"))
+                        .map_or_else(
+                            |e| tr!("settings-notifications-test-failed", error = e),
+                            |()| tr!("settings-notifications-test-sent"),
+                        );
                     ui.data_mut(|d| d.insert_temp(test_id, result));
                 }
                 if let Some(result) = ui.data(|d| d.get_temp::<String>(test_id)) {
@@ -248,10 +260,10 @@ fn hotkeys_card(
     if let Some(action) = capture.recording {
         record(ui, core, config, action, capture);
     }
-    components::card(ui, Some("Hotkeys"), |ui| {
+    components::card(ui, Some(&tr!("settings-hotkeys")), |ui| {
         let p = theme::palette(ui);
         ui.label(
-            RichText::new("Work everywhere, also while OpenSeries is in the background.")
+            RichText::new(tr!("settings-hotkeys-hint"))
                 .small()
                 .color(p.text_secondary),
         );
@@ -263,20 +275,23 @@ fn hotkeys_card(
             if index > 0 {
                 components::divider(ui);
             }
-            components::row(ui, action.label(), None, |ui| {
+            components::row(ui, &action.label(), None, |ui| {
                 if ui
-                    .add_enabled(action.binding(config).is_some(), egui::Button::new("Clear"))
+                    .add_enabled(
+                        action.binding(config).is_some(),
+                        egui::Button::new(tr!("settings-hotkeys-clear")),
+                    )
                     .clicked()
                 {
                     core.update_config(|c| *action.binding_mut(&mut c.app.hotkeys) = None);
                 }
                 if capture.recording == Some(action) {
-                    if ui.button("Cancel").clicked() {
+                    if ui.button(tr!("settings-cancel")).clicked() {
                         capture.recording = None;
                     }
-                    ui.label(RichText::new("Press the new keys…").color(p.accent));
+                    ui.label(RichText::new(tr!("settings-hotkeys-recording")).color(p.accent));
                 } else {
-                    if ui.button("Change").clicked() {
+                    if ui.button(tr!("settings-hotkeys-change")).clicked() {
                         capture.recording = Some(action);
                         capture.message = None;
                     }
@@ -289,7 +304,7 @@ fn hotkeys_card(
         }
         if *config != HotkeysConfig::default() {
             components::divider(ui);
-            if ui.button("Reset hotkeys to defaults").clicked() {
+            if ui.button(tr!("settings-hotkeys-reset")).clicked() {
                 core.update_config(|c| c.app.hotkeys = HotkeysConfig::default());
             }
         }
@@ -299,6 +314,7 @@ fn hotkeys_card(
 /// A key combination drawn like a keycap.
 fn key_chip(ui: &mut egui::Ui, binding: Option<&str>) {
     let p = theme::palette(ui);
+    let not_set = tr!("settings-hotkeys-not-set");
     egui::Frame::new()
         .fill(p.control)
         .stroke(egui::Stroke::new(1.0_f32, p.border))
@@ -306,7 +322,7 @@ fn key_chip(ui: &mut egui::Ui, binding: Option<&str>) {
         .inner_margin(egui::Margin::symmetric(8, 3))
         .show(ui, |ui| {
             ui.label(
-                RichText::new(binding.unwrap_or("Not set"))
+                RichText::new(binding.unwrap_or(&not_set))
                     .monospace()
                     .color(if binding.is_some() {
                         p.text
@@ -352,9 +368,10 @@ fn record(
                         .is_some_and(|b| same_binding(b, &binding))
             });
             if let Some(other) = taken {
-                capture.message = Some(format!(
-                    "{binding} is already used by \"{}\".",
-                    other.label()
+                capture.message = Some(tr!(
+                    "settings-hotkeys-taken",
+                    binding = binding.as_str(),
+                    action = other.label()
                 ));
             } else {
                 core.update_config(|c| *action.binding_mut(&mut c.app.hotkeys) = Some(binding));
@@ -368,15 +385,12 @@ fn record(
 }
 
 fn crackling_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
-    components::card(ui, Some("Crackling"), |ui| {
+    components::card(ui, Some(&tr!("settings-crackling")), |ui| {
         let mut enabled = snapshot.config.app.auto_fix_crackling;
         components::row(
             ui,
-            "Fix crackling automatically",
-            Some(
-                "When the base station's USB audio stutters, OpenSeries reconnects it: about \
-                 one second of silence instead of ongoing crackling.",
-            ),
+            &tr!("settings-crackling-auto"),
+            Some(&tr!("settings-crackling-auto-hint")),
             |ui| {
                 if components::switch(ui, &mut enabled) {
                     core.update_config(|c| c.app.auto_fix_crackling = enabled);
@@ -387,32 +401,34 @@ fn crackling_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
         if let Some(error) = &status.error {
             components::banner(ui, Tone::Error, error);
         } else if status.active {
-            let last = status
-                .last_fix
-                .and_then(|t| t.elapsed().ok())
-                .map_or_else(String::new, |ago| format!(", last {} s ago", ago.as_secs()));
-            components::status(
-                ui,
-                Tone::Good,
-                &format!("Watching · fixed {} time(s){last}", status.fixes),
+            let text = status.last_fix.and_then(|t| t.elapsed().ok()).map_or_else(
+                || tr!("settings-crackling-watching", fixes = status.fixes),
+                |ago| {
+                    tr!(
+                        "settings-crackling-watching-last",
+                        fixes = status.fixes,
+                        seconds = ago.as_secs()
+                    )
+                },
             );
+            components::status(ui, Tone::Good, &text);
         }
     });
 }
 
 fn about_card(ui: &mut egui::Ui, core: &AppCore) {
-    components::card(ui, Some("About"), |ui| {
+    components::card(ui, Some(&tr!("settings-about")), |ui| {
         let p = theme::palette(ui);
-        components::row(ui, "Version", None, |ui| {
+        components::row(ui, &tr!("settings-about-version"), None, |ui| {
             ui.label(RichText::new(env!("CARGO_PKG_VERSION")).color(p.text));
         });
         components::divider(ui);
         // Long paths wrap under the label instead of pushing the row wider than the card.
         let path = core.config_path().display().to_string();
-        components::row(ui, "Settings file", Some(&path), |ui| {
+        components::row(ui, &tr!("settings-about-file"), Some(&path), |ui| {
             if ui
-                .small_button("Copy path")
-                .on_hover_text("Copies the path to the clipboard.")
+                .small_button(tr!("settings-about-copy-path"))
+                .on_hover_text(tr!("settings-about-copy-path-hint"))
                 .clicked()
             {
                 ui.ctx().copy_text(path.clone());
@@ -421,10 +437,10 @@ fn about_card(ui: &mut egui::Ui, core: &AppCore) {
         components::divider(ui);
         components::row(
             ui,
-            "Getting started",
-            Some("The checklist from the first start."),
+            &tr!("settings-about-getting-started"),
+            Some(&tr!("settings-about-getting-started-hint")),
             |ui| {
-                if ui.button("Show").clicked() {
+                if ui.button(tr!("settings-about-show")).clicked() {
                     core.update_config(|c| c.app.onboarding_done = false);
                 }
             },
@@ -434,22 +450,19 @@ fn about_card(ui: &mut egui::Ui, core: &AppCore) {
         components::divider(ui);
         components::row(
             ui,
-            "Quit OpenSeries",
-            Some("Closing the window keeps OpenSeries running in the background."),
+            &tr!("settings-about-quit"),
+            Some(&tr!("settings-about-quit-hint")),
             |ui| {
-                if ui.button("Quit").clicked() {
+                if ui.button(tr!("settings-about-quit-button")).clicked() {
                     crate::quit(core);
                 }
             },
         );
         ui.add_space(4.0);
         ui.label(
-            RichText::new(
-                "Independent open-source software (MIT OR Apache-2.0), free of charge. Not \
-                 affiliated with SteelSeries.",
-            )
-            .small()
-            .color(p.text_secondary),
+            RichText::new(tr!("settings-about-disclaimer"))
+                .small()
+                .color(p.text_secondary),
         );
         third_party_licenses(ui);
     });
@@ -462,10 +475,10 @@ fn reset_settings(ui: &mut egui::Ui, core: &AppCore) {
     let confirming = ui.data(|d| d.get_temp::<bool>(id)).unwrap_or(false);
     components::row(
         ui,
-        "Reset settings",
-        Some("Back to defaults; your presets are kept. The headset is not changed."),
+        &tr!("settings-reset"),
+        Some(&tr!("settings-reset-hint")),
         |ui| {
-            if !confirming && ui.button("Reset…").clicked() {
+            if !confirming && ui.button(tr!("settings-reset-button")).clicked() {
                 ui.data_mut(|d| d.insert_temp(id, true));
             }
         },
@@ -473,25 +486,22 @@ fn reset_settings(ui: &mut egui::Ui, core: &AppCore) {
     if !confirming {
         return;
     }
-    components::banner(
-        ui,
-        Tone::Warning,
-        "Reset AudioMix, microphone, hotkeys, notifications and all other OpenSeries settings? \
-         AudioMix and the virtual microphone switch off and start at login is turned off.",
-    );
+    components::banner(ui, Tone::Warning, &tr!("settings-reset-confirm"));
     ui.horizontal(|ui| {
         let p = theme::palette(ui);
         if ui
             .add(
-                egui::Button::new(RichText::new("Reset everything").color(egui::Color32::WHITE))
-                    .fill(p.error),
+                egui::Button::new(
+                    RichText::new(tr!("settings-reset-everything")).color(egui::Color32::WHITE),
+                )
+                .fill(p.error),
             )
             .clicked()
         {
             core.update_config(|c| *c = c.reset_keeping_presets());
             ui.data_mut(|d| d.insert_temp(id, false));
         }
-        if ui.button("Cancel").clicked() {
+        if ui.button(tr!("settings-cancel")).clicked() {
             ui.data_mut(|d| d.insert_temp(id, false));
         }
     });
@@ -500,7 +510,7 @@ fn reset_settings(ui: &mut egui::Ui, core: &AppCore) {
 fn third_party_licenses(ui: &mut egui::Ui) {
     static LINES: OnceLock<Vec<&'static str>> = OnceLock::new();
     let lines = LINES.get_or_init(|| THIRD_PARTY_LICENSES.lines().collect());
-    egui::CollapsingHeader::new("Third-party licences").show(ui, |ui| {
+    egui::CollapsingHeader::new(tr!("settings-about-licences")).show(ui, |ui| {
         let row_height = ui.text_style_height(&egui::TextStyle::Monospace);
         egui::ScrollArea::vertical()
             .max_height(LICENSE_VIEW_HEIGHT)
