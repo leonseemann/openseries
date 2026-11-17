@@ -12,6 +12,7 @@ use ss_core::battery::ChargeState;
 
 use crate::audio::supervisor::ServiceStatus;
 use crate::core::{AppCore, Snapshot};
+use crate::i18n::tr;
 
 /// How often the state is checked.
 const POLL_INTERVAL: Duration = Duration::from_secs(1);
@@ -58,28 +59,59 @@ pub enum Alert {
     },
     /// An audio service failed to start.
     ServiceFailed {
-        /// "AudioMix" or "Virtual microphone".
-        service: &'static str,
+        /// Which one.
+        service: Service,
         /// The reason.
         message: String,
     },
 }
 
+/// An audio service that can fail.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Service {
+    AudioMix,
+    VirtualMic,
+}
+
+impl Service {
+    /// The service's name in the UI language.
+    fn name(self) -> String {
+        match self {
+            Self::AudioMix => tr!("alert-service-audiomix"),
+            Self::VirtualMic => tr!("alert-service-virtual-mic"),
+        }
+    }
+}
+
 impl Alert {
-    /// Notification text.
+    /// Notification text in the UI language.
     #[must_use]
     pub fn text(&self) -> String {
         match self {
-            Self::Linked { device } => format!("{device} connected"),
-            Self::Unlinked { device } => format!("{device} disconnected (off or out of range)"),
-            Self::Gone { device, hub } => {
-                format!("{device}: {hub} disconnected — unplugged or switched to another computer")
-            }
-            Self::Back { device, hub } => format!("{device}: {hub} connected"),
+            Self::Linked { device } => tr!("alert-linked", device = device.to_string()),
+            Self::Unlinked { device } => tr!("alert-unlinked", device = device.to_string()),
+            Self::Gone { device, hub } => tr!(
+                "alert-gone",
+                device = device.to_string(),
+                hub = hub.to_string()
+            ),
+            Self::Back { device, hub } => tr!(
+                "alert-back",
+                device = device.to_string(),
+                hub = hub.to_string()
+            ),
             Self::BatteryLow { device, percent } => {
-                format!("{device}: battery low (≈{percent} %)")
+                tr!(
+                    "alert-battery-low",
+                    device = device.to_string(),
+                    percent = u32::from(*percent)
+                )
             }
-            Self::ServiceFailed { service, message } => format!("{service} stopped: {message}"),
+            Self::ServiceFailed { service, message } => tr!(
+                "alert-service-failed",
+                service = service.name(),
+                message = message.as_str()
+            ),
         }
     }
 }
@@ -189,8 +221,8 @@ impl AlertTracker {
             self.battery(key, device, &mut alerts);
         }
         for (service, before, after) in [
-            ("AudioMix", &last.mix, &now.mix),
-            ("Virtual microphone", &last.mic, &now.mic),
+            (Service::AudioMix, &last.mix, &now.mix),
+            (Service::VirtualMic, &last.mic, &now.mic),
         ] {
             if let ServiceStatus::Failed(message) = after
                 && before != after

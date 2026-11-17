@@ -86,7 +86,7 @@ pub fn set_autostart(enabled: bool) -> Result<(), String> {
 /// # Errors
 /// Always.
 pub fn reset_usb(_vendor_id: u16, _product_id: u16) -> Result<(), String> {
-    Err("Reconnect USB is not available on Windows yet".to_owned())
+    Err(crate::i18n::tr!("platform-usb-reset-unavailable"))
 }
 
 /// Not available on Windows yet.
@@ -99,7 +99,7 @@ pub struct UnderflowWatch;
 pub fn watch_usb_underflows(
     _on_underflow: impl Fn() + Send + 'static,
 ) -> Result<UnderflowWatch, String> {
-    Err("the crackling watch is not available on Windows yet".to_owned())
+    Err(crate::i18n::tr!("platform-crackling-watch-unavailable"))
 }
 
 /// The main window's native handle, used to show it again from the tray.
@@ -134,7 +134,7 @@ pub const fn mic_driver_installed() -> Option<bool> {
 /// # Errors
 /// Always.
 pub fn install_mic_driver() -> Result<(), String> {
-    Err("no virtual-mic driver for this operating system yet".to_owned())
+    Err(crate::i18n::tr!("platform-mic-driver-unavailable"))
 }
 
 /// Toast sender ID (AUMID). The installer's Start-menu shortcut carries the same ID

@@ -110,7 +110,7 @@ fn quick_controls(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, page: 
                     core.update_config(|c| c.audiomix.enabled = enabled);
                 }
                 let (tone, word) = components::service_tone(&snapshot.audio.mix);
-                components::status(ui, tone, word);
+                components::status(ui, tone, &word);
                 if ui.small_button("Manage").clicked() {
                     *page = Page::AudioMix;
                 }

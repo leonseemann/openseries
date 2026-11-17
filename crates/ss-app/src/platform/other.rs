@@ -24,7 +24,7 @@ pub const UNDERFLOW_WATCH_SUPPORTED: bool = false;
 /// # Errors
 /// Always.
 pub fn set_autostart(_enabled: bool) -> Result<(), String> {
-    Err("autostart is not available on this operating system".to_owned())
+    Err(crate::i18n::tr!("platform-autostart-unavailable"))
 }
 
 /// Not available on this OS.
@@ -32,7 +32,7 @@ pub fn set_autostart(_enabled: bool) -> Result<(), String> {
 /// # Errors
 /// Always.
 pub fn reset_usb(_vendor_id: u16, _product_id: u16) -> Result<(), String> {
-    Err("Reconnect USB is not available on this OS".to_owned())
+    Err(crate::i18n::tr!("platform-usb-reset-unavailable"))
 }
 
 /// Nothing to register on this OS.
@@ -58,7 +58,7 @@ pub struct UnderflowWatch;
 pub fn watch_usb_underflows(
     _on_underflow: impl Fn() + Send + 'static,
 ) -> Result<UnderflowWatch, String> {
-    Err("the crackling watch is not available on this OS".to_owned())
+    Err(crate::i18n::tr!("platform-crackling-watch-unavailable"))
 }
 
 /// Not needed on this OS: eframe's `ViewportCommand::Visible` works on hidden windows here.
@@ -86,7 +86,7 @@ pub const fn mic_driver_installed() -> Option<bool> {
 /// # Errors
 /// Always.
 pub fn install_mic_driver() -> Result<(), String> {
-    Err("no virtual-mic driver for this operating system yet".to_owned())
+    Err(crate::i18n::tr!("platform-mic-driver-unavailable"))
 }
 
 /// No release packages for this OS.
@@ -94,7 +94,7 @@ pub fn install_mic_driver() -> Result<(), String> {
 /// # Errors
 /// Always.
 pub fn update_install_target() -> Result<std::path::PathBuf, String> {
-    Err("no update packages for this operating system".to_owned())
+    Err(crate::i18n::tr!("platform-update-unavailable"))
 }
 
 /// Not available on this OS.
@@ -102,5 +102,5 @@ pub fn update_install_target() -> Result<std::path::PathBuf, String> {
 /// # Errors
 /// Always.
 pub fn install_update(_package: &std::path::Path) -> Result<(), String> {
-    Err("no update packages for this operating system".to_owned())
+    Err(crate::i18n::tr!("platform-update-unavailable"))
 }

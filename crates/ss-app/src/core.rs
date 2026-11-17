@@ -16,6 +16,7 @@ use crate::audio::service::{self, AudioMsg};
 use crate::audio::supervisor::{AudioBackend, AudioStatus};
 use crate::crackle::{BurstDetector, CrackleStatus};
 use crate::devices::{self, DeviceMsg, DevicesState};
+use crate::i18n::tr;
 use crate::notify::Notifier;
 use crate::update::{UpdateState, Updater};
 
@@ -211,7 +212,7 @@ impl AppCore {
         if autostart_toggled {
             *lock(&self.save_error) = crate::platform::set_autostart(new.app.autostart)
                 .err()
-                .map(|e| format!("autostart: {e}"));
+                .map(|e| tr!("platform-autostart-failed", error = e));
         }
         if audiomix_toggled {
             let _ = self
