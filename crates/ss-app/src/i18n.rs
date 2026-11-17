@@ -126,7 +126,6 @@ pub fn available() -> Vec<Language> {
 /// A message looked up by a run-time id, e.g. a device option (`device-option-anc`); `None` if no
 /// translation defines it, so callers fall back to the device driver's English text.
 #[must_use]
-#[allow(dead_code)] // used by the device pages (next commit)
 pub fn lookup(id: &str) -> Option<String> {
     LOADER.has(id).then(|| LOADER.get(id))
 }
