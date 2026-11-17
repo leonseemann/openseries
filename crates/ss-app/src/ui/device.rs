@@ -252,7 +252,7 @@ fn feature_row(
 ) {
     let label = if presentation.group == Group::More {
         let kind = format!("{:?}", feature.id.kind);
-        i18n::lookup(&format!("device-kind-{}", fluent_id(&kind))).unwrap_or(kind)
+        i18n::lookup(&format!("device-kind-{}", i18n::id_part(&kind))).unwrap_or(kind)
     } else {
         presentation.label.clone()
     };
@@ -643,8 +643,7 @@ pub(super) fn class_word_inline(class: DeviceClass) -> String {
 /// The device's hub (e.g. "base station") inside a sentence, translated by the message
 /// `device-hub-<name>` if one exists.
 pub(super) fn hub(device: &DeviceSnapshot) -> String {
-    let name = device.hub();
-    i18n::lookup(&format!("device-hub-{}", fluent_id(name))).unwrap_or_else(|| name.to_owned())
+    i18n::hub_name(device.hub())
 }
 
 /// A text of the device driver (choice option or named level), translated by the message
@@ -658,31 +657,9 @@ fn driver_text(kind: FeatureKind, key: &str, fallback: &str) -> String {
 fn driver_text_id(kind: FeatureKind, key: &str) -> String {
     format!(
         "device-{}-{}",
-        fluent_id(&format!("{kind:?}")),
-        fluent_id(key)
+        i18n::id_part(&format!("{kind:?}")),
+        i18n::id_part(key)
     )
-}
-
-/// Kebab case of an identifier or label: `NoiseControl` → `noise-control`, `bass_boost` →
-/// `bass-boost`, `base station` → `base-station`.
-fn fluent_id(text: &str) -> String {
-    let mut id = String::with_capacity(text.len() + 4);
-    let mut after_lower = false;
-    for c in text.chars() {
-        if c.is_ascii_alphanumeric() {
-            if c.is_ascii_uppercase() && after_lower {
-                id.push('-');
-            }
-            id.push(c.to_ascii_lowercase());
-            after_lower = c.is_ascii_lowercase() || c.is_ascii_digit();
-        } else {
-            if !id.is_empty() && !id.ends_with('-') {
-                id.push('-');
-            }
-            after_lower = false;
-        }
-    }
-    id.trim_end_matches('-').to_owned()
 }
 
 /// Sidebar / overview icon of a device class.
@@ -754,7 +731,7 @@ mod tests {
             driver_text_id(FeatureKind::Sidetone, "Medium"),
             "device-sidetone-medium"
         );
-        assert_eq!(fluent_id("base station"), "base-station");
+        assert_eq!(i18n::id_part("base station"), "base-station");
     }
 
     #[test]

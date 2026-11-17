@@ -50,11 +50,10 @@ struct Preference {
 /// The loader used by [`tr!`]; English until [`apply`] selects a language.
 pub static LOADER: LazyLock<FluentLanguageLoader> = LazyLock::new(|| {
     let loader = FluentLanguageLoader::new(DOMAIN, fallback());
-    // Unicode isolation marks around arguments render as boxes in egui.
-    loader.set_use_isolating(false);
     if let Err(error) = loader.load_fallback_language(&Assets) {
         eprintln!("warning: English texts unavailable: {error}");
     }
+    no_isolation_marks(&loader);
     loader
 });
 
@@ -91,6 +90,7 @@ pub fn apply(preference: Option<&str>) -> bool {
     if let Err(error) = i18n_embed::select(&*LOADER, &Assets, &requested) {
         eprintln!("warning: could not load translations for {requested:?}: {error}");
     }
+    no_isolation_marks(&LOADER);
     *applied = Some(wanted);
     true
 }
@@ -110,7 +110,6 @@ pub fn available() -> Vec<Language> {
     tags.sort_by_key(ToString::to_string);
     tags.dedup();
     let names = FluentLanguageLoader::new(DOMAIN, fallback());
-    names.set_use_isolating(false);
     if names.load_languages(&Assets, &tags).is_err() {
         // A broken file must not hide the others; their tags still work as names.
         return tags
@@ -130,11 +129,46 @@ pub fn lookup(id: &str) -> Option<String> {
     LOADER.has(id).then(|| LOADER.get(id))
 }
 
+/// Kebab case of an identifier or label, for building message ids: `NoiseControl` → `noise-control`, `bass_boost` →
+/// `bass-boost`, `base station` → `base-station`.
+pub fn id_part(text: &str) -> String {
+    let mut id = String::with_capacity(text.len() + 4);
+    let mut after_lower = false;
+    for c in text.chars() {
+        if c.is_ascii_alphanumeric() {
+            if c.is_ascii_uppercase() && after_lower {
+                id.push('-');
+            }
+            id.push(c.to_ascii_lowercase());
+            after_lower = c.is_ascii_lowercase() || c.is_ascii_digit();
+        } else {
+            if !id.is_empty() && !id.ends_with('-') {
+                id.push('-');
+            }
+            after_lower = false;
+        }
+    }
+    id.trim_end_matches('-').to_owned()
+}
+
+/// A device hub's name ("base station") in the UI language: the message `device-hub-<name>`, or
+/// the driver's English `name`.
+#[must_use]
+pub fn hub_name(name: &str) -> String {
+    lookup(&format!("device-hub-{}", id_part(name))).unwrap_or_else(|| name.to_owned())
+}
+
 fn language(tag: &LanguageIdentifier, name: String) -> Language {
     Language {
         tag: tag.to_string(),
         name,
     }
+}
+
+/// Turns off the Unicode isolation marks Fluent puts around arguments (egui renders them as
+/// boxes). The setting belongs to the loaded bundles, so it is repeated after every load.
+fn no_isolation_marks(loader: &FluentLanguageLoader) {
+    loader.set_use_isolating(false);
 }
 
 fn fallback() -> LanguageIdentifier {
@@ -244,6 +278,12 @@ mod tests {
                 "{language} has ids English lacks: {unknown:?}"
             );
         }
+    }
+
+    #[test]
+    fn arguments_have_no_isolation_marks() {
+        let text = tr!("tray-device-off", device = "Headset");
+        assert_eq!(text, "Headset · off");
     }
 
     #[test]

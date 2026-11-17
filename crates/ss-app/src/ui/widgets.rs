@@ -2,6 +2,8 @@
 
 use eframe::egui;
 
+use crate::i18n::tr;
+
 /// A device picked in [`device_combo`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DeviceChoice {
@@ -29,12 +31,12 @@ pub fn device_combo(
     devices: &[crate::audio::plan::DeviceInfo],
 ) -> Option<DeviceChoice> {
     let label = selected.map_or_else(
-        || "System default".to_owned(),
+        || tr!("common-system-default"),
         |uid| {
-            devices
-                .iter()
-                .find(|d| d.uid == uid)
-                .map_or_else(|| format!("{uid} (not connected)"), |d| d.name.clone())
+            devices.iter().find(|d| d.uid == uid).map_or_else(
+                || tr!("common-not-connected", device = uid),
+                |d| d.name.clone(),
+            )
         },
     );
     let mut choice: Option<DeviceChoice> = None;
@@ -43,7 +45,7 @@ pub fn device_combo(
         .width(280.0)
         .show_ui(ui, |ui| {
             if ui
-                .selectable_label(selected.is_none(), "System default")
+                .selectable_label(selected.is_none(), tr!("common-system-default"))
                 .clicked()
             {
                 choice = Some(DeviceChoice::SystemDefault);
@@ -69,10 +71,10 @@ pub fn fallback_list(
     devices: &[crate::audio::plan::DeviceInfo],
 ) -> Option<Vec<String>> {
     let name_of = |uid: &str| {
-        devices
-            .iter()
-            .find(|d| d.uid == uid)
-            .map_or_else(|| format!("{uid} (not connected)"), |d| d.name.clone())
+        devices.iter().find(|d| d.uid == uid).map_or_else(
+            || tr!("common-not-connected", device = uid),
+            |d| d.name.clone(),
+        )
     };
     let mut changed: Option<Vec<String>> = None;
     for (index, uid) in list.iter().enumerate() {
@@ -104,7 +106,7 @@ pub fn fallback_list(
     let candidates: Vec<_> = devices.iter().filter(|d| !list.contains(&d.uid)).collect();
     if !candidates.is_empty() {
         egui::ComboBox::from_id_salt((id_salt, "add-backup"))
-            .selected_text("Add backup…")
+            .selected_text(tr!("common-add-backup"))
             .show_ui(ui, |ui| {
                 for device in candidates {
                     if ui.selectable_label(false, &device.name).clicked() {
