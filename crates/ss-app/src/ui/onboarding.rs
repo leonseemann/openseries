@@ -9,6 +9,7 @@ use eframe::egui;
 use super::{components, theme};
 use crate::audio::supervisor::ServiceStatus;
 use crate::core::{AppCore, Snapshot};
+use crate::i18n::tr;
 
 /// One checklist entry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -28,42 +29,31 @@ pub enum Step {
 }
 
 impl Step {
-    const fn title(self) -> &'static str {
+    fn title(self) -> String {
         match self {
-            Self::BaseStation => "Connect your device",
-            Self::Headset => "Turn the headset on",
-            Self::AudioMix => "Turn on AudioMix",
-            Self::MicDriver => "Install the microphone driver",
-            Self::VirtualMic => "Turn on the virtual microphone",
-            Self::Autostart => "Start OpenSeries at login (optional)",
+            Self::BaseStation => tr!("onboarding-device"),
+            Self::Headset => tr!("onboarding-headset"),
+            Self::AudioMix => tr!("onboarding-audiomix"),
+            Self::MicDriver => tr!("onboarding-mic-driver"),
+            Self::VirtualMic => tr!("onboarding-virtual-mic"),
+            Self::Autostart => tr!("onboarding-autostart"),
         }
     }
 
-    const fn hint(self) -> &'static str {
+    fn hint(self) -> String {
         match self {
-            Self::BaseStation => {
-                "Plug it into this computer. The Arctis Nova Pro Wireless connects with its base \
-                 station by USB (on macOS the USB-1 port)."
-            }
-            Self::Headset => "Switch the headset on; it links to the base station by itself.",
+            Self::BaseStation => tr!("onboarding-device-hint"),
+            Self::Headset => tr!("onboarding-headset-hint"),
             Self::AudioMix => {
                 if cfg!(target_os = "macos") {
-                    "Routes app audio through Game / Chat / Media / Aux with EQ and ChatMix. macOS \
-                     asks for System Audio Recording permission (Privacy & Security)."
+                    tr!("onboarding-audiomix-hint-macos")
                 } else {
-                    "Sets each app's volume by its channel (Game / Chat / Media / Aux) and \
-                     ChatMix. Per-channel EQ is available on macOS only."
+                    tr!("onboarding-audiomix-hint")
                 }
             }
-            Self::MicDriver => {
-                "Adds \"OpenSeries Microphone\" to macOS. Needs your administrator password; \
-                 audio pauses for about a second."
-            }
-            Self::VirtualMic => {
-                "Feeds your processed voice into \"OpenSeries Microphone\" — select it in \
-                 Discord, Zoom or OBS."
-            }
-            Self::Autostart => "Keeps the headset settings and AudioMix available after login.",
+            Self::MicDriver => tr!("onboarding-mic-driver-hint"),
+            Self::VirtualMic => tr!("onboarding-virtual-mic-hint"),
+            Self::Autostart => tr!("onboarding-autostart-hint"),
         }
     }
 }
@@ -113,16 +103,11 @@ pub fn show(ctx: &egui::Context, core: &AppCore, snapshot: &Snapshot) {
         let p = theme::palette(ui);
         ui.set_width(DIALOG_WIDTH);
         ui.label(
-            egui::RichText::new("Welcome to OpenSeries")
+            egui::RichText::new(tr!("onboarding-welcome"))
                 .text_style(egui::TextStyle::Heading)
                 .color(p.text),
         );
-        ui.label(
-            egui::RichText::new(
-                "A few steps to get everything working. You can open this again from Settings.",
-            )
-            .color(p.text_secondary),
-        );
+        ui.label(egui::RichText::new(tr!("onboarding-intro")).color(p.text_secondary));
         ui.add_space(10.0);
         for (index, (step, done)) in steps(snapshot, virtual_mic, driver).into_iter().enumerate() {
             if index > 0 {
@@ -152,9 +137,10 @@ pub fn show(ctx: &egui::Context, core: &AppCore, snapshot: &Snapshot) {
         }
         ui.add_space(12.0);
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            let done = egui::Button::new(egui::RichText::new("Done").color(p.accent_text))
-                .fill(p.accent)
-                .min_size(egui::vec2(96.0, 32.0));
+            let done =
+                egui::Button::new(egui::RichText::new(tr!("onboarding-done")).color(p.accent_text))
+                    .fill(p.accent)
+                    .min_size(egui::vec2(96.0, 32.0));
             if ui.add(done).clicked() {
                 core.update_config(|c| c.app.onboarding_done = true);
             }
@@ -207,7 +193,7 @@ fn action(
     match step {
         Step::BaseStation | Step::Headset => {}
         Step::AudioMix => {
-            if !config.audiomix.enabled && ui.button("Turn on").clicked() {
+            if !config.audiomix.enabled && ui.button(tr!("onboarding-turn-on")).clicked() {
                 core.update_config(|c| c.audiomix.enabled = true);
             }
             if let ServiceStatus::Failed(error) = &snapshot.audio.mix {
@@ -215,21 +201,21 @@ fn action(
             }
         }
         Step::MicDriver => {
-            if !done && ui.button("Install driver…").clicked() {
+            if !done && ui.button(tr!("onboarding-install-driver")).clicked() {
                 let message = match crate::platform::install_mic_driver() {
-                    Ok(()) => "driver installed".to_owned(),
-                    Err(error) => format!("driver: {error}"),
+                    Ok(()) => tr!("onboarding-driver-installed"),
+                    Err(error) => tr!("onboarding-driver-failed", error = error),
                 };
                 ui.data_mut(|d| d.insert_temp(message_id, message));
             }
         }
         Step::VirtualMic => {
-            if !config.mic.enabled && ui.button("Turn on").clicked() {
+            if !config.mic.enabled && ui.button(tr!("onboarding-turn-on")).clicked() {
                 core.update_config(|c| c.mic.enabled = true);
             }
         }
         Step::Autostart => {
-            if !done && ui.button("Turn on").clicked() {
+            if !done && ui.button(tr!("onboarding-turn-on")).clicked() {
                 core.update_config(|c| c.app.autostart = true);
             }
         }

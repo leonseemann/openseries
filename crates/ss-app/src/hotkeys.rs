@@ -13,6 +13,7 @@ use global_hotkey::{GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState};
 use ss_store::config::HotkeysConfig;
 
 use crate::core::AppCore;
+use crate::i18n::tr;
 
 /// One ChatMix step of a hotkey press (the slider runs from −1 = game to +1 = chat).
 const CHATMIX_STEP: f32 = 0.1;
@@ -41,12 +42,12 @@ impl HotkeyAction {
 
     /// Label in the editor.
     #[must_use]
-    pub const fn label(self) -> &'static str {
+    pub fn label(self) -> String {
         match self {
-            Self::ChatMixGame => "Game/Chat balance towards Game",
-            Self::ChatMixChat => "Game/Chat balance towards Chat",
-            Self::MicMute => "Mute virtual microphone",
-            Self::ReconnectUsb => "Reconnect USB (fixes crackling)",
+            Self::ChatMixGame => tr!("hotkey-chatmix-game"),
+            Self::ChatMixChat => tr!("hotkey-chatmix-chat"),
+            Self::MicMute => tr!("hotkey-mic-mute"),
+            Self::ReconnectUsb => tr!("hotkey-reconnect-usb"),
         }
     }
 
@@ -146,7 +147,7 @@ impl Hotkeys {
             };
             let registered = text
                 .parse::<HotKey>()
-                .map_err(|_| format!("\"{text}\" is not a valid key combination"))
+                .map_err(|_| tr!("hotkey-invalid", binding = text))
                 .and_then(|hotkey| {
                     self.manager
                         .register(hotkey)
@@ -181,11 +182,12 @@ impl Hotkeys {
 /// A plain-language reason why a hotkey could not be registered.
 fn registration_problem(text: &str, error: &global_hotkey::Error) -> String {
     match error {
-        global_hotkey::Error::AlreadyRegistered(_) => format!(
-            "{text} is already used by another app (or a second OpenSeries). Choose another \
-             combination in Settings → Hotkeys."
+        global_hotkey::Error::AlreadyRegistered(_) => tr!("hotkey-taken-elsewhere", binding = text),
+        other => tr!(
+            "hotkey-register-failed",
+            binding = text,
+            error = other.to_string()
         ),
-        other => format!("{text} could not be registered ({other})."),
     }
 }
 
@@ -196,7 +198,7 @@ fn registration_problem(text: &str, error: &global_hotkey::Error) -> String {
 /// typing) or the key cannot be used as a global hotkey.
 pub fn binding_from_key(key: egui::Key, modifiers: egui::Modifiers) -> Result<String, String> {
     if !(modifiers.ctrl || modifiers.alt || modifiers.mac_cmd) {
-        return Err("use at least Ctrl or Alt (Cmd on macOS) with the key".to_owned());
+        return Err(tr!("hotkey-needs-modifier"));
     }
     let mut parts = Vec::new();
     if modifiers.ctrl {
@@ -224,7 +226,7 @@ pub fn binding_from_key(key: egui::Key, modifiers: egui::Modifiers) -> Result<St
     binding
         .parse::<HotKey>()
         .map(|_| binding.clone())
-        .map_err(|_| format!("{name} cannot be used as a hotkey"))
+        .map_err(|_| tr!("hotkey-key-unusable", key = name))
 }
 
 /// Whether two binding strings mean the same key combination.
