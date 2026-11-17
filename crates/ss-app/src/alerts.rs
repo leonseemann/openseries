@@ -192,13 +192,13 @@ impl AlertTracker {
             ("AudioMix", &last.mix, &now.mix),
             ("Virtual microphone", &last.mic, &now.mic),
         ] {
-            if let ServiceStatus::Failed(message) = after {
-                if before != after {
-                    alerts.push(Alert::ServiceFailed {
-                        service,
-                        message: message.clone(),
-                    });
-                }
+            if let ServiceStatus::Failed(message) = after
+                && before != after
+            {
+                alerts.push(Alert::ServiceFailed {
+                    service,
+                    message: message.clone(),
+                });
             }
         }
         alerts

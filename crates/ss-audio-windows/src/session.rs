@@ -143,10 +143,10 @@ pub fn list_sessions() -> Result<Vec<SessionInfo>, AudioError> {
         let count = unsafe { list.GetCount() }.unwrap_or(0);
         for i in 0..count {
             // SAFETY: index within GetCount.
-            if let Ok(control) = unsafe { list.GetSession(i) } {
-                if let Some(session) = session_info(&control, &names) {
-                    sessions.push(session);
-                }
+            if let Ok(control) = unsafe { list.GetSession(i) }
+                && let Some(session) = session_info(&control, &names)
+            {
+                sessions.push(session);
             }
         }
     }

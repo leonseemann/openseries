@@ -100,7 +100,7 @@ fn mic(args: &MicArgs) -> Result<()> {
     let mut silence = SilenceWatch::new(SILENT_MIC_HINT);
     wait_for_ctrl_c(|| {
         polls += 1;
-        if polls % POLLS_PER_PROBE_REPORT == 0 {
+        if polls.is_multiple_of(POLLS_PER_PROBE_REPORT) {
             let snapshot = session.probe();
             // The last probed slot is the feed; the ones before it are the mic buffers.
             let mics = snapshot
@@ -229,7 +229,7 @@ fn run(args: &RunArgs) -> Result<()> {
     let skipped = session.stream_layout()?.device_inputs;
     wait_for_ctrl_c(|| {
         polls += 1;
-        if polls % POLLS_PER_PROBE_REPORT == 0 {
+        if polls.is_multiple_of(POLLS_PER_PROBE_REPORT) {
             let snapshot = session.probe();
             let shown = snapshot.input_buffers.min(MAX_PROBED_BUFFERS);
             silence.observe(snapshot.peaks.get(skipped..shown).unwrap_or_default());

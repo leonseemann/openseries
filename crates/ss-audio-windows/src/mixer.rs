@@ -160,10 +160,10 @@ pub fn restore_pending(file: &RestoreFile) {
     };
     let before = saved.len();
     for session in sessions {
-        if let Some(&level) = saved.get(&session.identifier) {
-            if session.set_volume(level).is_ok() {
-                saved.remove(&session.identifier);
-            }
+        if let Some(&level) = saved.get(&session.identifier)
+            && session.set_volume(level).is_ok()
+        {
+            saved.remove(&session.identifier);
         }
     }
     if saved.len() != before {

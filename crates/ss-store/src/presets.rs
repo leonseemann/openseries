@@ -205,10 +205,10 @@ pub fn import_json(text: &str) -> Result<(String, PresetData), ImportError> {
         }
         let preset: ExportedPreset =
             serde_json::from_value(value).map_err(|e| ImportError::Json(e.to_string()))?;
-        if let PresetData::HeadsetEq(curve) = &preset.data {
-            if curve.is_empty() || curve.len() > MAX_EQ_BANDS {
-                return Err(ImportError::Invalid("an EQ curve needs 1 to 64 bands"));
-            }
+        if let PresetData::HeadsetEq(curve) = &preset.data
+            && (curve.is_empty() || curve.len() > MAX_EQ_BANDS)
+        {
+            return Err(ImportError::Invalid("an EQ curve needs 1 to 64 bands"));
         }
         return Ok((preset.name, preset.data));
     }

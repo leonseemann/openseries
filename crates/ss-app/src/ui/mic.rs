@@ -69,15 +69,15 @@ fn switch_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
             },
         );
         components::service_problem(ui, &snapshot.audio.mic);
-        if let ServiceStatus::Failed(error) = &snapshot.audio.mic {
-            if error.contains("driver") {
-                components::banner(
-                    ui,
-                    Tone::Neutral,
-                    "Install the microphone driver once: Settings → Show getting started → \
+        if let ServiceStatus::Failed(error) = &snapshot.audio.mic
+            && error.contains("driver")
+        {
+            components::banner(
+                ui,
+                Tone::Neutral,
+                "Install the microphone driver once: Settings → Show getting started → \
                      Install driver.",
-                );
-            }
+            );
         }
     });
 }
