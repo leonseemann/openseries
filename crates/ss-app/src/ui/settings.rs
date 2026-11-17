@@ -9,6 +9,7 @@ use super::components::{self, Tone};
 use super::theme;
 use crate::core::{AppCore, Snapshot};
 use crate::hotkeys::{HotkeyAction, binding_from_key, same_binding};
+use crate::i18n::{self, Language, tr};
 use crate::platform;
 use crate::update::UpdateState;
 
@@ -31,6 +32,42 @@ pub fn show(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, capture: &mu
     }
     updates_card(ui, core, snapshot);
     about_card(ui, core);
+}
+
+/// Language picker: the system language or one of the translations found at start-up
+/// (`docs/architecture/i18n.md`).
+fn language_row(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
+    static LANGUAGES: OnceLock<Vec<Language>> = OnceLock::new();
+    let languages = LANGUAGES.get_or_init(i18n::available);
+    let selected = snapshot.config.app.language.as_deref();
+    let system = tr!("settings-language-system");
+    let selected_name = selected
+        .and_then(|tag| languages.iter().find(|l| l.tag == tag))
+        .map_or(system.as_str(), |l| l.name.as_str());
+    components::row(
+        ui,
+        &tr!("settings-language"),
+        Some(&tr!("settings-language-hint")),
+        |ui| {
+            let mut choice = None;
+            egui::ComboBox::from_id_salt("language")
+                .selected_text(selected_name)
+                .show_ui(ui, |ui| {
+                    if ui.selectable_label(selected.is_none(), &system).clicked() {
+                        choice = Some(None);
+                    }
+                    for language in languages {
+                        let is_selected = selected == Some(language.tag.as_str());
+                        if ui.selectable_label(is_selected, &language.name).clicked() {
+                            choice = Some(Some(language.tag.clone()));
+                        }
+                    }
+                });
+            if let Some(language) = choice {
+                core.update_config(|c| c.app.language = language);
+            }
+        },
+    );
 }
 
 /// Settings → Updates (ADR 0006 §4).
@@ -139,6 +176,8 @@ fn capitalise(text: &str) -> String {
 
 fn general_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
     components::card(ui, Some("General"), |ui| {
+        language_row(ui, core, snapshot);
+        components::divider(ui);
         let mut autostart = snapshot.config.app.autostart;
         components::row(
             ui,

@@ -320,6 +320,7 @@ impl eframe::App for App {
             ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
         }
         let snapshot = self.core.snapshot();
+        crate::i18n::apply(snapshot.config.app.language.as_deref());
         if let Some(tray) = self.tray.as_mut() {
             tray.sync(&snapshot);
         }

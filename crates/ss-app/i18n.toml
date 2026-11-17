@@ -1,0 +1,6 @@
+# Translations (docs/architecture/i18n.md): one folder per language under i18n/, checked by fl!.
+fallback_language = "en"
+
+[fluent]
+assets_dir = "i18n"
+domain = "openseries"

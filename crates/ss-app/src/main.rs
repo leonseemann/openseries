@@ -17,6 +17,7 @@ mod core;
 mod crackle;
 mod devices;
 mod hotkeys;
+mod i18n;
 mod icon;
 mod instance;
 mod notify;
@@ -51,6 +52,9 @@ fn main() -> Result<()> {
     }
     let with_headset = std::env::var_os(NO_HEADSET_ENV).is_none();
     let store = Store::per_user().context("locating the config directory")?;
+    if let Some(dir) = store.path().parent() {
+        i18n::init(dir);
+    }
     // Only one OpenSeries: a running one quits cleanly and this start replaces it (§9).
     let instance_scope = instance::scope(store.path());
     match instance::replace_running(&instance_scope) {
@@ -70,6 +74,7 @@ fn main() -> Result<()> {
     });
     let core = AppCore::start(store, &notify, with_headset, platform::audio_backend)
         .context("starting services")?;
+    i18n::apply(core.config().app.language.as_deref());
     if let Some(warning) = core.snapshot().config_warning {
         eprintln!("warning: {warning}");
     }
