@@ -8,12 +8,13 @@ use super::components::{self, Tone};
 use super::{Page, audiomix, device, theme};
 use crate::core::{AppCore, Snapshot};
 use crate::devices::DeviceSnapshot;
+use crate::i18n::tr;
 
 /// Width of the battery gauges.
 const BATTERY_WIDTH: f32 = 180.0;
 
 pub fn show(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, page: &mut Page) {
-    components::page_header(ui, "Overview", "Your devices at a glance.");
+    components::page_header(ui, &tr!("overview-title"), &tr!("overview-subtitle"));
     if snapshot.devices.devices.is_empty() {
         device::not_connected(ui);
     }
@@ -43,34 +44,40 @@ fn device_card(ui: &mut egui::Ui, d: &DeviceSnapshot, index: usize, page: &mut P
                 let charge = d.batteries().map(|(_, charge)| device::charge_text(charge));
                 match d.linked() {
                     _ if !d.ready => {
-                        components::status(ui, Tone::Neutral, &format!("Reading the {}…", d.hub()));
+                        components::status(
+                            ui,
+                            Tone::Neutral,
+                            &tr!("device-reading", hub = device::hub(d)),
+                        );
                     }
                     Some(false) => components::status(
                         ui,
                         Tone::Neutral,
-                        &format!(
-                            "{} connected · {} off or out of range",
-                            capitalised(d.hub()),
-                            device::class_word(d.info.class).to_lowercase()
+                        &tr!(
+                            "overview-unlinked",
+                            hub = capitalised(&device::hub(d)),
+                            class = device::class_word_inline(d.info.class)
                         ),
                     ),
                     _ => components::status(
                         ui,
                         Tone::Good,
-                        &charge
-                            .map_or_else(|| "Connected".to_owned(), |c| format!("Connected · {c}")),
+                        &charge.map_or_else(
+                            || tr!("overview-connected"),
+                            |c| tr!("overview-connected-charge", charge = c),
+                        ),
                     ),
                 }
             });
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.button("Settings").clicked() {
+                if ui.button(tr!("overview-settings")).clicked() {
                     *page = Page::Device(index);
                 }
             });
         });
         if d.has(FeatureKind::Battery) && d.ready {
             components::divider(ui);
-            components::row(ui, "Battery", None, |ui| {
+            components::row(ui, &tr!("device-battery"), None, |ui| {
                 components::battery(
                     ui,
                     d.main_battery()
@@ -83,11 +90,19 @@ fn device_card(ui: &mut egui::Ui, d: &DeviceSnapshot, index: usize, page: &mut P
 }
 
 fn quick_controls(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, page: &mut Page) {
-    components::card(ui, Some("Quick controls"), |ui| {
+    components::card(ui, Some(&tr!("overview-quick-controls")), |ui| {
         // The everyday device settings, from the first device that has each of them.
         for (kind, label, description) in [
-            (FeatureKind::NoiseControl, "Noise control", None),
-            (FeatureKind::EqPreset, "Equalizer", Some("Device preset.")),
+            (
+                FeatureKind::NoiseControl,
+                tr!("device-group-noise-control"),
+                None,
+            ),
+            (
+                FeatureKind::EqPreset,
+                tr!("device-group-equalizer"),
+                Some(tr!("overview-eq-hint")),
+            ),
         ] {
             let Some(d) = snapshot.devices.with(kind).filter(|d| d.ready) else {
                 continue;
@@ -95,48 +110,38 @@ fn quick_controls(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, page: 
             let Some(feature) = d.feature(kind) else {
                 continue;
             };
-            components::row(ui, label, description, |ui| {
+            components::row(ui, &label, description.as_deref(), |ui| {
                 device::control(ui, core, d, feature);
             });
             components::divider(ui);
         }
         let mut enabled = snapshot.config.audiomix.enabled;
-        components::row(
-            ui,
-            "AudioMix",
-            Some("Sort apps into Game, Chat, Media and Aux and balance Game against Chat."),
-            |ui| {
-                if components::switch(ui, &mut enabled) {
-                    core.update_config(|c| c.audiomix.enabled = enabled);
-                }
-                let (tone, word) = components::service_tone(&snapshot.audio.mix);
-                components::status(ui, tone, word);
-                if ui.small_button("Manage").clicked() {
-                    *page = Page::AudioMix;
-                }
-            },
-        );
+        components::row(ui, "AudioMix", Some(&tr!("overview-audiomix-hint")), |ui| {
+            if components::switch(ui, &mut enabled) {
+                core.update_config(|c| c.audiomix.enabled = enabled);
+            }
+            let (tone, word) = components::service_tone(&snapshot.audio.mix);
+            components::status(ui, tone, &word);
+            if ui.small_button(tr!("overview-manage")).clicked() {
+                *page = Page::AudioMix;
+            }
+        });
         components::service_problem(ui, &snapshot.audio.mix);
     });
 }
 
 fn balance_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
-    components::card(ui, Some("Game/Chat balance"), |ui| {
+    components::card(ui, Some(&tr!("overview-balance")), |ui| {
         if snapshot.config.audiomix.enabled {
             audiomix::chatmix_control(ui, core, snapshot);
         } else {
             let p = theme::palette(ui);
-            let dial = if snapshot.devices.with(FeatureKind::BalanceDial).is_some() {
-                ", the hotkeys or the dial on your device"
+            let text = if snapshot.devices.with(FeatureKind::BalanceDial).is_some() {
+                tr!("overview-balance-off-dial")
             } else {
-                " or the hotkeys"
+                tr!("overview-balance-off")
             };
-            ui.label(
-                RichText::new(format!(
-                    "Balances game and chat audio — with this slider{dial}. Turn on AudioMix to use it."
-                ))
-                .color(p.text_secondary),
-            );
+            ui.label(RichText::new(text).color(p.text_secondary));
         }
     });
 }

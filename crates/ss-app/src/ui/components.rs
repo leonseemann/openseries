@@ -4,6 +4,7 @@ use eframe::egui::{self, Color32, CornerRadius, Margin, RichText, Sense, Stroke,
 
 use super::theme::{self, CARD_RADIUS, CARD_TITLE, Palette};
 use crate::audio::supervisor::ServiceStatus;
+use crate::i18n::tr;
 
 /// Inner padding of cards.
 const CARD_PADDING: i8 = 14;
@@ -225,12 +226,12 @@ fn right_to_left(ui: &egui::Ui) -> bool {
 
 /// The tone and a short word for a service state.
 #[must_use]
-pub fn service_tone(status: &ServiceStatus) -> (Tone, &'static str) {
+pub fn service_tone(status: &ServiceStatus) -> (Tone, String) {
     match status {
-        ServiceStatus::Off => (Tone::Neutral, "Off"),
-        ServiceStatus::Running => (Tone::Good, "On"),
-        ServiceStatus::Blocked(_) => (Tone::Warning, "Paused"),
-        ServiceStatus::Failed(_) => (Tone::Error, "Error"),
+        ServiceStatus::Off => (Tone::Neutral, tr!("common-off")),
+        ServiceStatus::Running => (Tone::Good, tr!("common-on")),
+        ServiceStatus::Blocked(_) => (Tone::Warning, tr!("common-paused")),
+        ServiceStatus::Failed(_) => (Tone::Error, tr!("common-error")),
     }
 }
 
@@ -252,7 +253,11 @@ pub fn banner(ui: &mut egui::Ui, tone: Tone, text: &str) {
 /// Shows the problem behind a paused or failed service, if any.
 pub fn service_problem(ui: &mut egui::Ui, status: &ServiceStatus) {
     match status {
-        ServiceStatus::Blocked(reason) => banner(ui, Tone::Warning, &format!("Paused: {reason}")),
+        ServiceStatus::Blocked(reason) => banner(
+            ui,
+            Tone::Warning,
+            &tr!("common-paused-reason", reason = reason.as_str()),
+        ),
         ServiceStatus::Failed(error) => banner(ui, Tone::Error, error),
         ServiceStatus::Off | ServiceStatus::Running => {}
     }

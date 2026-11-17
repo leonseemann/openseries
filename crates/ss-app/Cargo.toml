@@ -37,6 +37,12 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # The built-in app catalogue (data/app-catalogue.toml, app.md §3.2; MIT OR Apache-2.0).
 toml = "1"
+# UI translations, Fluent files under i18n/ (docs/architecture/i18n.md): all MIT or
+# MIT OR Apache-2.0.
+i18n-embed = { version = "0.16", features = ["fluent-system", "desktop-requester"] }
+i18n-embed-fl = "0.10"
+rust-embed = "8"
+unic-langid = "0.9"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 ss-usb-macos.workspace = true
@@ -47,6 +53,7 @@ ss-audio-windows.workspace = true
 raw-window-handle = "0.6"
 
 [dev-dependencies]
+fluent-syntax = "0.12"
 # Encodes the bundled icon files in the icon test (MIT OR Apache-2.0).
 png = "0.18"
 

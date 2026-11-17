@@ -14,6 +14,7 @@ use ss_update::semver::Version;
 use ss_update::{Asset, Platform, Release, Update};
 
 use crate::core::AppCore;
+use crate::i18n::tr;
 use crate::notify::Notifier;
 use crate::platform;
 
@@ -240,10 +241,9 @@ impl Worker {
         }
         self.notified = Some(update.version.clone());
         if self.setting(|c| c.app.notifications.enabled) == Some(true) {
-            let _ = crate::alerts::show(&format!(
-                "OpenSeries {} is available. Install it from the tray menu or Settings → \
-                 Updates.",
-                update.version
+            let _ = crate::alerts::show(&tr!(
+                "update-notification",
+                version = update.version.to_string()
             ));
         }
     }
@@ -285,15 +285,22 @@ impl Worker {
         });
         let dir = std::env::temp_dir().join(DOWNLOAD_DIR);
         let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).map_err(|e| format!("creating {}: {e}", dir.display()))?;
+        std::fs::create_dir_all(&dir).map_err(|e| {
+            tr!(
+                "update-error-folder",
+                path = dir.display().to_string(),
+                error = e.to_string()
+            )
+        })?;
 
         let signature = fetch(&update.signature.browser_download_url, SIGNATURE_LIMIT)?;
-        let signature = String::from_utf8(signature).map_err(|_| "damaged signature file")?;
+        let signature = String::from_utf8(signature).map_err(|_| tr!("update-error-signature"))?;
         let bytes = self.fetch_package(update)?;
         ss_update::verify(&update.package.name, &bytes, &signature).map_err(|e| e.to_string())?;
 
         let path = dir.join(&update.package.name);
-        std::fs::write(&path, &bytes).map_err(|e| format!("saving the update: {e}"))?;
+        std::fs::write(&path, &bytes)
+            .map_err(|e| tr!("update-error-save", error = e.to_string()))?;
         Ok(path)
     }
 
@@ -318,13 +325,13 @@ impl Worker {
         loop {
             let read = reader
                 .read(&mut chunk)
-                .map_err(|e| format!("download interrupted: {e}"))?;
+                .map_err(|e| tr!("update-error-interrupted", error = e.to_string()))?;
             if read == 0 {
                 break;
             }
             bytes
                 .write_all(&chunk[..read])
-                .map_err(|e| format!("download: {e}"))?;
+                .map_err(|e| tr!("update-error-download", error = e.to_string()))?;
             let received = bytes.len() as u64;
             if received - published >= PROGRESS_STEP {
                 published = received;
@@ -359,7 +366,7 @@ fn fetch(url: &str, limit: u64) -> Result<Vec<u8>, String> {
         .with_config()
         .limit(limit)
         .read_to_vec()
-        .map_err(|e| format!("download interrupted: {e}"))
+        .map_err(|e| tr!("update-error-interrupted", error = e.to_string()))
 }
 
 fn agent(timeout: Duration) -> ureq::Agent {
@@ -373,12 +380,10 @@ fn agent(timeout: Duration) -> ureq::Agent {
 /// A plain-language network error.
 fn network_problem(error: &ureq::Error) -> String {
     match error {
-        ureq::Error::StatusCode(404) => "no release has been published yet".to_owned(),
-        ureq::Error::StatusCode(403 | 429) => {
-            "GitHub limits update checks right now; try again later".to_owned()
-        }
-        ureq::Error::StatusCode(code) => format!("GitHub answered with error {code}"),
-        other => format!("could not reach GitHub ({other})"),
+        ureq::Error::StatusCode(404) => tr!("update-error-no-release"),
+        ureq::Error::StatusCode(403 | 429) => tr!("update-error-rate-limited"),
+        ureq::Error::StatusCode(code) => tr!("update-error-http", code = code.to_string()),
+        other => tr!("update-error-unreachable", error = other.to_string()),
     }
 }
 

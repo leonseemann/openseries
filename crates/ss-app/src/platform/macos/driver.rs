@@ -57,7 +57,7 @@ pub fn install_mic_driver() -> Result<(), String> {
     } else {
         let message = String::from_utf8_lossy(&output.stderr).trim().to_owned();
         Err(if message.contains("-128") {
-            "installation cancelled".to_owned()
+            crate::i18n::tr!("platform-driver-install-cancelled")
         } else {
             message
         })

@@ -270,6 +270,9 @@ pub struct AppConfig {
     pub notifications: NotificationsConfig,
     /// The "Getting started" window was closed with Done.
     pub onboarding_done: bool,
+    /// UI language as a BCP 47 tag (`"de"`, `"pt-BR"`); `None` follows the system language
+    /// (`docs/architecture/i18n.md`).
+    pub language: Option<String>,
     /// In-app updates (ADR 0006).
     pub updates: UpdatesConfig,
 }

@@ -53,6 +53,9 @@ flowchart LR
 | App | menu-bar icon with quick toggles, window, autostart (LaunchAgent), global hotkeys (ChatMix, mute), settings saved automatically |
 
 Notes on v1 behaviour:
+- **Language** (ADR 0010, [i18n.md](i18n.md)): English and German built in, the system language
+  by default; Settings → General → Language overrides it (`app.language`). More languages are
+  Fluent files under `i18n/`, built in or dropped into the config folder.
 - **Mic mute hotkey** toggles the mic feed (OpenSeries Microphone goes silent); a click-free live
   mute needs the mic command queue (later).
 - **Reconnect USB** is on the headset page, in the menu-bar menu and on a hotkey (default Ctrl+Alt+R): the manual cure for both kinds of crackling (`docs/hardware/macos-app.md` Findings).

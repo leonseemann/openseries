@@ -34,6 +34,15 @@ Thanks for helping! Bug reports, hardware test results and pull requests are wel
 tests on Windows and macOS) and resolved review conversations, with linear history. Merged branches
 are deleted automatically. Details: [ADR 0009](docs/adr/0009-pull-request-workflow.md).
 
+## Translations
+
+The app's texts are [Fluent](https://projectfluent.org/fluent/guide/) files, one per language:
+`crates/ss-app/i18n/<language>/openseries.ftl`. To add a language, copy `en/openseries.ftl` into a
+new folder named after the language tag (`fr`, `pt-BR`, …), translate the values and open a pull
+request — no code changes needed; `cargo test -p ss-app i18n` reports missing messages. You can
+try a translation without building: put it into the config folder (see
+[i18n.md](docs/architecture/i18n.md#5-adding-a-language)).
+
 ## Hardware
 
 Pull requests are tested without devices in CI. If your change talks to a headset, say which

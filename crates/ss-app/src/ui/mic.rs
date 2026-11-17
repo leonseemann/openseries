@@ -11,16 +11,13 @@ use super::components::{self, Tone};
 use super::{audiomix, presets, theme, widgets};
 use crate::audio::supervisor::ServiceStatus;
 use crate::core::{AppCore, Snapshot};
+use crate::i18n::tr;
 
 /// Gain range of the mic output (dB).
 const GAIN_RANGE_DB: std::ops::RangeInclusive<f32> = -12.0..=12.0;
 
 pub fn show(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
-    components::page_header(
-        ui,
-        "Microphone",
-        "A cleaner voice for Discord, Zoom and OBS: noise suppression, gate, stabilizer and EQ.",
-    );
+    components::page_header(ui, &tr!("mic-title"), &tr!("mic-subtitle"));
     if !crate::platform::VIRTUAL_MIC_SUPPORTED {
         unavailable(ui);
         return;
@@ -32,23 +29,11 @@ pub fn show(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
 }
 
 fn unavailable(ui: &mut egui::Ui) {
-    components::card(ui, Some("Not available on this computer"), |ui| {
+    components::card(ui, Some(&tr!("mic-unavailable-title")), |ui| {
         let p = theme::palette(ui);
-        ui.label(
-            RichText::new(
-                "The processed \"OpenSeries Microphone\" needs a virtual audio device. It is \
-                 available on macOS. On Windows it would require a paid, signed audio driver, \
-                 and OpenSeries stays free — so this page is empty here.",
-            )
-            .color(p.text_secondary),
-        );
+        ui.label(RichText::new(tr!("mic-unavailable-body")).color(p.text_secondary));
         ui.add_space(4.0);
-        ui.label(
-            RichText::new(
-                "Microphone volume, sidetone and the mute light are on the Headset page.",
-            )
-            .color(p.text_secondary),
-        );
+        ui.label(RichText::new(tr!("mic-unavailable-headset-hint")).color(p.text_secondary));
     });
 }
 
@@ -58,34 +43,29 @@ fn switch_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
         let mut enabled = config.enabled;
         components::row(
             ui,
-            "Virtual microphone",
-            Some("Select \"OpenSeries Microphone\" as the input in your apps."),
+            &tr!("mic-virtual"),
+            Some(&tr!("mic-virtual-hint")),
             |ui| {
                 if components::switch(ui, &mut enabled) {
                     core.update_config(|c| c.mic.enabled = enabled);
                 }
                 let (tone, word) = components::service_tone(&snapshot.audio.mic);
-                components::status(ui, tone, word);
+                components::status(ui, tone, &word);
             },
         );
         components::service_problem(ui, &snapshot.audio.mic);
         if let ServiceStatus::Failed(error) = &snapshot.audio.mic
             && error.contains("driver")
         {
-            components::banner(
-                ui,
-                Tone::Neutral,
-                "Install the microphone driver once: Settings → Show getting started → \
-                     Install driver.",
-            );
+            components::banner(ui, Tone::Neutral, &tr!("mic-install-driver-hint"));
         }
     });
 }
 
 fn source_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
     let config = &snapshot.config.mic;
-    components::card(ui, Some("Source"), |ui| {
-        components::row(ui, "Microphone", Some("Usually your headset."), |ui| {
+    components::card(ui, Some(&tr!("mic-source")), |ui| {
+        components::row(ui, &tr!("mic-input"), Some(&tr!("mic-input-hint")), |ui| {
             if let Some(uid) = widgets::device_combo(
                 ui,
                 "mic-input",
@@ -99,8 +79,8 @@ fn source_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
         let mut as_default = config.set_as_default_input;
         components::row(
             ui,
-            "Use as system input",
-            Some("Make \"OpenSeries Microphone\" the default input while it runs."),
+            &tr!("mic-as-default"),
+            Some(&tr!("mic-as-default-hint")),
             |ui| {
                 if components::switch(ui, &mut as_default) {
                     core.update_config(|c| c.mic.set_as_default_input = as_default);
@@ -108,9 +88,13 @@ fn source_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
             },
         );
         if let Some(error) = &snapshot.audio.default_input_error {
-            components::banner(ui, Tone::Warning, &format!("Default input: {error}"));
+            components::banner(
+                ui,
+                Tone::Warning,
+                &tr!("mic-default-input-error", error = error.as_str()),
+            );
         }
-        egui::CollapsingHeader::new("Backup microphones")
+        egui::CollapsingHeader::new(tr!("mic-backup"))
             .id_salt("backup-inputs")
             .default_open(!config.input_fallback.is_empty())
             .show(ui, |ui| {
@@ -127,12 +111,12 @@ fn source_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
 }
 
 fn processing_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, config: &MicConfig) {
-    components::card(ui, Some("Processing"), |ui| {
+    components::card(ui, Some(&tr!("mic-processing")), |ui| {
         let mut denoise = config.denoise.is_some();
         components::row(
             ui,
-            "Noise suppression",
-            Some("Removes fans, keyboard hum and background noise."),
+            &tr!("mic-denoise"),
+            Some(&tr!("mic-denoise-hint")),
             |ui| {
                 if components::switch(ui, &mut denoise) {
                     core.update_config(|c| c.mic.denoise = denoise.then_some(DEFAULT_DENOISE_MIX));
@@ -151,8 +135,8 @@ fn processing_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, confi
         let mut stabilizer = config.stabilizer;
         components::row(
             ui,
-            "Volume stabilizer",
-            Some("Evens out quiet and loud speech."),
+            &tr!("mic-stabilizer"),
+            Some(&tr!("mic-stabilizer-hint")),
             |ui| {
                 if components::switch(ui, &mut stabilizer) {
                     core.update_config(|c| c.mic.stabilizer = stabilizer);
@@ -160,20 +144,15 @@ fn processing_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, confi
             },
         );
         components::divider(ui);
-        components::row(
-            ui,
-            "Output gain",
-            Some("Louder or quieter overall."),
-            |ui| {
-                if let Some(db) = components::slider(ui, config.gain_db, GAIN_RANGE_DB, " dB") {
-                    core.update_config(|c| c.mic.gain_db = db);
-                }
-            },
-        );
+        components::row(ui, &tr!("mic-gain"), Some(&tr!("mic-gain-hint")), |ui| {
+            if let Some(db) = components::slider(ui, config.gain_db, GAIN_RANGE_DB, " dB") {
+                core.update_config(|c| c.mic.gain_db = db);
+            }
+        });
         if let Some(eq) = audiomix::eq_editor(ui, "mic-eq", &config.eq) {
             core.update_config(|c| c.mic.eq = eq);
         }
-        egui::CollapsingHeader::new("Presets")
+        egui::CollapsingHeader::new(tr!("mic-presets"))
             .id_salt("mic-presets")
             .show(ui, |ui| {
                 let preset = presets::bar(ui, core, snapshot, presets::Kind::Mic, "mic", || {
@@ -187,49 +166,49 @@ fn processing_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, confi
 }
 
 fn gate_row(ui: &mut egui::Ui, core: &AppCore, config: &MicConfig) {
-    components::row(
-        ui,
-        "Noise gate",
-        Some("Silence between sentences. Automatic adapts to your room."),
-        |ui| {
-            if let Some(choice) = components::segmented(
-                ui,
-                Some(gate_mode(config.gate)),
-                &[
-                    (GateChoice::Off, "Off"),
-                    (GateChoice::Automatic, "Automatic"),
-                    (GateChoice::Manual, "Manual"),
-                ],
-            ) {
-                core.update_config(|c| {
-                    c.mic.gate = match choice {
-                        GateChoice::Off => None,
-                        GateChoice::Automatic => Some(GateConfig::Automatic {
-                            offset_db: DEFAULT_AUTO_GATE_OFFSET_DB,
-                        }),
-                        GateChoice::Manual => Some(GateConfig::Manual {
-                            threshold_db: DEFAULT_GATE_THRESHOLD_DB,
-                        }),
-                    };
-                });
-            }
-        },
-    );
+    components::row(ui, &tr!("mic-gate"), Some(&tr!("mic-gate-hint")), |ui| {
+        if let Some(choice) = components::segmented(
+            ui,
+            Some(gate_mode(config.gate)),
+            &[
+                (GateChoice::Off, tr!("mic-gate-off").as_str()),
+                (GateChoice::Automatic, tr!("mic-gate-automatic").as_str()),
+                (GateChoice::Manual, tr!("mic-gate-manual").as_str()),
+            ],
+        ) {
+            core.update_config(|c| {
+                c.mic.gate = match choice {
+                    GateChoice::Off => None,
+                    GateChoice::Automatic => Some(GateConfig::Automatic {
+                        offset_db: DEFAULT_AUTO_GATE_OFFSET_DB,
+                    }),
+                    GateChoice::Manual => Some(GateConfig::Manual {
+                        threshold_db: DEFAULT_GATE_THRESHOLD_DB,
+                    }),
+                };
+            });
+        }
+    });
     match config.gate {
         Some(GateConfig::Manual { threshold_db }) => {
-            components::row(ui, "Threshold", Some("Quieter sounds are muted."), |ui| {
-                if let Some(db) = components::slider(ui, threshold_db, -80.0..=-20.0, " dBFS") {
-                    core.update_config(|c| {
-                        c.mic.gate = Some(GateConfig::Manual { threshold_db: db });
-                    });
-                }
-            });
+            components::row(
+                ui,
+                &tr!("mic-gate-threshold"),
+                Some(&tr!("mic-gate-threshold-hint")),
+                |ui| {
+                    if let Some(db) = components::slider(ui, threshold_db, -80.0..=-20.0, " dBFS") {
+                        core.update_config(|c| {
+                            c.mic.gate = Some(GateConfig::Manual { threshold_db: db });
+                        });
+                    }
+                },
+            );
         }
         Some(GateConfig::Automatic { offset_db }) => {
             components::row(
                 ui,
-                "Sensitivity",
-                Some("How far above the room noise your voice must be."),
+                &tr!("mic-gate-sensitivity"),
+                Some(&tr!("mic-gate-sensitivity-hint")),
                 |ui| {
                     if let Some(db) = components::slider(ui, offset_db, 3.0..=20.0, " dB") {
                         core.update_config(|c| {

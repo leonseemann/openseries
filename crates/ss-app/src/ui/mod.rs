@@ -20,6 +20,7 @@ use eframe::egui::{self, RichText};
 use self::components::{Tone, service_tone};
 use crate::core::{AppCore, Snapshot};
 use crate::hotkeys::Hotkeys;
+use crate::i18n::tr;
 use crate::tray::Tray;
 use crate::update::UpdateState;
 use ss_store::config::HotkeysConfig;
@@ -67,13 +68,13 @@ impl Page {
         }
     }
 
-    const fn label(self) -> &'static str {
+    fn label(self) -> String {
         match self {
-            Self::Overview => "Overview",
-            Self::Device(_) => "Device",
-            Self::AudioMix => "AudioMix",
-            Self::Mic => "Microphone",
-            Self::Settings => "Settings",
+            Self::Overview => tr!("nav-overview"),
+            Self::Device(_) => tr!("nav-device"),
+            Self::AudioMix => tr!("nav-audiomix"),
+            Self::Mic => tr!("nav-mic"),
+            Self::Settings => tr!("nav-settings"),
         }
     }
 
@@ -123,7 +124,10 @@ impl App {
         let (hotkeys, hotkey_problems) = match Hotkeys::register(&hotkey_config, Arc::clone(&core))
         {
             Ok((hotkeys, problems)) => (Some(hotkeys), problems),
-            Err(error) => (None, vec![format!("Hotkeys unavailable: {error}")]),
+            Err(error) => (
+                None,
+                vec![tr!("nav-hotkeys-unavailable", error = error.to_string())],
+            ),
         };
         Self {
             core,
@@ -197,7 +201,7 @@ impl App {
                 if components::nav_item(
                     ui,
                     Page::Overview.icon(),
-                    Page::Overview.label(),
+                    &Page::Overview.label(),
                     self.page == Page::Overview,
                 )
                 .clicked()
@@ -207,13 +211,17 @@ impl App {
                 ui.add_space(8.0);
                 ui.horizontal(|ui| {
                     ui.add_space(8.0);
-                    ui.label(RichText::new("DEVICES").small().color(p.text_secondary));
+                    ui.label(
+                        RichText::new(tr!("nav-devices-heading"))
+                            .small()
+                            .color(p.text_secondary),
+                    );
                 });
                 if snapshot.devices.devices.is_empty() {
                     ui.horizontal(|ui| {
                         ui.add_space(8.0);
                         ui.label(
-                            RichText::new("None connected")
+                            RichText::new(tr!("nav-no-devices"))
                                 .small()
                                 .color(p.text_secondary),
                         );
@@ -234,7 +242,7 @@ impl App {
                 }
                 ui.add_space(8.0);
                 for page in Page::TOOLS.into_iter().filter(|p| p.available()) {
-                    if components::nav_item(ui, page.icon(), page.label(), self.page == page)
+                    if components::nav_item(ui, page.icon(), &page.label(), self.page == page)
                         .clicked()
                     {
                         self.page = page;
@@ -245,16 +253,16 @@ impl App {
                     ui.add_space(4.0);
                     if crate::platform::VIRTUAL_MIC_SUPPORTED {
                         let (tone, word) = service_tone(&snapshot.audio.mic);
-                        sidebar_status(ui, tone, &format!("Microphone · {word}"));
+                        sidebar_status(ui, tone, &tr!("nav-status-mic", state = word));
                     }
                     let (tone, word) = service_tone(&snapshot.audio.mix);
-                    sidebar_status(ui, tone, &format!("AudioMix · {word}"));
+                    sidebar_status(ui, tone, &tr!("nav-status-audiomix", state = word));
                     for d in snapshot.devices.devices.iter().rev() {
                         let (tone, text) = device_summary(d);
                         sidebar_status(ui, tone, &text);
                     }
                     if snapshot.devices.devices.is_empty() {
-                        sidebar_status(ui, Tone::Error, "No device connected");
+                        sidebar_status(ui, Tone::Error, &tr!("nav-no-device-connected"));
                     }
                 });
             });
@@ -271,13 +279,7 @@ impl App {
             ui.add_space(8.0);
         }
         if !snapshot.active {
-            components::banner(
-                ui,
-                Tone::Neutral,
-                "OpenSeries is paused: no supported device is connected. Until one is back, \
-                 OpenSeries does not touch app audio, microphones or hotkeys, so other devices \
-                 work undisturbed.",
-            );
+            components::banner(ui, Tone::Neutral, &tr!("nav-paused-banner"));
             ui.add_space(8.0);
         }
         if let (UpdateState::Available(update), false) =
@@ -287,12 +289,12 @@ impl App {
                 components::status(
                     ui,
                     Tone::Good,
-                    &format!("OpenSeries {} is available.", update.version),
+                    &tr!("nav-update-available", version = update.version.to_string()),
                 );
-                if ui.small_button("Install update").clicked() {
+                if ui.small_button(tr!("nav-install-update")).clicked() {
                     self.core.install_update();
                 }
-                if ui.small_button("Details").clicked() {
+                if ui.small_button(tr!("nav-update-details")).clicked() {
                     self.page = Page::Settings;
                 }
             });
@@ -320,6 +322,7 @@ impl eframe::App for App {
             ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
         }
         let snapshot = self.core.snapshot();
+        crate::i18n::apply(snapshot.config.app.language.as_deref());
         if let Some(tray) = self.tray.as_mut() {
             tray.sync(&snapshot);
         }
@@ -362,10 +365,10 @@ fn sidebar_status(ui: &mut egui::Ui, tone: Tone, text: &str) {
 fn device_summary(d: &crate::devices::DeviceSnapshot) -> (Tone, String) {
     let word = device::class_word(d.info.class);
     if !d.ready {
-        return (Tone::Neutral, format!("{word} · reading…"));
+        return (Tone::Neutral, tr!("nav-device-reading", device = word));
     }
     match (d.linked(), d.main_battery()) {
-        (Some(false), _) => (Tone::Neutral, format!("{word} · off")),
+        (Some(false), _) => (Tone::Neutral, tr!("nav-device-off", device = word)),
         (_, Some(battery)) => {
             let percent = battery.percent();
             let tone = if percent <= crate::alerts::LOW_BATTERY_PERCENT {
@@ -373,9 +376,12 @@ fn device_summary(d: &crate::devices::DeviceSnapshot) -> (Tone, String) {
             } else {
                 Tone::Good
             };
-            (tone, format!("{word} · {percent} %"))
+            (
+                tone,
+                tr!("nav-device-battery", device = word, percent = percent),
+            )
         }
-        _ => (Tone::Good, format!("{word} · connected")),
+        _ => (Tone::Good, tr!("nav-device-connected", device = word)),
     }
 }
 
