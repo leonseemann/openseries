@@ -199,17 +199,17 @@ impl<B: AudioBackend> AudioSupervisor<B> {
         // object id after a replug or USB reset) or — for "system default" — was switched.
         // Other devices coming and going (iPhone mics, our own aggregates) must not interrupt
         // the audio.
-        if let Some((plan, _)) = &self.mix {
-            if self.devices.output(plan.output_uid.as_deref()) != self.mix_device.as_ref() {
-                self.mix = None;
-                self.failed_mix = None;
-            }
+        if let Some((plan, _)) = &self.mix
+            && self.devices.output(plan.output_uid.as_deref()) != self.mix_device.as_ref()
+        {
+            self.mix = None;
+            self.failed_mix = None;
         }
-        if let Some((plan, _)) = &self.mic {
-            if self.devices.input(plan.input_uid.as_deref()) != self.mic_device.as_ref() {
-                self.mic = None;
-                self.failed_mic = None;
-            }
+        if let Some((plan, _)) = &self.mic
+            && self.devices.input(plan.input_uid.as_deref()) != self.mic_device.as_ref()
+        {
+            self.mic = None;
+            self.failed_mic = None;
         }
         self.status.outputs.clone_from(&self.devices.outputs);
         self.status.inputs.clone_from(&self.devices.inputs);
@@ -412,14 +412,13 @@ impl<B: AudioBackend> AudioSupervisor<B> {
             }
         };
         // Only the chain changed: apply it live instead of restarting the feed.
-        if let Some((running, handle)) = self.mic.as_mut() {
-            if running.input_uid == plan.input_uid
-                && running.chain != plan.chain
-                && handle.set_chain(&plan.chain)
-            {
-                running.chain = plan.chain;
-                return;
-            }
+        if let Some((running, handle)) = self.mic.as_mut()
+            && running.input_uid == plan.input_uid
+            && running.chain != plan.chain
+            && handle.set_chain(&plan.chain)
+        {
+            running.chain = plan.chain;
+            return;
         }
         let unchanged = self
             .mic

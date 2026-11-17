@@ -528,15 +528,15 @@ fn curve_editor(
         ("device-eq", device.key()),
         || Some(PresetData::HeadsetEq(curve.clone())),
     );
-    if let Some(PresetData::HeadsetEq(stored)) = preset {
-        if stored.len() == usize::from(bands) {
-            // Snap to the device grid and clamp to its range.
-            let snapped = stored
-                .iter()
-                .map(|db| ((db / step_db).round() * step_db).clamp(min_db, max_db))
-                .collect();
-            write(snapped);
-        }
+    if let Some(PresetData::HeadsetEq(stored)) = preset
+        && stored.len() == usize::from(bands)
+    {
+        // Snap to the device grid and clamp to its range.
+        let snapped = stored
+            .iter()
+            .map(|db| ((db / step_db).round() * step_db).clamp(min_db, max_db))
+            .collect();
+        write(snapped);
     }
 }
 

@@ -416,12 +416,12 @@ fn spawn_link_forward(
                         return;
                     }
                 }
-                if let Some(now) = linked {
-                    if last != Some(now) {
-                        last = Some(now);
-                        if audio_tx.send(AudioMsg::HeadsetLinked(now)).is_err() {
-                            return;
-                        }
+                if let Some(now) = linked
+                    && last != Some(now)
+                {
+                    last = Some(now);
+                    if audio_tx.send(AudioMsg::HeadsetLinked(now)).is_err() {
+                        return;
                     }
                 }
                 std::thread::sleep(LINK_POLL);
