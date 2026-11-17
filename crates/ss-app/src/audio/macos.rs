@@ -11,6 +11,7 @@ use ss_engine::{Command as EngineCommand, EngineController};
 
 use super::plan::{DeviceInfo, DeviceSet, MicPlan, MixPlan, ProcessInfo};
 use super::supervisor::{AudioBackend, MicHandle, MixHandle};
+use crate::i18n::tr;
 
 /// UID prefix of every device this app creates: private aggregate devices
 /// (`ss-audio-macos`) and the virtual-mic driver's devices (`ss-hal-driver-macos`). They appear in
@@ -137,7 +138,7 @@ fn output_device(uid: Option<&str>) -> Result<OutputDevice, String> {
             .map_err(|e| e.to_string())?
             .into_iter()
             .find(|d| d.uid == uid)
-            .ok_or_else(|| "the selected output device is not connected".to_owned()),
+            .ok_or_else(|| tr!("audio-output-missing")),
     }
 }
 
@@ -148,13 +149,10 @@ fn input_device(uid: Option<&str>) -> Result<InputDevice, String> {
             .map_err(|e| e.to_string())?
             .into_iter()
             .find(|d| d.uid == uid)
-            .ok_or_else(|| "the selected microphone is not connected".to_owned())?,
+            .ok_or_else(|| tr!("audio-mic-missing"))?,
     };
     if device.uid == VIRTUAL_MIC_UID {
-        return Err(
-            "the system input is OpenSeries Microphone itself; choose the headset as source"
-                .to_owned(),
-        );
+        return Err(tr!("audio-mic-is-virtual"));
     }
     Ok(device)
 }

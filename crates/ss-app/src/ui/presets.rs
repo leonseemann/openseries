@@ -7,6 +7,7 @@ use eframe::egui;
 use ss_store::presets::{PresetData, PresetsConfig, export_json, import_json};
 
 use crate::core::{AppCore, Snapshot};
+use crate::i18n::tr;
 
 /// Which preset list a bar works on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -82,11 +83,11 @@ impl Kind {
         }
     }
 
-    const fn label(self) -> &'static str {
+    fn label(self) -> String {
         match self {
-            Self::DeviceEq(_) => "device EQ",
-            Self::Playback => "channel",
-            Self::Mic => "microphone",
+            Self::DeviceEq(_) => tr!("presets-kind-device-eq"),
+            Self::Playback => tr!("presets-kind-channel"),
+            Self::Mic => tr!("presets-kind-mic"),
         }
     }
 }
@@ -119,12 +120,12 @@ pub fn bar(
     let mut apply = None;
 
     ui.horizontal_wrapped(|ui| {
-        ui.label("Preset");
+        ui.label(tr!("presets-label"));
         egui::ComboBox::from_id_salt(id.with("combo"))
             .selected_text(state.selected.as_deref().unwrap_or("—"))
             .show_ui(ui, |ui| {
                 if names.is_empty() {
-                    ui.label(egui::RichText::new("no presets yet").weak());
+                    ui.label(egui::RichText::new(tr!("presets-none")).weak());
                 }
                 for name in &names {
                     if ui
@@ -133,58 +134,59 @@ pub fn bar(
                     {
                         state.selected = Some(name.clone());
                         apply = kind.get(presets, name);
-                        state.message = Some(format!("applied \"{name}\""));
+                        state.message = Some(tr!("presets-applied", name = name.as_str()));
                     }
                 }
             });
         if let Some(name) = state.selected.clone() {
-            if ui.button("Delete").clicked() {
+            if ui.button(tr!("presets-delete")).clicked() {
                 core.update_config(|c| kind.remove(&mut c.presets, &name));
                 state.selected = None;
-                state.message = Some(format!("deleted \"{name}\""));
+                state.message = Some(tr!("presets-deleted", name = name.as_str()));
             }
-            if ui.button("Export…").clicked() {
+            if ui.button(tr!("presets-export")).clicked() {
                 state.message = kind.get(presets, &name).map(|data| export(&name, &data));
             }
         }
-        if ui.button("Import…").clicked() {
+        if ui.button(tr!("presets-import")).clicked() {
             state.message = match import(core, kind) {
                 Ok(None) => None,
                 Ok(Some((name, imported))) if imported == kind => {
                     state.selected = Some(name.clone());
-                    Some(format!("imported \"{name}\" — pick it to apply"))
+                    Some(tr!("presets-imported-pick", name = name.as_str()))
                 }
-                Ok(Some((name, imported))) => Some(format!(
-                    "imported \"{name}\" as a {} preset",
-                    imported.label()
+                Ok(Some((name, imported))) => Some(tr!(
+                    "presets-imported-as",
+                    name = name.as_str(),
+                    kind = imported.label()
                 )),
-                Err(error) => Some(format!("import failed: {error}")),
+                Err(error) => Some(tr!("presets-import-failed", error = error)),
             };
         }
     });
     ui.horizontal(|ui| {
         ui.add(
             egui::TextEdit::singleline(&mut state.new_name)
-                .hint_text("name")
+                .hint_text(tr!("presets-name-hint"))
                 .desired_width(160.0),
         );
         let name = state.new_name.trim().to_owned();
         if ui
-            .add_enabled(!name.is_empty(), egui::Button::new("Save current"))
+            .add_enabled(!name.is_empty(), egui::Button::new(tr!("presets-save")))
             .clicked()
         {
             if let Some(data) = current() {
                 let replaced = names.contains(&name);
                 core.update_config(|c| c.presets.insert(name.clone(), data, kind.eq_device()));
                 state.message = Some(if replaced {
-                    format!("replaced \"{name}\"")
+                    tr!("presets-replaced", name = name.as_str())
                 } else {
-                    format!("saved \"{name}\"")
+                    tr!("presets-saved", name = name.as_str())
                 });
                 state.selected = Some(name);
                 state.new_name.clear();
             } else {
-                state.message = Some("nothing to save yet".to_owned());
+                state.message = Some(tr!("presets-nothing-to-save"));
             }
         }
         if let Some(message) = &state.message {
@@ -199,18 +201,18 @@ pub fn bar(
 /// Asks for a file and writes the preset; returns a status message.
 fn export(name: &str, data: &PresetData) -> String {
     let Some(path) = rfd::FileDialog::new()
-        .add_filter("OpenSeries preset", &["json"])
+        .add_filter(tr!("presets-file-filter"), &["json"])
         .set_file_name(format!("{}.json", file_stem(name)))
         .save_file()
     else {
-        return "export cancelled".to_owned();
+        return tr!("presets-export-cancelled");
     };
     match export_json(name, data)
         .map_err(|e| e.to_string())
         .and_then(|text| std::fs::write(&path, text).map_err(|e| e.to_string()))
     {
-        Ok(()) => format!("exported to {}", path.display()),
-        Err(error) => format!("export failed: {error}"),
+        Ok(()) => tr!("presets-exported", path = path.display().to_string()),
+        Err(error) => tr!("presets-export-failed", error = error),
     }
 }
 
@@ -218,15 +220,14 @@ fn export(name: &str, data: &PresetData) -> String {
 /// for that device). `Ok(None)` = cancelled.
 fn import(core: &AppCore, bar: Kind) -> Result<Option<(String, Kind)>, String> {
     let Some(path): Option<PathBuf> = rfd::FileDialog::new()
-        .add_filter("Preset (OpenSeries or Sonar JSON)", &["json"])
+        .add_filter(tr!("presets-import-filter"), &["json"])
         .pick_file()
     else {
         return Ok(None);
     };
     let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
     let (name, data) = import_json(&text).map_err(|e| e.to_string())?;
-    let kind =
-        Kind::of(&data, bar).ok_or("this is a device EQ preset; import it on the device's page")?;
+    let kind = Kind::of(&data, bar).ok_or_else(|| tr!("presets-device-eq-elsewhere"))?;
     core.update_config(|c| c.presets.insert(name.clone(), data, kind.eq_device()));
     Ok(Some((name, kind)))
 }

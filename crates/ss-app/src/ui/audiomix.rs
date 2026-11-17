@@ -13,6 +13,7 @@ use super::{presets, theme, widgets};
 use crate::audio::catalogue::{Source, classify};
 use crate::audio::plan::ProcessInfo;
 use crate::core::{AppCore, Snapshot};
+use crate::i18n::tr;
 
 const CHANNELS: [(Channel, &str); 4] = [
     (Channel::Game, "Game"),
@@ -39,16 +40,12 @@ const GENERIC_NAME_PARTS: [&str; 7] = [
 
 pub fn show(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, show_idle: &mut bool) {
     let config = &snapshot.config.audiomix;
-    components::page_header(
-        ui,
-        "AudioMix",
-        "Sort your apps into Game, Chat, Media and Aux and control each group separately.",
-    );
+    components::page_header(ui, "AudioMix", &tr!("mix-subtitle"));
     switch_card(ui, core, snapshot);
     if !config.enabled {
         return;
     }
-    components::card(ui, Some("Game/Chat balance"), |ui| {
+    components::card(ui, Some(&tr!("mix-balance-title")), |ui| {
         chatmix_control(ui, core, snapshot);
     });
     apps_card(ui, core, snapshot, show_idle);
@@ -61,13 +58,11 @@ fn switch_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
     components::card(ui, None, |ui| {
         let mut enabled = config.enabled;
         let description = if DSP {
-            "Routes app audio through OpenSeries. When off, OpenSeries does not touch system \
-             audio at all — use that when another audio tool should handle your apps."
+            tr!("mix-switch-hint-dsp")
         } else {
-            "Sets each app's volume by its channel and balances Game and Chat. When off, \
-             OpenSeries does not touch app volumes."
+            tr!("mix-switch-hint-volumes")
         };
-        components::row(ui, "AudioMix", Some(description), |ui| {
+        components::row(ui, "AudioMix", Some(&description), |ui| {
             if components::switch(ui, &mut enabled) {
                 core.update_config(|c| c.audiomix.enabled = enabled);
             }
@@ -92,7 +87,7 @@ pub(super) fn chatmix_control(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snap
                     .show_value(false)
                     .clamping(egui::SliderClamping::Always),
             )
-            .on_hover_text("Also follows the dial on your device and the balance hotkeys.");
+            .on_hover_text(tr!("mix-balance-hint"));
         ui.label(RichText::new("Chat").color(p.text));
         if response.changed() {
             core.set_chatmix(position);
@@ -105,16 +100,16 @@ pub(super) fn chatmix_control(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snap
     ui.horizontal(|ui| {
         let balance = ss_dsp::balance_from_slider(snapshot.chatmix_position);
         ui.label(
-            RichText::new(format!(
-                "Game {} %  ·  Chat {} %",
-                balance.game.get(),
-                balance.chat.get()
+            RichText::new(tr!(
+                "mix-balance-split",
+                game = balance.game.get(),
+                chat = balance.chat.get()
             ))
             .small()
             .color(p.text_secondary),
         );
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            if ui.small_button("Centre").clicked() {
+            if ui.small_button(tr!("mix-balance-centre")).clicked() {
                 core.set_chatmix(0.0);
                 core.sync_chatmix_to_headset();
             }
@@ -128,8 +123,9 @@ fn output_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
         // On Windows apps keep playing on their own device; the output choice does not apply.
         return;
     }
-    components::card(ui, Some("Output"), |ui| {
-        components::row(ui, "Play through", Some("Usually your headset."), |ui| {
+    components::card(ui, Some(&tr!("mix-output-title")), |ui| {
+        let hint = tr!("mix-play-through-hint");
+        components::row(ui, &tr!("mix-play-through"), Some(&hint), |ui| {
             if let Some(uid) = widgets::device_combo(
                 ui,
                 "audiomix-output",
@@ -139,18 +135,15 @@ fn output_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
                 core.update_config(|c| c.audiomix.output_device_uid = uid.into_uid());
             }
         });
-        egui::CollapsingHeader::new("Backup outputs")
+        egui::CollapsingHeader::new(tr!("mix-backup-outputs"))
             .id_salt("backup-outputs")
             .default_open(!config.output_fallback.is_empty())
             .show(ui, |ui| {
                 let p = theme::palette(ui);
                 ui.label(
-                    RichText::new(
-                        "Used in this order when the output above is missing (also for the \
-                         microphone's backups).",
-                    )
-                    .small()
-                    .color(p.text_secondary),
+                    RichText::new(tr!("mix-backup-outputs-hint"))
+                        .small()
+                        .color(p.text_secondary),
                 );
                 if let Some(list) = widgets::fallback_list(
                     ui,
@@ -161,7 +154,7 @@ fn output_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
                     core.update_config(|c| c.audiomix.output_fallback = list);
                 }
                 let mut trigger = config.fallback_when_headset_off;
-                components::row(ui, "Use backups while the headset is off", None, |ui| {
+                components::row(ui, &tr!("mix-backup-when-headset-off"), None, |ui| {
                     if components::switch(ui, &mut trigger) {
                         core.update_config(|c| c.audiomix.fallback_when_headset_off = trigger);
                     }
@@ -172,23 +165,20 @@ fn output_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
 
 fn channels(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
     let config = &snapshot.config.audiomix;
-    components::card(ui, Some("Channels"), |ui| {
+    components::card(ui, Some(&tr!("mix-channels-title")), |ui| {
         let p = theme::palette(ui);
         if !DSP {
             ui.label(
-                RichText::new(
-                    "On Windows, channels set the volume of their apps. Equalizer, boosts and \
-                     Smart Volume per channel are available on macOS.",
-                )
-                .small()
-                .color(p.text_secondary),
+                RichText::new(tr!("mix-channels-windows-hint"))
+                    .small()
+                    .color(p.text_secondary),
             );
             ui.add_space(4.0);
         }
         let master = config.master;
         fader_row(
             ui,
-            "All channels",
+            &tr!("mix-all-channels"),
             master.volume,
             master.muted,
             |volume, muted| {
@@ -215,11 +205,13 @@ fn channels(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot) {
                 },
             );
             if DSP {
-                egui::CollapsingHeader::new(RichText::new(format!("{name} sound")).small())
-                    .id_salt(("channel-sound", name))
-                    .show(ui, |ui| {
-                        channel_sound(ui, core, snapshot, channel, name, settings);
-                    });
+                egui::CollapsingHeader::new(
+                    RichText::new(tr!("mix-channel-sound", channel = name)).small(),
+                )
+                .id_salt(("channel-sound", name))
+                .show(ui, |ui| {
+                    channel_sound(ui, core, snapshot, channel, name, settings);
+                });
             }
         }
     });
@@ -254,19 +246,25 @@ fn channel_sound(
     name: &str,
     settings: &ChannelConfig,
 ) {
+    let (off, soft, balanced, strong) = (
+        tr!("mix-smart-volume-off"),
+        tr!("mix-smart-volume-soft"),
+        tr!("mix-smart-volume-balanced"),
+        tr!("mix-smart-volume-strong"),
+    );
     components::row(
         ui,
         "Smart Volume",
-        Some("Evens out loud and quiet passages."),
+        Some(&tr!("mix-smart-volume-hint")),
         |ui| {
             if let Some(choice) = components::segmented(
                 ui,
                 Some(settings.smart_volume),
                 &[
-                    (None, "Off"),
-                    (Some(Loudness::Soft), "Soft"),
-                    (Some(Loudness::Balanced), "Balanced"),
-                    (Some(Loudness::Extreme), "Strong"),
+                    (None, off.as_str()),
+                    (Some(Loudness::Soft), soft.as_str()),
+                    (Some(Loudness::Balanced), balanced.as_str()),
+                    (Some(Loudness::Extreme), strong.as_str()),
                 ],
             ) {
                 core.update_config(|c| c.audiomix.channels.get_mut(channel).smart_volume = choice);
@@ -274,26 +272,41 @@ fn channel_sound(
         },
     );
     let boosts = settings.boosts;
-    for (label, value, set) in [
+    for (label, value, max, set) in [
         (
-            "Bass",
+            tr!("mix-boost-bass"),
             boosts.bass_db,
+            MAX_BOOST_DB,
             (|c: &mut ChannelConfig, v| c.boosts.bass_db = v) as fn(&mut ChannelConfig, f32),
         ),
-        ("Treble", boosts.treble_db, |c, v| c.boosts.treble_db = v),
-        ("Voice clarity", boosts.clarity_db, |c, v| {
-            c.boosts.clarity_db = v;
-        }),
+        (
+            tr!("mix-boost-treble"),
+            boosts.treble_db,
+            MAX_BOOST_DB,
+            |c, v| {
+                c.boosts.treble_db = v;
+            },
+        ),
+        (
+            tr!("mix-boost-clarity"),
+            boosts.clarity_db,
+            MAX_BOOST_DB,
+            |c, v| {
+                c.boosts.clarity_db = v;
+            },
+        ),
         // SON-13 volume boost: extra gain after the DSP strip; the engine's soft clipper
         // on the summed output prevents hard clipping.
-        ("Volume boost", settings.gain_db, |c, v| c.gain_db = v),
+        (
+            tr!("mix-boost-volume"),
+            settings.gain_db,
+            MAX_VOLUME_BOOST_DB,
+            |c, v| {
+                c.gain_db = v;
+            },
+        ),
     ] {
-        let max = if label == "Volume boost" {
-            MAX_VOLUME_BOOST_DB
-        } else {
-            MAX_BOOST_DB
-        };
-        components::row(ui, label, None, |ui| {
+        components::row(ui, &label, None, |ui| {
             if let Some(db) = components::slider(ui, value, 0.0..=max, " dB") {
                 core.update_config(|c| set(c.audiomix.channels.get_mut(channel), db));
             }
@@ -318,13 +331,13 @@ fn channel_sound(
 /// 10-band gain editor on the default band frequencies. Returns the edited EQ.
 pub fn eq_editor(ui: &mut egui::Ui, id: impl std::hash::Hash, eq: &EqConfig) -> Option<EqConfig> {
     let mut edited: Option<EqConfig> = None;
-    egui::CollapsingHeader::new("Equalizer")
+    egui::CollapsingHeader::new(tr!("mix-eq"))
         .id_salt(id)
         .show(ui, |ui| {
             let p = theme::palette(ui);
             let mut enabled = eq.enabled;
-            components::row(ui, "Equalizer", None, |ui| {
-                if ui.button("Flat").clicked() {
+            components::row(ui, &tr!("mix-eq"), None, |ui| {
+                if ui.button(tr!("mix-eq-flat")).clicked() {
                     edited = Some(EqConfig {
                         enabled: eq.enabled,
                         bands: Vec::new(),
@@ -426,24 +439,19 @@ fn apps_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, show_idle: 
     }
     rows.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
 
-    components::card(ui, Some("Apps"), |ui| {
+    components::card(ui, Some(&tr!("mix-apps-title")), |ui| {
         let p = theme::palette(ui);
         components::row(
             ui,
-            "Show apps that are not playing",
-            Some("Apps you have not assigned play on Media."),
+            &tr!("mix-show-idle"),
+            Some(&tr!("mix-show-idle-hint")),
             |ui| {
                 components::switch(ui, show_idle);
             },
         );
         if rows.is_empty() {
             components::divider(ui);
-            ui.label(
-                RichText::new(
-                    "No app is playing sound right now. Start some audio and it appears here.",
-                )
-                .color(p.text_secondary),
-            );
+            ui.label(RichText::new(tr!("mix-no-apps")).color(p.text_secondary));
         }
         for (key, playing, is_running) in rows {
             components::divider(ui);
@@ -455,19 +463,16 @@ fn apps_card(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, show_idle: 
                     ui.set_width((ui.available_width() * 0.4).max(160.0));
                     ui.horizontal(|ui| {
                         let (tone, word) = if playing {
-                            (Tone::Good, "Playing")
+                            (Tone::Good, tr!("mix-app-playing"))
                         } else if is_running {
-                            (Tone::Neutral, "Idle")
+                            (Tone::Neutral, tr!("mix-app-idle"))
                         } else {
-                            (Tone::Neutral, "Not running")
+                            (Tone::Neutral, tr!("mix-app-not-running"))
                         };
                         ui.label(RichText::new(display_name(&key)).color(p.text));
-                        components::status(ui, tone, word);
+                        components::status(ui, tone, &word);
                     });
-                    let origin = source.map_or_else(
-                        || "not assigned — plays on Media".to_owned(),
-                        |s| s.label().to_owned(),
-                    );
+                    let origin = source.map_or_else(|| tr!("mix-app-unassigned"), Source::label);
                     ui.label(
                         RichText::new(format!("{key} · {origin}"))
                             .small()
@@ -514,11 +519,8 @@ fn channel_controls(
     // Back to the default (catalogue, game detection or Media); only for the user's choices.
     if source == Some(Source::Own)
         && ui
-            .small_button("Reset")
-            .on_hover_text(format!(
-                "Back to the automatic channel: {}",
-                channel_name(automatic)
-            ))
+            .small_button(tr!("mix-reset"))
+            .on_hover_text(tr!("mix-reset-hint", channel = channel_name(automatic)))
             .clicked()
     {
         core.update_config(|c| {

@@ -12,10 +12,7 @@ use ss_engine::Command as EngineCommand;
 
 use super::plan::{DeviceInfo, DeviceSet, MicPlan, MixPlan, ProcessInfo};
 use super::supervisor::{AudioBackend, MicHandle, MixHandle};
-
-/// Shown when the virtual microphone is enabled on Windows.
-const NO_MIC: &str =
-    "The virtual microphone is available on macOS only (Windows would need a signed audio driver)";
+use crate::i18n::tr;
 
 /// The Windows backend. Lives on the audio-control thread (COM objects are not `Send`).
 pub struct WinAudioBackend {
@@ -124,6 +121,7 @@ impl AudioBackend for WinAudioBackend {
     }
 
     fn start_mic(&mut self, _plan: &MicPlan) -> Result<Box<dyn MicHandle>, String> {
-        Err(NO_MIC.to_owned())
+        // Shown when the virtual microphone is enabled on Windows.
+        Err(tr!("audio-mic-macos-only"))
     }
 }
