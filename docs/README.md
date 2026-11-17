@@ -23,7 +23,7 @@
 | Translations: Fluent files, system language, adding a language (ADR 0010) | [`architecture/i18n.md`](architecture/i18n.md) | ✅ en, de |
 | Continuous integration (fmt, clippy, tests on Windows/macOS) | [`architecture/ci.md`](architecture/ci.md) | ✅ |
 | Devices: extensible platform for any device class and transport (ADR 0008) | [`architecture/devices.md`](architecture/devices.md) | ✅ Phase A (verified on Windows; macOS re-test pending) |
-| Releases: installers, update signing, in-app updates | [`architecture/release.md`](architecture/release.md) | ✅ v0.1.0 and v0.2.0 released; in-app update verified on Windows |
+| Releases: installers, update signing, in-app updates | [`architecture/release.md`](architecture/release.md) | ✅ v0.1.0 – v0.4.0 released; in-app update verified on Windows |
 | Decisions | [`adr/`](adr/) — [0001 v1 scope](adr/0001-v1-scope.md), [0002 macOS audio](adr/0002-macos-audio-strategy.md), [0003 license](adr/0003-license.md), [0004 Windows audio](adr/0004-windows-audio-strategy.md), [0005 one app, egui](adr/0005-single-app-pure-rust-ui.md), [0006 installers + updates](adr/0006-distribution-and-updates.md), [0007 rename to OpenSeries](adr/0007-rename-to-openseries.md), [0008 device platform (proposed)](adr/0008-multi-device-support.md), [0009 pull request workflow](adr/0009-pull-request-workflow.md), [0010 UI translations](adr/0010-ui-translations.md) | ✅ |
 
 ## Evidence convention
