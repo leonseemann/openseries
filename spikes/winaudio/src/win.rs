@@ -506,8 +506,8 @@ fn capture(args: &CaptureArgs) -> Res<()> {
             }
             let samples = queue.len() / BYTES_PER_SAMPLE;
             let bytes: Vec<u8> = queue.drain(..samples * BYTES_PER_SAMPLE).collect();
-            for chunk in bytes.chunks_exact(BYTES_PER_SAMPLE) {
-                let sample = f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
+            for chunk in bytes.as_chunks::<BYTES_PER_SAMPLE>().0 {
+                let sample = f32::from_le_bytes(*chunk);
                 window.peak = window.peak.max(sample.abs());
                 if let Some(w) = writer.as_mut() {
                     w.write_sample(sample)?;
