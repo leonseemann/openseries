@@ -13,6 +13,7 @@ use super::components::{self, Tone};
 use super::{presets, theme};
 use crate::core::{AppCore, Snapshot};
 use crate::devices::DeviceSnapshot;
+use crate::i18n::{self, tr};
 
 /// Width of the battery gauges.
 const BATTERY_WIDTH: f32 = 180.0;
@@ -42,14 +43,14 @@ impl Group {
         Self::More,
     ];
 
-    const fn title(self) -> &'static str {
+    fn title(self) -> String {
         match self {
-            Self::NoiseControl => "Noise control",
-            Self::Microphone => "Microphone",
-            Self::Equalizer => "Equalizer",
-            Self::Power => "Power and display",
-            Self::Device => "Device",
-            Self::More => "More",
+            Self::NoiseControl => tr!("device-group-noise-control"),
+            Self::Microphone => tr!("device-group-microphone"),
+            Self::Equalizer => tr!("device-group-equalizer"),
+            Self::Power => tr!("device-group-power"),
+            Self::Device => tr!("device-group-device"),
+            Self::More => tr!("device-group-more"),
         }
     }
 }
@@ -57,19 +58,15 @@ impl Group {
 /// How one feature kind appears on the device page.
 struct Presentation {
     group: Group,
-    label: &'static str,
-    description: Option<&'static str>,
+    label: String,
+    description: Option<String>,
     /// Only shown while another feature has this choice (e.g. transparency strength).
     shown_when: Option<(FeatureKind, &'static str)>,
 }
 
 /// The presentation of `kind`; `None` = shown elsewhere (status card, AudioMix) or not at all.
-const fn presentation(kind: FeatureKind) -> Option<Presentation> {
-    const fn p(
-        group: Group,
-        label: &'static str,
-        description: Option<&'static str>,
-    ) -> Presentation {
+fn presentation(kind: FeatureKind) -> Option<Presentation> {
+    fn p(group: Group, label: String, description: Option<String>) -> Presentation {
         Presentation {
             group,
             label,
@@ -84,85 +81,77 @@ const fn presentation(kind: FeatureKind) -> Option<Presentation> {
         | FeatureKind::BalanceDial => return None,
         FeatureKind::NoiseControl => p(
             Group::NoiseControl,
-            "Mode",
-            Some("Also switchable with the button on the device."),
+            tr!("device-noise-control-mode"),
+            Some(tr!("device-noise-control-mode-hint")),
         ),
         FeatureKind::Transparency => Presentation {
             shown_when: Some((FeatureKind::NoiseControl, "transparency")),
             ..p(
                 Group::NoiseControl,
-                "Transparency strength",
-                Some("How much of your surroundings you hear."),
+                tr!("device-transparency-strength"),
+                Some(tr!("device-transparency-strength-hint")),
             )
         },
         FeatureKind::MicMute => p(
             Group::Microphone,
-            "Status",
-            Some("Muted with the button on the device."),
+            tr!("device-mic-mute"),
+            Some(tr!("device-mic-mute-hint")),
         ),
-        FeatureKind::MicVolume => p(Group::Microphone, "Microphone volume", None),
+        FeatureKind::MicVolume => p(Group::Microphone, tr!("device-mic-volume"), None),
         FeatureKind::Sidetone => p(
             Group::Microphone,
-            "Sidetone",
-            Some("Hear your own voice while you talk."),
+            tr!("device-sidetone"),
+            Some(tr!("device-sidetone-hint")),
         ),
         FeatureKind::MicLedBrightness => p(
             Group::Microphone,
-            "Mute light brightness",
-            Some("The light on the microphone while it is muted."),
+            tr!("device-mic-led-brightness"),
+            Some(tr!("device-mic-led-brightness-hint")),
         ),
         FeatureKind::EqPreset => p(
             Group::Equalizer,
-            "Preset",
-            Some("Stored on the device; works on everything it plays."),
+            tr!("device-eq-preset"),
+            Some(tr!("device-eq-preset-hint")),
         ),
         FeatureKind::Equalizer => Presentation {
             shown_when: Some((FeatureKind::EqPreset, "custom")),
-            ..p(Group::Equalizer, "Custom curve", None)
+            ..p(Group::Equalizer, tr!("device-custom-curve"), None)
         },
         FeatureKind::AutoOff => p(
             Group::Power,
-            "Turn off when idle",
-            Some("Switches off after this long without sound."),
+            tr!("device-auto-off"),
+            Some(tr!("device-auto-off-hint")),
         ),
-        FeatureKind::DisplayBrightness => p(Group::Power, "Display brightness", None),
-        FeatureKind::Firmware => p(Group::Device, "Firmware", None),
+        FeatureKind::DisplayBrightness => p(Group::Power, tr!("device-display-brightness"), None),
+        FeatureKind::Firmware => p(Group::Device, tr!("device-firmware"), None),
         FeatureKind::UsbReplug => p(
             Group::Device,
-            "Reconnect USB",
-            Some("Fixes crackling: like unplugging the cable (audio pauses for a second)."),
+            tr!("device-usb-replug"),
+            Some(tr!("device-usb-replug-hint")),
         ),
-        _ => p(Group::More, "Setting", None),
+        _ => p(Group::More, tr!("device-setting"), None),
     })
 }
 
 /// The page of the connected device at `index` (`None` if it went away).
 pub fn show(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, index: usize) {
     let Some(device) = snapshot.devices.devices.get(index) else {
-        components::page_header(ui, "Device", "The device is no longer connected.");
+        components::page_header(ui, &tr!("device-title"), &tr!("device-gone"));
         not_connected(ui);
         return;
     };
     components::page_header(
         ui,
         device.info.name,
-        &format!(
-            "{} — settings stored on the device.",
-            class_word(device.info.class)
-        ),
+        &tr!("device-subtitle", class = class_word(device.info.class)),
     );
     if device.info.support == ss_device::Support::Experimental {
-        components::banner(
-            ui,
-            Tone::Warning,
-            "Experimental support: this device was not tested on hardware by the OpenSeries \
-             team. Settings may not work as described.",
-        );
+        components::banner(ui, Tone::Warning, &tr!("device-experimental"));
         ui.add_space(8.0);
     }
     if !device.ready {
         components::card(ui, None, |ui| {
-            components::status(ui, Tone::Neutral, &format!("Reading the {}…", device.hub()));
+            components::status(ui, Tone::Neutral, &tr!("device-reading", hub = hub(device)));
         });
         return;
     }
@@ -170,12 +159,10 @@ pub fn show(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, index: usize
         components::banner(
             ui,
             Tone::Neutral,
-            &format!(
-                "The {} is connected, but the {} is off or out of range. Settings stored in the {} \
-                 can still be changed.",
-                device.hub(),
-                class_word(device.info.class).to_lowercase(),
-                device.hub()
+            &tr!(
+                "device-unlinked",
+                hub = hub(device),
+                class = class_word_inline(device.info.class)
             ),
         );
         ui.add_space(8.0);
@@ -192,7 +179,7 @@ pub fn show(ui: &mut egui::Ui, core: &AppCore, snapshot: &Snapshot, index: usize
         if features.is_empty() && !extra_device_rows {
             continue;
         }
-        components::card(ui, Some(group.title()), |ui| {
+        components::card(ui, Some(&group.title()), |ui| {
             let mut first = true;
             for (feature, presentation) in &features {
                 if !first {
@@ -222,7 +209,7 @@ fn status_card(ui: &mut egui::Ui, device: &DeviceSnapshot) {
         return;
     };
     let batteries = device.batteries();
-    components::card(ui, Some("Battery"), |ui| {
+    components::card(ui, Some(&tr!("device-battery")), |ui| {
         for (index, slot) in slots.iter().enumerate() {
             if index > 0 {
                 components::divider(ui);
@@ -234,13 +221,16 @@ fn status_card(ui: &mut egui::Ui, device: &DeviceSnapshot) {
                 }
             };
             let (label, description) = match slot {
-                BatterySlot::Main => ("Battery", batteries.map(|(_, charge)| charge_text(charge))),
+                BatterySlot::Main => (
+                    tr!("device-battery"),
+                    batteries.map(|(_, charge)| charge_text(charge)),
+                ),
                 BatterySlot::Spare => (
-                    "Spare battery",
-                    Some("The battery charging in the base station."),
+                    tr!("device-spare-battery"),
+                    Some(tr!("device-spare-battery-hint")),
                 ),
             };
-            components::row(ui, label, description, |ui| {
+            components::row(ui, &label, description.as_deref(), |ui| {
                 components::battery(
                     ui,
                     level.map(ss_core::battery::BatteryLevel::percent),
@@ -261,15 +251,16 @@ fn feature_row(
     presentation: &Presentation,
 ) {
     let label = if presentation.group == Group::More {
-        format!("{:?}", feature.id.kind)
+        let kind = format!("{:?}", feature.id.kind);
+        i18n::lookup(&format!("device-kind-{}", fluent_id(&kind))).unwrap_or(kind)
     } else {
-        presentation.label.to_owned()
+        presentation.label.clone()
     };
     if let Descriptor::Equalizer { .. } = feature.descriptor {
         curve_editor(ui, core, snapshot, device, feature);
         return;
     }
-    components::row(ui, &label, presentation.description, |ui| {
+    components::row(ui, &label, presentation.description.as_deref(), |ui| {
         control(ui, core, device, feature);
     });
 }
@@ -295,19 +286,17 @@ pub(super) fn control(
                     .map(|(_, version)| version.as_str())
                     .collect::<Vec<_>>()
                     .join(" · "),
-                _ => "unknown".to_owned(),
+                _ => tr!("device-versions-unknown"),
             };
-            ui.monospace(text).on_hover_text(
-                "Component versions as reported by the device. Which part each number belongs to \
-                 may not be known.",
-            );
+            ui.monospace(text)
+                .on_hover_text(tr!("device-versions-hint"));
         }
         Descriptor::Action => {
             if feature.id.kind == FeatureKind::UsbReplug {
                 let supported = crate::platform::USB_RESET_SUPPORTED;
                 if ui
-                    .add_enabled(supported, egui::Button::new("Reconnect"))
-                    .on_disabled_hover_text("Not available on this operating system yet.")
+                    .add_enabled(supported, egui::Button::new(tr!("device-reconnect")))
+                    .on_disabled_hover_text(tr!("device-reconnect-unsupported"))
                     .clicked()
                 {
                     core.reconnect_usb(Some(device.key()));
@@ -334,15 +323,24 @@ fn choice_control(
         Some(Value::Choice(key)) => Some(*key),
         _ => None,
     };
+    let kind = feature.id.kind;
+    let labels: Vec<String> = options
+        .iter()
+        .map(|o| driver_text(kind, o.key, o.label))
+        .collect();
     let selected = options
         .iter()
-        .find(|o| Some(o.key) == current)
-        .map_or("Unknown", |o| o.label);
+        .zip(&labels)
+        .find(|(o, _)| Some(o.key) == current)
+        .map_or_else(|| tr!("device-unknown"), |(_, label)| label.clone());
     if !feature.writable {
         ui.label(selected);
     } else if options.len() <= MAX_SEGMENTS {
-        let segments: Vec<(&'static str, &str)> =
-            options.iter().map(|o| (o.key, o.label)).collect();
+        let segments: Vec<(&'static str, &str)> = options
+            .iter()
+            .zip(&labels)
+            .map(|(o, label)| (o.key, label.as_str()))
+            .collect();
         if let Some(key) = components::segmented(ui, current, &segments) {
             write(Value::Choice(key));
         }
@@ -351,9 +349,9 @@ fn choice_control(
             .selected_text(selected)
             .width(170.0)
             .show_ui(ui, |ui| {
-                for option in options {
+                for (option, label) in options.iter().zip(&labels) {
                     if ui
-                        .selectable_label(current == Some(option.key), option.label)
+                        .selectable_label(current == Some(option.key), label)
                         .clicked()
                     {
                         write(Value::Choice(option.key));
@@ -373,14 +371,19 @@ fn level_control(
     write: impl Fn(Value),
 ) {
     let Some(Value::Level(level)) = value else {
-        ui.label("Unknown");
+        ui.label(tr!("device-unknown"));
         return;
     };
+    let kind = feature.id.kind;
     let steps = usize::from(range.max - range.min) + 1;
     match range.labels {
         Some(labels) if steps <= MAX_SEGMENTS && feature.writable => {
+            let labels: Vec<String> = labels
+                .iter()
+                .map(|label| driver_text(kind, label, label))
+                .collect();
             let segments: Vec<(u8, &str)> = (range.min..=range.max)
-                .zip(labels.iter().copied())
+                .zip(labels.iter().map(String::as_str))
                 .collect();
             if let Some(level) = components::segmented(ui, Some(*level), &segments) {
                 write(Value::Level(level));
@@ -397,11 +400,10 @@ fn level_control(
             }
         }
         _ => {
-            ui.label(
-                range
-                    .label(*level)
-                    .map_or_else(|| level.to_string(), str::to_owned),
-            );
+            ui.label(range.label(*level).map_or_else(
+                || level.to_string(),
+                |label| driver_text(kind, label, label),
+            ));
         }
     }
 }
@@ -421,14 +423,14 @@ fn toggle_control(
         }
     } else if feature.id.kind == FeatureKind::MicMute {
         if on {
-            components::status(ui, Tone::Warning, "Muted");
+            components::status(ui, Tone::Warning, &tr!("device-muted"));
         } else {
-            components::status(ui, Tone::Good, "Live");
+            components::status(ui, Tone::Good, &tr!("device-live"));
         }
     } else if on {
-        components::status(ui, Tone::Good, "On");
+        components::status(ui, Tone::Good, &tr!("device-on"));
     } else {
-        components::status(ui, Tone::Neutral, "Off");
+        components::status(ui, Tone::Neutral, &tr!("device-off"));
     }
 }
 
@@ -439,14 +441,14 @@ fn identity_rows(ui: &mut egui::Ui, device: &DeviceSnapshot, first: bool) {
     }
     let instance = &device.instance;
     let bus = match instance.bus {
-        ss_device::Bus::Usb => "USB",
-        ss_device::Bus::Bluetooth => "Bluetooth",
-        ss_device::Bus::Other => "Connection",
+        ss_device::Bus::Usb => "USB".to_owned(),
+        ss_device::Bus::Bluetooth => "Bluetooth".to_owned(),
+        ss_device::Bus::Other => tr!("device-connection"),
     };
-    components::row(ui, bus, None, |ui| {
-        let release = instance
-            .release
-            .map_or_else(String::new, |r| format!(" · release {}", bcd_release(r)));
+    components::row(ui, &bus, None, |ui| {
+        let release = instance.release.map_or_else(String::new, |r| {
+            format!(" · {}", tr!("device-release", version = bcd_release(r)))
+        });
         ui.monospace(format!("PID {:#06x}{release}", instance.product_id));
     });
 }
@@ -471,24 +473,26 @@ fn curve_editor(
         return;
     };
     let Some(Value::Curve(curve)) = device.values.get(&feature.id).cloned() else {
-        ui.label(
-            RichText::new("The device did not report a custom curve.").color(p.text_secondary),
-        );
+        ui.label(RichText::new(tr!("device-no-curve")).color(p.text_secondary));
         return;
     };
     let write =
         |curve: Vec<f32>| core.set_feature(Some(device.key()), feature.id, Value::Curve(curve));
     ui.horizontal(|ui| {
-        ui.label(RichText::new("Custom curve").color(p.text));
+        ui.label(RichText::new(tr!("device-custom-curve")).color(p.text));
         ui.label(
-            RichText::new(format!("{min_db:+} … {max_db:+} dB per band, low to high"))
-                .small()
-                .color(p.text_secondary),
+            RichText::new(tr!(
+                "device-curve-range",
+                min = format!("{min_db:+}"),
+                max = format!("{max_db:+}")
+            ))
+            .small()
+            .color(p.text_secondary),
         );
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             let flat = curve.iter().all(|g| *g == 0.0);
             if ui
-                .add_enabled(!flat, egui::Button::new("Reset to flat"))
+                .add_enabled(!flat, egui::Button::new(tr!("device-reset-flat")))
                 .clicked()
             {
                 write(vec![0.0; usize::from(bands)]);
@@ -555,8 +559,8 @@ fn band_label(index: usize, bands: usize, centre_hz: Option<&[f32]>) -> String {
         };
     }
     match index {
-        0 => "Low".to_owned(),
-        i if i + 1 == bands => "High".to_owned(),
+        0 => tr!("device-band-low"),
+        i if i + 1 == bands => tr!("device-band-high"),
         i => format!("{}", i + 1),
     }
 }
@@ -610,27 +614,75 @@ fn level_slider(
 /// Empty state when no supported device is connected.
 pub(super) fn not_connected(ui: &mut egui::Ui) {
     components::card(ui, None, |ui| {
-        components::status(ui, Tone::Error, "No supported device connected");
+        components::status(ui, Tone::Error, &tr!("device-none"));
         let p = theme::palette(ui);
-        ui.label(
-            RichText::new(
-                "Connect your device to this computer. The Arctis Nova Pro Wireless connects with \
-                 its base station (on macOS the USB-1 port); if it is plugged in, it may be \
-                 switched to the other USB input — switch it back on the base station.",
-            )
-            .color(p.text_secondary),
-        );
+        ui.label(RichText::new(tr!("device-none-hint")).color(p.text_secondary));
     });
 }
 
-/// "Headset", "Keyboard", …
-pub(super) const fn class_word(class: DeviceClass) -> &'static str {
+/// "Headset", "Keyboard", … as a label or at the start of a sentence.
+pub(super) fn class_word(class: DeviceClass) -> String {
     match class {
-        DeviceClass::Headset => "Headset",
-        DeviceClass::Keyboard => "Keyboard",
-        DeviceClass::Mouse => "Mouse",
-        DeviceClass::Other => "Device",
+        DeviceClass::Headset => tr!("device-class-headset"),
+        DeviceClass::Keyboard => tr!("device-class-keyboard"),
+        DeviceClass::Mouse => tr!("device-class-mouse"),
+        DeviceClass::Other => tr!("device-class-other"),
     }
+}
+
+/// The class word inside a sentence ("headset" in English, "Headset" in German).
+pub(super) fn class_word_inline(class: DeviceClass) -> String {
+    match class {
+        DeviceClass::Headset => tr!("device-class-headset-inline"),
+        DeviceClass::Keyboard => tr!("device-class-keyboard-inline"),
+        DeviceClass::Mouse => tr!("device-class-mouse-inline"),
+        DeviceClass::Other => tr!("device-class-other-inline"),
+    }
+}
+
+/// The device's hub (e.g. "base station") inside a sentence, translated by the message
+/// `device-hub-<name>` if one exists.
+pub(super) fn hub(device: &DeviceSnapshot) -> String {
+    let name = device.hub();
+    i18n::lookup(&format!("device-hub-{}", fluent_id(name))).unwrap_or_else(|| name.to_owned())
+}
+
+/// A text of the device driver (choice option or named level), translated by the message
+/// `device-<kind>-<key>` (e.g. `device-noise-control-anc`), otherwise the driver's English
+/// `fallback`.
+fn driver_text(kind: FeatureKind, key: &str, fallback: &str) -> String {
+    i18n::lookup(&driver_text_id(kind, key)).unwrap_or_else(|| fallback.to_owned())
+}
+
+/// `device-<kind>-<key>`, both parts in Fluent-safe kebab case.
+fn driver_text_id(kind: FeatureKind, key: &str) -> String {
+    format!(
+        "device-{}-{}",
+        fluent_id(&format!("{kind:?}")),
+        fluent_id(key)
+    )
+}
+
+/// Kebab case of an identifier or label: `NoiseControl` → `noise-control`, `bass_boost` →
+/// `bass-boost`, `base station` → `base-station`.
+fn fluent_id(text: &str) -> String {
+    let mut id = String::with_capacity(text.len() + 4);
+    let mut after_lower = false;
+    for c in text.chars() {
+        if c.is_ascii_alphanumeric() {
+            if c.is_ascii_uppercase() && after_lower {
+                id.push('-');
+            }
+            id.push(c.to_ascii_lowercase());
+            after_lower = c.is_ascii_lowercase() || c.is_ascii_digit();
+        } else {
+            if !id.is_empty() && !id.ends_with('-') {
+                id.push('-');
+            }
+            after_lower = false;
+        }
+    }
+    id.trim_end_matches('-').to_owned()
 }
 
 /// Sidebar / overview icon of a device class.
@@ -644,12 +696,12 @@ pub(super) const fn class_icon(class: DeviceClass) -> &'static str {
 }
 
 /// Plain-language charging state.
-pub(super) const fn charge_text(state: ChargeState) -> &'static str {
+pub(super) fn charge_text(state: ChargeState) -> String {
     match state {
-        ChargeState::Discharging => "On battery",
-        ChargeState::Charging => "Charging",
-        ChargeState::PluggedNotCharging => "Plugged in",
-        ChargeState::Unknown => "Battery state unknown",
+        ChargeState::Discharging => tr!("device-charge-discharging"),
+        ChargeState::Charging => tr!("device-charge-charging"),
+        ChargeState::PluggedNotCharging => tr!("device-charge-plugged"),
+        ChargeState::Unknown => tr!("device-charge-unknown"),
     }
 }
 
@@ -682,6 +734,38 @@ mod tests {
         assert_eq!(band_label(1, 3, Some(&[100.0, 2500.0, 8000.0])), "2.5k");
         assert_eq!(band_label(2, 3, Some(&[100.0, 2500.0, 8000.0])), "8k");
         assert_eq!(band_label(0, 3, Some(&[100.0, 2500.0, 8000.0])), "100");
+    }
+
+    #[test]
+    fn driver_text_ids_are_kebab_case() {
+        assert_eq!(
+            driver_text_id(FeatureKind::NoiseControl, "anc"),
+            "device-noise-control-anc"
+        );
+        assert_eq!(
+            driver_text_id(FeatureKind::EqPreset, "bass_boost"),
+            "device-eq-preset-bass-boost"
+        );
+        assert_eq!(
+            driver_text_id(FeatureKind::AutoOff, "10min"),
+            "device-auto-off-10min"
+        );
+        assert_eq!(
+            driver_text_id(FeatureKind::Sidetone, "Medium"),
+            "device-sidetone-medium"
+        );
+        assert_eq!(fluent_id("base station"), "base-station");
+    }
+
+    #[test]
+    fn driver_texts_have_messages() {
+        // English is loaded in tests; a missing message would return the "?" fallback.
+        assert_eq!(
+            driver_text(FeatureKind::NoiseControl, "anc", "?"),
+            "Noise cancelling"
+        );
+        assert_eq!(driver_text(FeatureKind::Sidetone, "Medium", "?"), "Medium");
+        assert_eq!(driver_text(FeatureKind::AutoOff, "never", "?"), "Never");
     }
 
     #[test]
