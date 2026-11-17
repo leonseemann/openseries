@@ -6,8 +6,9 @@ Decision: [ADR 0006](../adr/0006-distribution-and-updates.md). Workflow:
 ## 1. Publishing a release
 
 1. Bump `version` in `[workspace.package]` of the root `Cargo.toml` (semver: `0.2.0`, `0.2.1` …),
-   run the checks from AGENTS.md, commit, push.
-2. Tag and push: `git tag v0.2.0 && git push origin v0.2.0`.
+   run the checks from AGENTS.md and merge it through a pull request (`chore: release X.Y.Z (…)`,
+   ADR 0009).
+2. Tag the merged commit on `main` and push: `git tag v0.2.0 && git push origin v0.2.0`.
 3. CI builds both packages, signs them, checks the signatures against the key built into the app
    and publishes the release `v0.2.0` with generated notes. Installed apps see it within 6 hours
    (or at once via Settings → Updates → Check now).
