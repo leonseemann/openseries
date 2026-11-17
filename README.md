@@ -22,6 +22,9 @@ On macOS also via [Homebrew](https://github.com/leonseemann/homebrew-tap):
 brew install --cask leonseemann/tap/openseries
 ```
 
+The app follows the system language (English and German so far; Settings → Language). Adding a
+language needs no code: see [Contributing](CONTRIBUTING.md#translations).
+
 ## Layout
 - `docs/re/` — reverse-engineering notes; kept in a private repository (see AGENTS.md)
 - `docs/architecture/` — design of the Rust rewrite
