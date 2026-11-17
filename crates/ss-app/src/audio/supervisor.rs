@@ -12,6 +12,7 @@ use super::plan::{
     DeviceInfo, DeviceSet, MicPlan, MixDecision, MixPlan, ProcessInfo, mic_plan, mix_decision,
     resolve_device,
 };
+use crate::i18n::tr;
 
 /// A running AudioMix session; dropping it stops the mix.
 pub trait MixHandle {
@@ -60,7 +61,7 @@ pub trait AudioBackend {
     /// # Errors
     /// A user-facing message.
     fn set_default_input(&mut self, _uid: &str) -> Result<(), String> {
-        Err("not supported on this operating system".to_owned())
+        Err(tr!("audio-not-supported"))
     }
 }
 
@@ -113,12 +114,14 @@ enum DefaultInput {
 }
 
 /// Shown for an enabled service while the base station is missing.
-pub const PAUSED_REASON: &str = "no supported device is connected";
+fn paused_reason() -> String {
+    tr!("audio-paused")
+}
 
 /// Status of a service while the base station is missing: off stays off, on is paused.
 fn paused_status(enabled: bool) -> ServiceStatus {
     if enabled {
-        ServiceStatus::Blocked(PAUSED_REASON.to_owned())
+        ServiceStatus::Blocked(paused_reason())
     } else {
         ServiceStatus::Off
     }
@@ -339,9 +342,10 @@ impl<B: AudioBackend> AudioSupervisor<B> {
             }
             MixDecision::Blocked(tools) => {
                 self.mix = None;
-                self.status.mix = ServiceStatus::Blocked(format!(
-                    "{} is running and also captures app audio",
-                    tools.join(", ")
+                self.status.mix = ServiceStatus::Blocked(tr!(
+                    "audio-conflict",
+                    tools = tools.join(", "),
+                    count = tools.len()
                 ));
                 return;
             }
@@ -598,7 +602,7 @@ mod tests {
         h.supervisor.on_tick();
         assert_eq!(h.log.borrow().mix_starts.len(), 0);
         assert_eq!(h.log.borrow().mic_starts.len(), 0);
-        let paused = ServiceStatus::Blocked(PAUSED_REASON.to_owned());
+        let paused = ServiceStatus::Blocked(paused_reason());
         assert_eq!(h.supervisor.status().mix, paused);
         assert_eq!(h.supervisor.status().mic, paused);
     }

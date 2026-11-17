@@ -10,6 +10,7 @@ use ss_core::mixer::ChannelId;
 use ss_store::config::{AudioMixConfig, Channel};
 
 use super::plan::ProcessInfo;
+use crate::i18n::tr;
 
 /// The catalogue file, compiled into the app.
 const CATALOGUE_TOML: &str = include_str!("../../data/app-catalogue.toml");
@@ -51,12 +52,12 @@ pub enum Source {
 impl Source {
     /// Short label for the UI.
     #[must_use]
-    pub const fn label(self) -> &'static str {
+    pub fn label(self) -> String {
         match self {
-            Self::Own => "your choice",
-            Self::Catalogue => "built-in list",
-            Self::GameLibrary => "game library",
-            Self::GamesCategory => "games category",
+            Self::Own => tr!("audio-source-own"),
+            Self::Catalogue => tr!("audio-source-catalogue"),
+            Self::GameLibrary => tr!("audio-source-game-library"),
+            Self::GamesCategory => tr!("audio-source-games-category"),
         }
     }
 }
