@@ -10,6 +10,9 @@ AGENTS.md: `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D wa
 | clippy + test (Windows) | windows-latest | every push / PR | the platform nobody builds locally (owner develops on a Mac) |
 | clippy + test (macOS) | macos-latest | PRs and manual runs | macOS minutes were billed 10× while the repo was private (public since ADR 0006: free; kept as is, the same checks run locally) |
 
+All three jobs are **required status checks** for merging into `main`, which accepts changes
+only through pull requests ([ADR 0009](../adr/0009-pull-request-workflow.md)).
+
 Installers and releases have their own workflow, see [release.md](release.md).
 
 Build time is kept low by:
@@ -19,7 +22,8 @@ Build time is kept low by:
 - One job per OS for clippy **and** tests, building the test binaries first so both reuse the same
   compiled dependencies.
 - `CARGO_INCREMENTAL=0` and no debug info in dev/test profiles (smaller cache, faster links).
-- `paths-ignore` for docs-only commits; `concurrency` cancels superseded runs.
+- `paths-ignore` for docs-only pushes to `main` (not for pull requests: all three jobs are
+  required checks, see below); `concurrency` cancels superseded runs.
 
 First results (2026-11-14): Windows clippy + tests pass; with a warm cache the Windows job takes
 about 2 minutes, rustfmt about 20 s.

@@ -47,6 +47,10 @@ cargo run -p ssdsp -- in.wav out.wav --band 1000:-6:1 --bass 6 --smart-volume ba
 Crates: `ss-core` (domain), `ss-nova-pro` (device driver), `ss-hid` (hidapi transport),
 `ss-dsp` (audio processing), `ssctl` (headset CLI), `ssdsp` (offline DSP tool).
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md); security issues go to [SECURITY.md](SECURITY.md).
+
 ## License
 
 Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or [MIT license](LICENSE-MIT)

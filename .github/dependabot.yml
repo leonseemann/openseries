@@ -1,0 +1,14 @@
+# Version updates for workflow actions only; Cargo bumps stay manual because each one needs the
+# third-party licence list regenerated (ADR 0009). Security updates for Cargo are enabled in the
+# repository settings.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: ci
+    groups:
+      actions:
+        patterns: ["*"]

@@ -19,6 +19,9 @@ cross-platform Rust reimplementation of the SteelSeries GG feature set
 5. **Document as you go.** A change is not done until the relevant doc is updated.
 6. **Commit small and often** using Conventional Commits (`feat:`, `fix:`, `docs:`, `refactor:`,
    `test:`, `chore:`), scoped by crate where useful: `feat(audio-mix): …`.
+7. **Pull requests only.** `main` is protected: work on a short-lived branch (`feat/…`, `fix/…`,
+   `docs/…`) and merge through a pull request with green CI and a Conventional Commit as title
+   ([CONTRIBUTING.md](CONTRIBUTING.md), [ADR 0009](docs/adr/0009-pull-request-workflow.md)).
 
 ## Repository layout
 
